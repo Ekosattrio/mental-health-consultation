@@ -1,0 +1,169 @@
+﻿src/components/admin/AdminDashboard.tsx(268,6): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(310,8): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(354,10): error TS17008: JSX element 'main' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(448,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(449,12): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(502,16): error TS17008: JSX element 'table' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(533,25): error TS2657: JSX expressions must have one parent element.
+src/components/admin/AdminDashboard.tsx(542,29): error TS17002: Expected corresponding JSX closing tag for 'td'.
+src/components/admin/AdminDashboard.tsx(543,27): error TS17002: Expected corresponding JSX closing tag for 'tr'.
+src/components/admin/AdminDashboard.tsx(572,29): error TS2657: JSX expressions must have one parent element.
+src/components/admin/AdminDashboard.tsx(575,29): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(644,28): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(677,23): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(677,25): error TS17002: Expected corresponding JSX closing tag for 'td'.
+src/components/admin/AdminDashboard.tsx(679,21): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(680,29): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(681,27): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(683,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(684,20): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(685,19): error TS17002: Expected corresponding JSX closing tag for 'td'.
+src/components/admin/AdminDashboard.tsx(686,17): error TS17002: Expected corresponding JSX closing tag for 'tr'.
+src/components/admin/AdminDashboard.tsx(687,13): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(687,15): error TS17002: Expected corresponding JSX closing tag for 'tbody'.
+src/components/admin/AdminDashboard.tsx(690,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(694,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(756,40): error TS1005: ',' expected.
+src/components/admin/AdminDashboard.tsx(813,21): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(814,21): error TS1005: '}' expected.
+src/components/admin/AdminDashboard.tsx(814,22): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(820,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(960,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(961,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(962,12): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(963,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1072,16): error TS1005: ':' expected.
+src/components/admin/AdminDashboard.tsx(1072,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1074,42): error TS1382: Unexpected token. Did you mean `{'>'}` or `&gt;`?
+src/components/admin/AdminDashboard.tsx(1075,19): error TS1109: Expression expected.
+src/components/admin/AdminDashboard.tsx(1122,17): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1123,16): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1126,9): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(1127,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1132,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1133,12): error TS17008: JSX element 'form' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1135,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1145,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1156,17): error TS2657: JSX expressions must have one parent element.
+src/components/admin/AdminDashboard.tsx(1216,15): error TS17002: Expected corresponding JSX closing tag for 'form'.
+src/components/admin/AdminDashboard.tsx(1218,13): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(1219,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1220,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1221,18): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1273,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1519,15): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(1520,12): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1563,15): error TS17002: Expected corresponding JSX closing tag for 'form'.
+src/components/admin/AdminDashboard.tsx(1565,13): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(1566,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1567,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1568,18): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1624,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1625,18): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1635,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1674,20): error TS17008: JSX element 'label' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1704,21): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(1757,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1764,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1787,23): error TS2657: JSX expressions must have one parent element.
+src/components/admin/AdminDashboard.tsx(1834,23): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(1836,19): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1836,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1855,15): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(1856,12): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(1890,15): error TS17002: Expected corresponding JSX closing tag for 'form'.
+src/components/admin/AdminDashboard.tsx(1892,13): error TS1005: ')' expected.
+src/components/admin/AdminDashboard.tsx(1893,14): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(1894,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/admin/AdminDashboard.tsx(2104,13): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(2123,15): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(2124,12): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(2126,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(2127,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/admin/AdminDashboard.tsx(2324,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/admin/AdminDashboard.tsx(2325,1): error TS1005: '</' expected.
+src/components/auth/LoginModal.tsx(98,11): error TS1005: ':' expected.
+src/components/auth/LoginModal.tsx(104,7): error TS1005: ',' expected.
+src/components/auth/LoginModal.tsx(106,9): error TS1003: Identifier expected.
+src/components/auth/LoginModal.tsx(106,13): error TS1005: ',' expected.
+src/components/auth/LoginModal.tsx(106,21): error TS1005: ',' expected.
+src/components/auth/LoginModal.tsx(106,23): error TS1005: ',' expected.
+src/components/auth/LoginModal.tsx(107,22): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(28,3): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(174,11): error TS1005: ':' expected.
+src/components/patient/PatientDashboard.tsx(183,7): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(185,12): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(185,39): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(185,41): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(186,32): error TS1005: ',' expected.
+src/components/patient/PatientDashboard.tsx(415,10): error TS17008: JSX element 'main' has no corresponding closing tag.
+src/components/patient/PatientDashboard.tsx(729,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/patient/PatientDashboard.tsx(1748,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/patient/PatientDashboard.tsx(1749,7): error TS1005: ')' expected.
+src/components/psychologist/PsychologistDashboard.tsx(24,3): error TS1005: ',' expected.
+src/components/psychologist/PsychologistDashboard.tsx(267,22): error TS1005: ',' expected.
+src/components/psychologist/PsychologistDashboard.tsx(305,6): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(361,8): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(403,10): error TS17008: JSX element 'main' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(641,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(642,12): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(802,25): error TS1005: ')' expected.
+src/components/psychologist/PsychologistDashboard.tsx(807,23): error TS1128: Declaration or statement expected.
+src/components/psychologist/PsychologistDashboard.tsx(808,23): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(810,21): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(811,20): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(895,13): error TS1005: ')' expected.
+src/components/psychologist/PsychologistDashboard.tsx(896,18): error TS1005: ',' expected.
+src/components/psychologist/PsychologistDashboard.tsx(907,15): error TS1005: ',' expected.
+src/components/psychologist/PsychologistDashboard.tsx(907,31): error TS1005: ',' expected.
+src/components/psychologist/PsychologistDashboard.tsx(912,16): error TS1005: ',' expected.
+src/components/psychologist/PsychologistDashboard.tsx(1003,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(1191,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1192,12): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1198,10): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1199,12): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1212,15): error TS2657: JSX expressions must have one parent element.
+src/components/psychologist/PsychologistDashboard.tsx(1218,14): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(1221,14): error TS17008: JSX element 'form' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1222,16): error TS17008: JSX element 'div' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1233,14): error TS17008: JSX element 'form' has no corresponding closing tag.
+src/components/psychologist/PsychologistDashboard.tsx(1524,15): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/psychologist/PsychologistDashboard.tsx(1633,8): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(1634,11): error TS17002: Expected corresponding JSX closing tag for 'div'.
+src/components/psychologist/PsychologistDashboard.tsx(1638,1): error TS1381: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+src/components/psychologist/PsychologistDashboard.tsx(1639,1): error TS1005: ')' expected.
+src/components/psychologist/PsychologistDashboard.tsx(1639,1): error TS1005: '</' expected.
+src/context/AppContext.tsx(19,3): error TS1005: ',' expected.
+src/context/AppContext.tsx(36,3): error TS1005: ',' expected.
+src/context/AppContext.tsx(715,1): error TS1005: '}' expected.
+src/controllers/PatientController.ts(16,3): error TS1005: ',' expected.
+src/controllers/PatientController.ts(260,10): error TS1128: Declaration or statement expected.
+src/controllers/PatientController.ts(260,16): error TS1005: ';' expected.
+src/controllers/PatientController.ts(261,9): error TS1472: 'catch' or 'finally' expected.
+src/controllers/PatientController.ts(298,3): error TS1128: Declaration or statement expected.
+src/controllers/PatientController.ts(298,10): error TS1434: Unexpected keyword or identifier.
+src/controllers/PatientController.ts(298,39): error TS1005: ',' expected.
+src/controllers/PatientController.ts(299,26): error TS1005: ',' expected.
+src/controllers/PatientController.ts(300,27): error TS1005: ',' expected.
+src/controllers/PatientController.ts(301,22): error TS1005: ',' expected.
+src/controllers/PatientController.ts(302,24): error TS1005: ',' expected.
+src/controllers/PatientController.ts(303,19): error TS1005: ',' expected.
+src/controllers/PatientController.ts(304,20): error TS1005: ',' expected.
+src/controllers/PatientController.ts(305,25): error TS1005: ',' expected.
+src/controllers/PatientController.ts(306,29): error TS1005: ',' expected.
+src/controllers/PatientController.ts(307,5): error TS1005: ';' expected.
+src/controllers/PatientController.ts(307,19): error TS1109: Expression expected.
+src/controllers/PatientController.ts(308,9): error TS1005: ':' expected.
+src/controllers/PatientController.ts(309,13): error TS1005: ':' expected.
+src/controllers/PatientController.ts(309,71): error TS1005: ',' expected.
+src/controllers/PatientController.ts(310,11): error TS1003: Identifier expected.
+src/controllers/PatientController.ts(310,20): error TS1005: ',' expected.
+src/controllers/PatientController.ts(310,46): error TS1005: ',' expected.
+src/controllers/PatientController.ts(310,48): error TS1136: Property assignment expected.
+src/controllers/PatientController.ts(326,5): error TS1128: Declaration or statement expected.
+src/controllers/PatientController.ts(326,7): error TS1005: 'try' expected.
+src/controllers/PatientController.ts(329,3): error TS1128: Declaration or statement expected.
+src/controllers/PatientController.ts(330,1): error TS1128: Declaration or statement expected.
+src/data/mockData.ts(14,3): error TS1005: ',' expected.
+src/data/mockData.ts(193,5): error TS1005: ',' expected.
+src/data/mockData.ts(216,5): error TS1005: ',' expected.

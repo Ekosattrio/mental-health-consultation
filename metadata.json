@@ -1,0 +1,6 @@
+{
+  "name": "JiwaSehat - Platform Konsultasi Psikologi",
+  "description": "Platform konsultasi psikologi multi-role (Pasien, Psikolog, Admin) dengan sistem reservasi terintegrasi, asesmen psikologi online, rekam medis klinis, dan arsitektur enterprise.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

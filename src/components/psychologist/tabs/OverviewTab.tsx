@@ -87,7 +87,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       {/* Clinical Guidelines & SOP Notice from CMS - Fixed Clean Grid Layout */}
       <div className="bg-gradient-to-br from-amber-50/90 via-amber-50/50 to-orange-50/40 border border-amber-200/90 rounded-3xl p-6 shadow-xs overflow-hidden">
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-stretch">
-          {/* Left Column: Guidelines & HIMPSI Code of Ethics */}
+          {/* Left Column: Guidelines & Clinical Code of Ethics */}
           <div className="xl:col-span-7 flex flex-col justify-between space-y-4">
             <div className="space-y-3">
               <div className="flex items-start sm:items-center gap-3">
@@ -100,11 +100,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                       {psychologistCms.guidelinesTitle}
                     </h4>
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-200/70 text-amber-900 border border-amber-300">
-                      Kode Etik HIMPSI
+                      Standar Etika Profesi
                     </span>
                   </div>
                   <p className="text-[11px] text-amber-900/80 font-medium mt-0.5">
-                    Pedoman Kepatuhan Etika Profesi & Layanan Konseling Klinis
+                    Pedoman Kepatuhan Pelayanan & Kerahasiaan Konseling Klinis
                   </p>
                 </div>
               </div>

@@ -337,16 +337,56 @@ export const BookingTab: React.FC<BookingTabProps> = ({
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-2">
               <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Sistem Reservasi & Payment Gateway</span>
+              <span>Praktik Mandiri • dr. Sarah Jenkins, M.Psi.</span>
             </div>
             <h3 className="text-2xl font-black text-slate-900 tracking-tight">Booking Jadwal Konsultasi Psikologi</h3>
             <p className="text-xs text-slate-500 mt-1">
-              Pilih paket, psikolog, custom tanggal bebas (kecuali hari libur klinik), dan simulasikan pembayaran gateway instan.
+              Konsultasi privat bersama dr. Sarah Jenkins, M.Psi. Pilih paket sesi, tentukan tanggal & jam praktik, lalu lakukan pembayaran instan.
             </p>
           </div>
         </div>
 
         <form onSubmit={handleOpenPaymentGateway} className="space-y-6 mt-6">
+          {/* DEDICATED SOLO PRACTITIONER CARD */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-50/90 via-teal-50/50 to-white border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+            <div className="flex items-center gap-3.5">
+              <img
+                src={targetUserObj?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160'}
+                alt={targetUserObj?.name || 'dr. Sarah Jenkins, M.Psi.'}
+                className="w-14 h-14 rounded-2xl object-cover shrink-0 border-2 border-emerald-500 shadow-xs"
+              />
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                    {targetUserObj?.name || 'dr. Sarah Jenkins, M.Psi., Psikolog'}
+                  </h4>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200 shrink-0">
+                    Praktisi Utama
+                  </span>
+                </div>
+                <p className="text-xs text-emerald-800 font-semibold mt-0.5">
+                  {targetPsychologist?.title || 'Psikolog Klinis Dewasa & Hubungan Interpersonal'}
+                </p>
+                <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-slate-500 mt-1">
+                  <span>STR: {targetPsychologist?.strNumber || 'STR-PSI-2021-09842'}</span>
+                  <span>•</span>
+                  <span>SIP: {targetPsychologist?.sipNumber || 'SIP.503/042-DPMPTSP/2022'}</span>
+                  <span>•</span>
+                  <span className="font-bold text-slate-700">10 Thn Pengalaman</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center border-t sm:border-t-0 sm:border-l border-emerald-100 pt-2.5 sm:pt-0 sm:pl-4 shrink-0">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Skor Pasien</span>
+              <div className="text-base font-black text-slate-900 flex items-center gap-1">
+                <span className="text-amber-500">★</span>
+                <span>{targetPsychologist?.rating || 4.9}</span>
+                <span className="text-[11px] text-slate-500 font-normal">({targetPsychologist?.reviewCount || 12} ulasan)</span>
+              </div>
+            </div>
+          </div>
+
           {/* STEP 1: CHOOSE PACKAGE */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
@@ -379,47 +419,14 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             </div>
           </div>
 
-          {/* STEP 2: CHOOSE PSYCHOLOGIST */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              2. Pilih Psikolog Klinis Berlisensi
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {psychologists.map(psy => {
-                const u = users.find(user => user.id === psy.userId);
-                return (
-                  <div
-                    key={psy.userId}
-                    onClick={() => {
-                      setSelectedPsychologistId(psy.userId);
-                      setSelectedSlotId('');
-                    }}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex items-center gap-3.5 ${
-                      selectedPsychologistId === psy.userId
-                        ? 'border-emerald-600 bg-emerald-50/80 ring-2 ring-emerald-600/30 shadow-xs'
-                        : 'border-slate-200 hover:border-slate-300 bg-white'
-                    }`}
-                  >
-                    <img src={u?.avatar} alt={u?.name} className="w-12 h-12 rounded-2xl object-cover shrink-0 border border-slate-200" />
-                    <div className="min-w-0">
-                      <div className="text-xs font-bold text-slate-900 truncate">{u?.name}</div>
-                      <div className="text-[11px] text-emerald-700 font-medium truncate">{psy.title}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Rating {psy.rating} ★ • {psy.experienceYears} Thn Pengalaman</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* STEP 3: CUSTOM DATE SELECTION (EXCLUDING SUNDAYS & HOLIDAYS) */}
+          {/* STEP 2: CUSTOM DATE SELECTION (EXCLUDING SUNDAYS & HOLIDAYS) */}
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                3. Pilih Tanggal Konsultasi (Bebas Pilih Kapan Saja)
+                2. Pilih Tanggal Konsultasi (Bebas Pilih Kapan Saja)
               </label>
               <p className="text-[11px] text-slate-500">
-                Klinik beroperasi aktif <strong>Senin s/d Sabtu</strong>. Hari Minggu & Hari Libur Nasional libur praktik.
+                Praktik beroperasi aktif <strong>Senin s/d Sabtu</strong>. Hari Minggu & Hari Libur Nasional libur praktik.
               </p>
             </div>
 
@@ -628,11 +635,11 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             )}
           </div>
 
-          {/* STEP 4: CHOOSE TIME SLOT */}
+          {/* STEP 3: CHOOSE TIME SLOT */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                4. Pilih Jam Konsultasi (Slot Waktu Tersedia)
+                3. Pilih Jam Konsultasi (Slot Waktu Tersedia)
               </label>
               <span className="text-[11px] text-slate-400">Zona Waktu: WIB (Jakarta)</span>
             </div>
@@ -690,10 +697,10 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             )}
           </div>
 
-          {/* STEP 5: CHOOSE PAYMENT METHOD */}
+          {/* STEP 4: CHOOSE PAYMENT METHOD */}
           <div>
             <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-              5. Pilih Metode Pembayaran (Payment Gateway Simulator)
+              4. Pilih Metode Pembayaran (Payment Gateway Simulator)
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[

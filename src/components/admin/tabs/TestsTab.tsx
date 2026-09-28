@@ -82,7 +82,7 @@ export const TestsTab: React.FC<TestsTabProps> = ({ tests, saveTest }) => {
   };
 
   const handleResetQuestionsToDefault = () => {
-    if (confirm('Kembalikan butir pertanyaan ke 21 instrumen baku DASS-21 HIMPSI?')) {
+    if (confirm('Kembalikan butir pertanyaan ke 21 instrumen baku standar DASS-21?')) {
       saveTest({
         ...activeTest,
         questions: INITIAL_TESTS[0].questions

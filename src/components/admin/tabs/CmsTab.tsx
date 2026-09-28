@@ -594,7 +594,7 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                 Content Management System (CMS) Halaman Dokter / Psikolog
               </h3>
               <p className="text-xs text-slate-500 mt-0.5">
-                Atur panduan klinis HIMPSI, standar SOP rekam medis, ketentuan remunerasi, dan kontak supervisor on-duty.
+                Atur panduan klinis standar, SOP rekam medis, ketentuan honorarium, dan kontak darurat praktik.
               </p>
             </div>
             <div className="flex items-center gap-2.5">
@@ -621,7 +621,7 @@ export const CmsTab: React.FC<CmsTabProps> = ({
             <div className="pb-3 border-b border-slate-100">
               <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <Shield className="w-4 h-4 text-purple-600" />
-                1. Panduan Klinis & Protokol Pelayanan HIMPSI
+                1. Panduan Klinis & Protokol Pelayanan Profesi
               </h4>
               <p className="text-xs text-slate-500">
                 Instruksi kepatuhan etika telekonseling, kerahasiaan data pasien, dan standar pengisian SOAP.

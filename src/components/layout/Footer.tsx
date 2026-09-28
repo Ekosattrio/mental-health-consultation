@@ -18,11 +18,11 @@ export const Footer: React.FC = () => {
               <span className="text-2xl font-black text-white tracking-tight">JiwaSehat</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              Platform layanan kesehatan mental dan psikologi klinis terintegrasi berbasis teknologi modern. Memberikan akses konseling profesional, asesmen psikometri baku, dan rekam medis elektronik terstandarisasi.
+              Praktik mandiri psikolog klinis berbasis teknologi modern. Memberikan akses konseling privat profesional, asesmen psikometri baku, dan rekam medis elektronik terstandarisasi bersama dr. Sarah Jenkins, M.Psi.
             </p>
             <div className="pt-2 flex items-center gap-3 text-xs text-slate-400">
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-teal-400 font-bold border border-slate-700">
-                <ShieldCheck className="w-4 h-4" /> Kode Etik HIMPSI & Kemenkes RI
+                <ShieldCheck className="w-4 h-4" /> Berizin Praktik Resmi Kemenkes RI
               </span>
             </div>
           </div>

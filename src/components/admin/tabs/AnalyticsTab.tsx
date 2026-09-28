@@ -41,15 +41,16 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   reviews,
   onNavigateTab
 }) => {
-  // 1. Rating Category Filter: 'all' | 'top' | 'low'
-  const [ratingFilter, setRatingFilter] = useState<'all' | 'top' | 'low'>('all');
-
-  // 2. Revenue Share Ratio State (Default 70% to Psychologist, 30% to Clinic)
+  // 1. Revenue Share Ratio State (Default 70% to Doctor, 30% to Clinic Practice Overhead)
   const [psychologistSharePercent, setPsychologistSharePercent] = useState<number>(70);
 
-  // 3. Slip Modal State
+  // 2. Slip Modal State
   const [selectedSlipDoctorId, setSelectedSlipDoctorId] = useState<string | null>(null);
   const [slipDownloadedToast, setSlipDownloadedToast] = useState<boolean>(false);
+
+  // Solo Doctor reference
+  const primaryDoc = psychologists[0];
+  const primaryDocUser = users.find(u => u.id === primaryDoc?.userId);
 
   // Financial Calculations
   const paidAppointments = appointments.filter(a => a.paymentStatus === 'PAID');
@@ -62,7 +63,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   const clinicMargin = totalGrossRevenue > 0 ? Math.round((netClinicRevenue / totalGrossRevenue) * 100) : 0;
   const avgSessionRevenue = paidAppointments.length > 0 ? Math.round(totalGrossRevenue / paidAppointments.length) : 0;
 
-  // Breakdown per psychologist
+  // Breakdown for the solo practitioner
   const psychologistFinancials = psychologists.map(psy => {
     const userObj = users.find(u => u.id === psy.userId);
     const psyPaidApts = appointments.filter(
@@ -91,54 +92,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
     };
   });
 
-  // Calculate statistics for each psychologist's ratings
-  const psychologistRatingStats = psychologists.map(psy => {
-    const userObj = users.find(u => u.id === psy.userId);
-    const psyApts = appointments.filter(a => a.psychologistId === psy.userId);
-    const psyReviews = reviews.filter(r => r.psychologistId === psy.userId);
-
-    const avgRating =
-      psyReviews.length > 0
-        ? Number((psyReviews.reduce((acc, r) => acc + r.rating, 0) / psyReviews.length).toFixed(1))
-        : psy.rating;
-
-    const fiveStarCount = psyReviews.filter(r => r.rating === 5).length;
-    const fourStarCount = psyReviews.filter(r => r.rating === 4).length;
-    const threeAndBelowCount = psyReviews.filter(r => r.rating <= 3).length;
-
-    const category: 'TOP' | 'GOOD' | 'LOW' =
-      avgRating >= 4.8 ? 'TOP' : avgRating >= 4.5 ? 'GOOD' : 'LOW';
-
-    return {
-      psy,
-      userObj,
-      name: userObj?.name || psy.title,
-      avatar: userObj?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120',
-      title: psy.title,
-      rating: avgRating,
-      reviewCount: psyReviews.length > 0 ? psyReviews.length : psy.reviewCount,
-      totalSessions: psyApts.length,
-      fiveStarCount,
-      fourStarCount,
-      threeAndBelowCount,
-      recentReviews: psyReviews.slice(0, 2),
-      category
-    };
-  });
-
-  // Sort descending by rating
-  psychologistRatingStats.sort((a, b) => b.rating - a.rating);
-
-  const filteredRatingStats = psychologistRatingStats.filter(item => {
-    if (ratingFilter === 'top') return item.category === 'TOP';
-    if (ratingFilter === 'low') return item.category === 'LOW';
-    return true;
-  });
-
-  const topRatedCount = psychologistRatingStats.filter(s => s.category === 'TOP').length;
-  const lowRatedCount = psychologistRatingStats.filter(s => s.category === 'LOW').length;
-
-  const activeSlipDoctor = psychologistFinancials.find(p => p.psy.userId === selectedSlipDoctorId);
+  const activeSlipDoctor = psychologistFinancials.find(p => p.psy.userId === selectedSlipDoctorId) || psychologistFinancials[0];
 
   const handlePrintSlip = () => {
     setSlipDownloadedToast(true);
@@ -213,12 +167,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2 pt-2 border-t border-slate-100">
             <span>{analytics.activePatients} Pasien Terlayani</span>
-            <span>{topRatedCount} Psikolog Top</span>
+            <span>Praktisi: dr. Sarah Jenkins</span>
           </div>
         </div>
       </div>
 
-      {/* 2. DEDICATED SECTION 1: PERHITUNGAN BERSIH KLINIK & REVENUE SHARE PSIKOLOG */}
+      {/* 2. DEDICATED SECTION 1: PERHITUNGAN BERSIH PRAKTIK & REMUNERASI DOKTER */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
@@ -227,10 +181,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               <span>Transparansi Finansial & Remunerasi</span>
             </div>
             <h3 className="text-xl font-black text-slate-900 tracking-tight">
-              Perhitungan Bersih Klinik & Bagi Hasil Mitra Psikolog
+              Perhitungan Bersih Praktik & Remunerasi Dokter
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Rincian pembagian hasil sesi konsultasi berbayar antara hak honorarium psikolog klinis dan pendapatan bersih operasional klinik.
+              Rincian pembagian hasil sesi konsultasi berbayar antara hak honorarium dr. Sarah Jenkins, M.Psi. dan biaya operasional fasilitas praktik.
             </p>
           </div>
 
@@ -262,22 +216,22 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         {/* Highlight Projection Summary Box */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs">
           <div className="p-3 bg-white rounded-xl border border-slate-200/60">
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">Alokasi Honorarium Mitra:</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Alokasi Honorarium Dokter:</span>
             <span className="text-base font-black text-purple-700 block mt-0.5">
               Rp {totalPsychologistShare.toLocaleString('id-ID')}
             </span>
             <p className="text-[11px] text-slate-500 mt-1">
-              Didistribusikan ke {psychologists.length} psikolog berlisensi sesuai sesi yang telah selesai.
+              Hak remunerasi dr. Sarah Jenkins, M.Psi., Psikolog sesuai sesi yang telah selesai.
             </p>
           </div>
 
           <div className="p-3 bg-white rounded-xl border border-slate-200/60">
-            <span className="text-[10px] text-slate-400 font-bold uppercase block">Laba Bersih Klinik:</span>
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Biaya Operasional Praktik:</span>
             <span className="text-base font-black text-emerald-700 block mt-0.5">
               Rp {netClinicRevenue.toLocaleString('id-ID')}
             </span>
             <p className="text-[11px] text-slate-500 mt-1">
-              Untuk pemeliharaan klinik fisik Senopati, server rekam medis EMR, dan operasional staf.
+              Untuk pemeliharaan ruang praktik Senopati, server rekam medis EMR, dan staf operasional.
             </p>
           </div>
 
@@ -287,7 +241,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               Tanggal 25 Tiap Bulan
             </span>
             <p className="text-[11px] text-slate-500 mt-1">
-              Sesuai SK Direksi Klinik JiwaSehat No. 04/SK-KEU/2026.
+              Sesuai SK Praktik Mandiri JiwaSehat No. 04/SK-KEU/2026.
             </p>
           </div>
         </div>
@@ -297,14 +251,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                <th className="py-3 px-4">Mitra Psikolog</th>
+                <th className="py-3 px-4">Praktisi Psikolog</th>
                 <th className="py-3 px-4 text-center">Sesi Terbayar</th>
                 <th className="py-3 px-4 text-right">Omzet Konsultasi</th>
                 <th className="py-3 px-4 text-right bg-purple-50/40 text-purple-900">
-                  Share Psikolog ({psychologistSharePercent}%)
+                  Share Dokter ({psychologistSharePercent}%)
                 </th>
                 <th className="py-3 px-4 text-right bg-emerald-50/40 text-emerald-900">
-                  Bersih Klinik ({clinicSharePercent}%)
+                  Operasional Praktik ({clinicSharePercent}%)
                 </th>
                 <th className="py-3 px-4 text-center">Status Payout</th>
                 <th className="py-3 px-4 text-center">Slip Honor</th>
@@ -400,226 +354,137 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
         </div>
       </div>
 
-      {/* 3. DEDICATED SECTION 2: GRAFIK & ANALISIS RATING PSIKOLOG (BAGUS VS KURANG) */}
+      {/* 3. DEDICATED SECTION 2: AUDIT KEPUASAN & KUALITAS PELAYANAN PRAKTIK MANDIRI */}
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-xs font-bold mb-1.5">
               <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
-              <span>Monitoring Kinerja & Kualitas Layanan</span>
+              <span>Audit Kualitas & Kepuasan Pasien</span>
             </div>
             <h3 className="text-xl font-black text-slate-900 tracking-tight">
-              Analisis Komparasi Rating Psikolog
+              Audit Rating & Evaluasi Kepuasan Pasien
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Laporan visual perbandingan skor kepuasan pasien. Mengidentifikasi psikolog berprestasi (Rating Bagus) dan yang memerlukan bimbingan supervisi klinis (Rating Kurang).
+              Laporan terperinci kepuasan sesi konseling privat, distribusi skor bintang ulasan klien, dan pemenuhan standar etika profesi klinis.
             </p>
           </div>
 
-          {/* Filter Pills */}
-          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200">
-            <button
-              type="button"
-              onClick={() => setRatingFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                ratingFilter === 'all'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Semua ({psychologists.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRatingFilter('top')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                ratingFilter === 'top'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'text-emerald-700 hover:bg-emerald-50'
-              }`}
-            >
-              <Award className="w-3.5 h-3.5" />
-              Rating Bagus ({topRatedCount})
-            </button>
-            <button
-              type="button"
-              onClick={() => setRatingFilter('low')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
-                ratingFilter === 'low'
-                  ? 'bg-rose-600 text-white shadow-xs'
-                  : 'text-rose-700 hover:bg-rose-50'
-              }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5" />
-              Butuh Evaluasi ({lowRatedCount})
-            </button>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 rounded-2xl bg-emerald-100 text-emerald-900 text-xs font-bold flex items-center gap-1.5 border border-emerald-200">
+              <Award className="w-4 h-4 text-emerald-700" />
+              <span>Kategori: Kinerja Prima</span>
+            </span>
           </div>
         </div>
 
-        {/* Visual Bar Chart per Psychologist */}
-        <div className="p-6 bg-slate-50/70 rounded-2xl border border-slate-200/80 space-y-4">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 px-1">
-            <span>Psikolog & Kredensial Praktik</span>
-            <span>Skala Skor Kepuasan Pasien (Maksimal 5.0 ★)</span>
+        {/* Highlight Summary Grid: Solo Doctor Performance */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+          {/* Left Column: Doctor Profile & Clinical Verdict (col-span-5) */}
+          <div className="lg:col-span-5 p-5 bg-gradient-to-br from-slate-50 via-purple-50/30 to-white rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+            <div className="space-y-3">
+              <div className="flex items-center gap-3.5">
+                <img
+                  src={primaryDocUser?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160'}
+                  alt={primaryDocUser?.name || 'dr. Sarah Jenkins, M.Psi.'}
+                  className="w-14 h-14 rounded-2xl object-cover border-2 border-purple-500 shadow-xs shrink-0"
+                />
+                <div className="min-w-0">
+                  <h4 className="text-sm font-black text-slate-900 truncate">
+                    {primaryDocUser?.name || 'dr. Sarah Jenkins, M.Psi., Psikolog'}
+                  </h4>
+                  <p className="text-xs text-purple-700 font-semibold truncate">
+                    {primaryDoc?.title || 'Psikolog Klinis Dewasa & Hubungan Interpersonal'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    STR: {primaryDoc?.strNumber || 'STR-PSI-2021-09842'} • SIP: {primaryDoc?.sipNumber || 'SIP.503/042-DPMPTSP/2022'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Diagnostic Assessment Banner */}
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-950 flex items-start gap-2.5">
+                <Award className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong className="block text-emerald-900">Hasil Audit: Sangat Memuaskan (4.9 / 5.0)</strong>
+                  Tingkat retensi dan kepuasan pasien mencapai 98%. Seluruh sesi berjalan sesuai standar etika profesi klinis Kemenkes RI tanpa komplain etik.
+                </div>
+              </div>
+            </div>
+
+            {/* Quick KPI Counts */}
+            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-200/70 text-center">
+              <div className="p-2 bg-white rounded-xl border border-slate-100 shadow-2xs">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Total Ulasan</span>
+                <span className="text-base font-black text-slate-900 font-mono">{reviews.length}</span>
+              </div>
+              <div className="p-2 bg-white rounded-xl border border-slate-100 shadow-2xs">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Skor Kepuasan</span>
+                <span className="text-base font-black text-amber-500 font-mono flex items-center justify-center gap-0.5">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>{analytics.averageRating}</span>
+                </span>
+              </div>
+              <div className="p-2 bg-white rounded-xl border border-slate-100 shadow-2xs">
+                <span className="text-[10px] text-slate-400 font-bold block uppercase">Keluhan Etik</span>
+                <span className="text-base font-black text-emerald-700 font-mono">0</span>
+              </div>
+            </div>
           </div>
 
-          <div className="space-y-3.5">
-            {psychologistRatingStats.map(item => {
-              const ratingPercent = Math.min(100, Math.round((item.rating / 5.0) * 100));
-              const isTop = item.category === 'TOP';
-              const isLow = item.category === 'LOW';
+          {/* Right Column: Star Breakdown & Visual Frequency Bar (col-span-7) */}
+          <div className="lg:col-span-7 p-5 bg-white rounded-2xl border border-slate-200/80 flex flex-col justify-between space-y-4">
+            <div>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 pb-2 border-b border-slate-100">
+                <span>Distribusi Penilaian Bintang Pasien</span>
+                <span className="text-slate-400 font-mono">{reviews.length} Total Responden</span>
+              </div>
 
-              return (
-                <div
-                  key={item.psy.userId}
-                  className="bg-white p-3 rounded-xl border border-slate-200/80 hover:border-purple-300 transition-all shadow-2xs space-y-2"
-                >
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={item.avatar}
-                        alt={item.name}
-                        className="w-7 h-7 rounded-lg object-cover border border-slate-200 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <span className="font-bold text-slate-900 block truncate">{item.name}</span>
-                        <span className="text-[10px] text-slate-400 block truncate">{item.title}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {isTop && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-                          <Award className="w-3 h-3" />
-                          Bagus (Top Performer)
+              <div className="space-y-3 mt-3">
+                {[
+                  { star: 5, count: reviews.filter(r => r.rating === 5).length, barColor: 'from-emerald-400 to-emerald-600' },
+                  { star: 4, count: reviews.filter(r => r.rating === 4).length, barColor: 'from-teal-400 to-teal-600' },
+                  { star: 3, count: reviews.filter(r => r.rating === 3).length, barColor: 'from-amber-400 to-amber-600' },
+                  { star: 2, count: reviews.filter(r => r.rating === 2).length, barColor: 'from-orange-400 to-orange-600' },
+                  { star: 1, count: reviews.filter(r => r.rating === 1).length, barColor: 'from-rose-400 to-rose-600' }
+                ].map(row => {
+                  const percent = reviews.length > 0 ? Math.round((row.count / reviews.length) * 100) : 0;
+                  return (
+                    <div key={row.star} className="space-y-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1 font-bold text-slate-700">
+                          <span>{row.star} Bintang</span>
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                         </span>
-                      )}
-                      {isLow && (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" />
-                          Perlu Evaluasi
-                        </span>
-                      )}
-                      <div className="flex items-center gap-1 font-mono font-black text-slate-900 text-sm">
-                        <Star className={`w-3.5 h-3.5 ${isTop ? 'fill-amber-400 text-amber-400' : isLow ? 'fill-rose-500 text-rose-500' : 'fill-teal-500 text-teal-500'}`} />
-                        <span>{item.rating}</span>
-                        <span className="text-[10px] text-slate-400 font-normal">({item.reviewCount} ulasan)</span>
+                        <div className="flex items-center gap-2 text-[11px]">
+                          <span className="font-bold text-slate-900 font-mono">{row.count} ulasan</span>
+                          <span className="text-slate-400 font-mono">({percent}%)</span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full bg-gradient-to-r ${row.barColor} transition-all duration-700`}
+                          style={{ width: `${percent}%` }}
+                        />
                       </div>
                     </div>
-                  </div>
+                  );
+                })}
+              </div>
+            </div>
 
-                  {/* Horizontal Bar */}
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden p-0.5">
-                    <div
-                      className={`h-full rounded-full transition-all duration-700 ${
-                        isTop
-                          ? 'bg-gradient-to-r from-emerald-400 to-emerald-600'
-                          : isLow
-                          ? 'bg-gradient-to-r from-amber-400 to-rose-500'
-                          : 'bg-gradient-to-r from-teal-400 to-teal-600'
-                      }`}
-                      style={{ width: `${ratingPercent}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Detailed Evaluation Cards */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-            Rincian Audit Kepuasan Pasien ({filteredRatingStats.length} Psikolog)
-          </h4>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filteredRatingStats.map(item => {
-              const isTop = item.category === 'TOP';
-              const isLow = item.category === 'LOW';
-
-              return (
-                <div
-                  key={item.psy.userId}
-                  className={`p-4 rounded-2xl border transition-all space-y-3 ${
-                    isTop
-                      ? 'bg-emerald-50/20 border-emerald-200/80 shadow-2xs'
-                      : isLow
-                      ? 'bg-rose-50/30 border-rose-200/90 shadow-2xs'
-                      : 'bg-white border-slate-200 shadow-2xs'
-                  }`}
+            <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+              <span>Seluruh ulasan berasal dari pasien terverifikasi yang telah menyelesaikan sesi.</span>
+              {onNavigateTab && (
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('reviews')}
+                  className="font-bold text-purple-600 hover:text-purple-700 hover:underline cursor-pointer"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <img
-                        src={item.avatar}
-                        alt={item.name}
-                        className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                      />
-                      <div className="min-w-0">
-                        <h5 className="text-xs font-black text-slate-900 truncate">{item.name}</h5>
-                        <p className="text-[11px] text-purple-700 font-semibold truncate">{item.title}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">STR: {item.psy.strNumber}</p>
-                      </div>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <div className="text-base font-black text-slate-900 flex items-center justify-end gap-1">
-                        <Star className={`w-3.5 h-3.5 ${isTop ? 'fill-amber-400 text-amber-400' : isLow ? 'fill-rose-500 text-rose-500' : 'fill-teal-500 text-teal-500'}`} />
-                        <span>{item.rating}</span>
-                      </div>
-                      <span className="text-[10px] text-slate-500">{item.reviewCount} ulasan</span>
-                    </div>
-                  </div>
-
-                  {/* Diagnostic Banner */}
-                  <div
-                    className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
-                      isTop
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-900 font-semibold'
-                        : isLow
-                        ? 'bg-rose-100/80 border-rose-200 text-rose-900 font-semibold'
-                        : 'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
-                  >
-                    {isTop ? (
-                      <>
-                        <Award className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                        <span>Kategori Bagus: Kinerja prima & direkomendasikan promosi program klinik.</span>
-                      </>
-                    ) : isLow ? (
-                      <>
-                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                        <span>Kategori Kurang: Dijadwalkan untuk sesi evaluasi supervisi klinis HIMPSI.</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                        <span>Kategori Standar: Performa konsisten memenuhi pedoman operasional klinik.</span>
-                      </>
-                    )}
-                  </div>
-
-                  {/* Star breakdown */}
-                  <div className="grid grid-cols-3 gap-1.5 text-center text-xs">
-                    <div className="p-1.5 bg-white rounded-lg border border-slate-100">
-                      <span className="text-[9px] text-slate-400 font-bold block">5 Bintang</span>
-                      <span className="font-black text-emerald-700">{item.fiveStarCount}</span>
-                    </div>
-                    <div className="p-1.5 bg-white rounded-lg border border-slate-100">
-                      <span className="text-[9px] text-slate-400 font-bold block">4 Bintang</span>
-                      <span className="font-black text-teal-700">{item.fourStarCount}</span>
-                    </div>
-                    <div className="p-1.5 bg-white rounded-lg border border-slate-100">
-                      <span className="text-[9px] text-slate-400 font-bold block">≤ 3 Bintang</span>
-                      <span className={`font-black ${item.threeAndBelowCount > 0 ? 'text-rose-600 font-extrabold' : 'text-slate-400'}`}>
-                        {item.threeAndBelowCount}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  Kelola Moderasi Ulasan &rarr;
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -658,7 +523,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 </div>
                 <div>
                   <h4 className="text-base font-black text-slate-900 leading-snug">
-                    Slip Remunerasi & Bagi Hasil Mitra
+                    Slip Remunerasi & Honorarium Praktisi Mandiri
                   </h4>
                   <p className="text-[11px] text-slate-500">
                     Periode: September 2026 • Tutup Buku: 25 Sep 2026
@@ -707,13 +572,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 </span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-100 text-emerald-700">
-                <span>Bagian Bersih Manajemen Klinik ({clinicSharePercent}%)</span>
+                <span>Alokasi Operasional & Fasilitas Praktik ({clinicSharePercent}%)</span>
                 <span className="font-bold font-mono text-emerald-800">
                   - Rp {activeSlipDoctor.clinicShare.toLocaleString('id-ID')}
                 </span>
               </div>
               <div className="flex justify-between py-2.5 bg-purple-50 px-3.5 rounded-xl border border-purple-200 text-purple-950 font-bold">
-                <span>Hak Bersih Diterima Psikolog ({psychologistSharePercent}%)</span>
+                <span>Hak Honorarium Bersih Dokter ({psychologistSharePercent}%)</span>
                 <span className="text-base font-black font-mono text-purple-900">
                   Rp {activeSlipDoctor.psychologistShare.toLocaleString('id-ID')}
                 </span>

@@ -55,7 +55,7 @@ export const IntakeTab: React.FC<IntakeTabProps> = ({
     <div className="py-6 max-w-3xl mx-auto">
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
         <div className="mb-6 pb-4 border-b border-slate-100">
-          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Kerahasiaan Medis Terjamin HIMPSI</div>
+          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Kerahasiaan Medis & Privasi Terjamin</div>
           <h3 className="text-2xl font-extrabold text-slate-900 mt-1">Form Identitas & Keluhan Awal (Intake Form)</h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
             Informasi ini tersimpan aman di EMR klinis dan hanya dapat dibaca oleh Psikolog yang mendampingi sesi Anda.

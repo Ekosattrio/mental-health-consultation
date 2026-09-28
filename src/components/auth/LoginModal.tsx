@@ -389,7 +389,7 @@ export const LoginModal: React.FC = () => {
                   className="w-4 h-4 accent-teal-600 rounded mt-0.5 cursor-pointer"
                 />
                 <label htmlFor="terms" className="text-[11px] text-slate-600 leading-tight cursor-pointer">
-                  Saya menyetujui <strong>Syarat & Ketentuan</strong> serta jaminan <strong>Kerahasiaan Medis HIMPSI</strong>.
+                  Saya menyetujui <strong>Syarat & Ketentuan</strong> serta jaminan <strong>Kerahasiaan Medis Profesi Psikologi</strong>.
                 </label>
               </div>
 

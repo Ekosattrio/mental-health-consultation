@@ -48,7 +48,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   );
   const [profilePracticePolicy, setProfilePracticePolicy] = useState(
     profile?.practicePolicy ||
-    'Menjunjung tinggi standar etika kerahasiaan Kode Etik Psikologi Indonesia (HIMPSI). Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
+    'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis dan regulasi Kemenkes RI. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
   );
   const [profileFeeOnline, setProfileFeeOnline] = useState(profile?.consultationFeeOnline || 250000);
   const [profileFeeOffline, setProfileFeeOffline] = useState(profile?.consultationFeeOffline || 350000);
@@ -406,7 +406,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold mb-1">
                   <ShieldCheck className="w-3 h-3 text-sky-600" />
-                  Terverifikasi HIMPSI
+                  Berizin Resmi Kemenkes RI
                 </div>
                 <h4 className="text-base font-extrabold text-slate-900 leading-tight truncate">
                   {currentUser?.name}

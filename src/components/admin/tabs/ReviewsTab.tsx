@@ -33,7 +33,6 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
   rejectReview
 }) => {
   // Filters state
-  const [selectedPsychologistId, setSelectedPsychologistId] = useState<string>('ALL');
   const [selectedRatingFilter, setSelectedRatingFilter] = useState<string>('ALL');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -42,36 +41,19 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState<number>(5);
 
-  // Map psychologists with review statistics
-  const psychologistStats = useMemo(() => {
-    return psychologists.map(psy => {
-      const userObj = users.find(u => u.id === psy.userId);
-      const psyReviews = reviews.filter(r => r.psychologistId === psy.userId);
-      const avgRating =
-        psyReviews.length > 0
-          ? Number((psyReviews.reduce((acc, r) => acc + r.rating, 0) / psyReviews.length).toFixed(1))
-          : psy.rating;
-
-      return {
-        userId: psy.userId,
-        name: userObj?.name || psy.title,
-        avatar: userObj?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=120',
-        title: psy.title,
-        sipNumber: psy.sipNumber,
-        rating: avgRating,
-        reviewCount: psyReviews.length
-      };
-    });
-  }, [psychologists, users, reviews]);
+  const primaryDoc = psychologists[0];
+  const primaryDocUser = users.find(u => u.id === primaryDoc?.userId);
+  const avgRating =
+    reviews.length > 0
+      ? Number((reviews.reduce((acc, r) => acc + r.rating, 0) / reviews.length).toFixed(1))
+      : primaryDoc?.rating || 4.9;
+  const fiveStarReviews = reviews.filter(r => r.rating === 5).length;
+  const fourStarReviews = reviews.filter(r => r.rating === 4).length;
+  const lowStarReviews = reviews.filter(r => r.rating <= 3).length;
 
   // Filtered reviews calculation
   const filteredReviews = useMemo(() => {
     return reviews.filter(rev => {
-      // Filter by psychologist
-      if (selectedPsychologistId !== 'ALL' && rev.psychologistId !== selectedPsychologistId) {
-        return false;
-      }
-
       // Filter by rating
       if (selectedRatingFilter === '5' && rev.rating !== 5) return false;
       if (selectedRatingFilter === '4' && rev.rating !== 4) return false;
@@ -81,26 +63,19 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
       if (selectedStatusFilter === 'APPROVED' && !rev.isApproved) return false;
       if (selectedStatusFilter === 'PENDING' && rev.isApproved) return false;
 
-      // Filter by search query (doctor name, client name, or comment)
+      // Filter by search query (client name or comment)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const clientName = (rev.isAnonymous ? rev.anonymousAlias || 'Anonim' : rev.patientName).toLowerCase();
-        const docName = (rev.psychologistName || '').toLowerCase();
         const comment = (rev.comment || '').toLowerCase();
-        if (!clientName.includes(query) && !docName.includes(query) && !comment.includes(query)) {
+        if (!clientName.includes(query) && !comment.includes(query)) {
           return false;
         }
       }
 
       return true;
     });
-  }, [reviews, selectedPsychologistId, selectedRatingFilter, selectedStatusFilter, searchQuery]);
-
-  // Reset page to 1 when any filter changes
-  const handleFilterDoctor = (id: string) => {
-    setSelectedPsychologistId(id);
-    setCurrentPage(1);
-  };
+  }, [reviews, selectedRatingFilter, selectedStatusFilter, searchQuery]);
 
   const handleFilterRating = (rating: string) => {
     setSelectedRatingFilter(rating);
@@ -118,7 +93,6 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
   };
 
   const resetFilters = () => {
-    setSelectedPsychologistId('ALL');
     setSelectedRatingFilter('ALL');
     setSelectedStatusFilter('ALL');
     setSearchQuery('');
@@ -136,12 +110,9 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
   const approvedCount = reviews.filter(r => r.isApproved).length;
 
   const isFiltered =
-    selectedPsychologistId !== 'ALL' ||
     selectedRatingFilter !== 'ALL' ||
     selectedStatusFilter !== 'ALL' ||
     searchQuery.trim() !== '';
-
-  const activePsychologist = psychologistStats.find(p => p.userId === selectedPsychologistId);
 
   return (
     <div className="space-y-5">
@@ -173,150 +144,99 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
           </div>
         </div>
 
-        {/* 2. COMPACT DOCTOR SELECTOR (ULASAN BUAT SIAPA) */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-            <span className="flex items-center gap-1.5 uppercase tracking-wider text-[11px]">
-              <UserCheck className="w-3.5 h-3.5 text-purple-600" />
-              Pilih Psikolog (Lihat Ulasan Dokter Spesifik):
-            </span>
-            {selectedPsychologistId !== 'ALL' && (
-              <button
-                type="button"
-                onClick={() => handleFilterDoctor('ALL')}
-                className="text-purple-600 hover:underline cursor-pointer"
-              >
-                Lihat Semua ({reviews.length})
-              </button>
-            )}
+        {/* 2. DEDICATED SOLO DOCTOR SUMMARY CARD */}
+        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-purple-50/70 via-slate-50 to-white border border-purple-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+          <div className="flex items-center gap-3.5">
+            <img
+              src={primaryDocUser?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=160'}
+              alt={primaryDocUser?.name || 'dr. Sarah Jenkins, M.Psi.'}
+              className="w-13 h-13 rounded-2xl object-cover border-2 border-purple-400 shadow-xs shrink-0"
+            />
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-sm font-black text-slate-900 leading-tight">
+                  {primaryDocUser?.name || 'dr. Sarah Jenkins, M.Psi., Psikolog'}
+                </h4>
+                <span className="px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold border border-purple-200 shrink-0">
+                  Praktisi Tunggal
+                </span>
+              </div>
+              <p className="text-[11px] text-purple-800 font-medium mt-0.5">
+                {primaryDoc?.title || 'Psikolog Klinis Dewasa & Hubungan Interpersonal'} • SIP: {primaryDoc?.sipNumber || 'SIP.503/042-DPMPTSP/2022'}
+              </p>
+              <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1">
+                <span className="font-bold text-slate-800">{reviews.length} Total Ulasan Pasien</span>
+                <span>•</span>
+                <span className="text-emerald-700 font-semibold">{approvedCount} Terbit</span>
+                <span>•</span>
+                <span className="text-amber-700 font-semibold">{pendingCount} Menunggu</span>
+              </div>
+            </div>
           </div>
 
-          {/* Compact Carousel */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
-            {/* Card: Semua Dokter */}
-            <button
-              type="button"
-              onClick={() => handleFilterDoctor('ALL')}
-              className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                selectedPsychologistId === 'ALL'
-                  ? 'bg-purple-600 text-white border-purple-600 shadow-xs ring-2 ring-purple-300'
-                  : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
-              }`}
-            >
-              <div>
-                <span className={`text-[9px] font-bold block uppercase tracking-wider ${selectedPsychologistId === 'ALL' ? 'text-purple-200' : 'text-slate-400'}`}>
-                  Semua Tim
-                </span>
-                <span className="text-xs font-black block mt-0.5 truncate">Semua Dokter</span>
+          <div className="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-purple-100 pt-2.5 sm:pt-0 sm:pl-4 shrink-0">
+            <div className="text-center px-2">
+              <span className="text-[10px] text-slate-400 font-bold block uppercase">Rating Rata-rata</span>
+              <div className="text-lg font-black text-slate-900 flex items-center justify-center gap-1 font-mono">
+                <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                <span>{avgRating}</span>
               </div>
-              <div className="mt-1.5 text-[10px] font-semibold flex items-center justify-between">
-                <span>{reviews.length} Ulasan</span>
-                <Star className={`w-3 h-3 ${selectedPsychologistId === 'ALL' ? 'fill-amber-300 text-amber-300' : 'fill-amber-400 text-amber-400'}`} />
-              </div>
-            </button>
-
-            {/* Individual Psychologist Cards */}
-            {psychologistStats.map(psyItem => {
-              const isSelected = selectedPsychologistId === psyItem.userId;
-              const isLow = psyItem.rating < 4.5;
-
-              return (
-                <button
-                  key={psyItem.userId}
-                  type="button"
-                  onClick={() => handleFilterDoctor(psyItem.userId)}
-                  className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? 'bg-purple-50 border-purple-600 text-purple-950 shadow-xs ring-2 ring-purple-400'
-                      : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800'
-                  }`}
-                >
-                  <div className="flex items-center gap-1.5">
-                    <img
-                      src={psyItem.avatar}
-                      alt={psyItem.name}
-                      className="w-6 h-6 rounded-lg object-cover border border-slate-200 shrink-0"
-                    />
-                    <div className="min-w-0">
-                      <span className="text-[11px] font-bold block truncate leading-tight" title={psyItem.name}>
-                        {psyItem.name.split(',')[0]}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-1.5 pt-1 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                    <span className="font-mono font-bold flex items-center gap-0.5">
-                      <Star className={`w-2.5 h-2.5 ${isLow ? 'fill-rose-500 text-rose-500' : 'fill-amber-400 text-amber-400'}`} />
-                      <span className={isLow ? 'text-rose-600' : 'text-slate-900'}>{psyItem.rating}</span>
-                    </span>
-                    <span className={`px-1 py-0.2 rounded text-[9px] font-semibold ${
-                      isSelected ? 'bg-purple-200 text-purple-900' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {psyItem.reviewCount}
-                    </span>
-                  </div>
-                </button>
-              );
-            })}
+            </div>
+            <div className="h-8 w-px bg-purple-100" />
+            <div className="text-center px-2">
+              <span className="text-[10px] text-slate-400 font-bold block uppercase">Bintang 5</span>
+              <span className="text-sm font-black text-emerald-700">{fiveStarReviews}</span>
+            </div>
+            <div className="text-center px-2">
+              <span className="text-[10px] text-slate-400 font-bold block uppercase">Bintang 4</span>
+              <span className="text-sm font-black text-teal-700">{fourStarReviews}</span>
+            </div>
+            <div className="text-center px-2">
+              <span className="text-[10px] text-slate-400 font-bold block uppercase">≤ 3 Bintang</span>
+              <span className={`text-sm font-black ${lowStarReviews > 0 ? 'text-rose-600' : 'text-slate-400'}`}>{lowStarReviews}</span>
+            </div>
           </div>
         </div>
 
         {/* 3. MULTI-LEVEL FILTER & SEARCH TOOLBAR */}
         <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-2.5 text-xs">
           {/* Search Bar */}
-          <div className="lg:col-span-5 relative">
+          <div className="lg:col-span-6 relative">
             <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={e => handleSearch(e.target.value)}
-              placeholder="Cari dokter, nama pasien, atau isi komentar..."
+              placeholder="Cari nama pasien atau isi komentar ulasan..."
               className="w-full pl-8 pr-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:outline-hidden bg-white shadow-2xs text-xs"
             />
           </div>
 
-          {/* Doctor Dropdown */}
-          <div className="lg:col-span-3 relative">
-            <select
-              value={selectedPsychologistId}
-              onChange={e => handleFilterDoctor(e.target.value)}
-              className="w-full appearance-none pl-3 pr-7 py-2 rounded-xl border border-slate-200 font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden cursor-pointer shadow-2xs text-xs"
-            >
-              <option value="ALL">Semua Dokter ({reviews.length} Ulasan)</option>
-              {psychologistStats.map(p => (
-                <option key={p.userId} value={p.userId}>
-                  {p.name} ({p.reviewCount} ulasan • {p.rating} ★)
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
-
           {/* Rating Dropdown */}
-          <div className="lg:col-span-2 relative">
+          <div className="lg:col-span-3 relative">
             <select
               value={selectedRatingFilter}
               onChange={e => handleFilterRating(e.target.value)}
               className="w-full appearance-none pl-3 pr-7 py-2 rounded-xl border border-slate-200 font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden cursor-pointer shadow-2xs text-xs"
             >
-              <option value="ALL">Semua Rating</option>
-              <option value="5">Bintang 5</option>
-              <option value="4">Bintang 4</option>
-              <option value="LOW">Bintang ≤ 3 (Kurang)</option>
+              <option value="ALL">Semua Rating ({reviews.length})</option>
+              <option value="5">Bintang 5 ({fiveStarReviews})</option>
+              <option value="4">Bintang 4 ({fourStarReviews})</option>
+              <option value="LOW">Bintang ≤ 3 ({lowStarReviews})</option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           {/* Status Dropdown */}
-          <div className="lg:col-span-2 relative">
+          <div className="lg:col-span-3 relative">
             <select
               value={selectedStatusFilter}
               onChange={e => handleFilterStatus(e.target.value)}
               className="w-full appearance-none pl-3 pr-7 py-2 rounded-xl border border-slate-200 font-semibold text-slate-800 bg-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden cursor-pointer shadow-2xs text-xs"
             >
               <option value="ALL">Semua Status</option>
-              <option value="PENDING">Menunggu Persetujuan</option>
-              <option value="APPROVED">Sudah Disetujui</option>
+              <option value="PENDING">Menunggu Persetujuan ({pendingCount})</option>
+              <option value="APPROVED">Sudah Disetujui ({approvedCount})</option>
             </select>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -327,11 +247,6 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
           <div className="p-2.5 bg-purple-50 rounded-xl border border-purple-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-1.5 text-purple-900 font-medium">
               <span className="font-bold">Filter Aktif:</span>
-              {selectedPsychologistId !== 'ALL' && activePsychologist && (
-                <span className="px-2 py-0.5 rounded-md bg-purple-200 text-purple-950 font-bold text-[11px]">
-                  Dokter: {activePsychologist.name}
-                </span>
-              )}
               {selectedRatingFilter !== 'ALL' && (
                 <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 font-bold text-[11px]">
                   Rating: {selectedRatingFilter === 'LOW' ? '≤ 3 ★' : `${selectedRatingFilter} ★`}
@@ -409,7 +324,6 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
         ) : (
           /* Sleek, Dense Review Cards */
           paginatedReviews.map(rev => {
-            const docInfo = psychologistStats.find(p => p.userId === rev.psychologistId);
             const isLowRating = rev.rating <= 3;
             const reviewerDisplayName = rev.isAnonymous
               ? (rev.anonymousAlias || 'Klien Anonim')
@@ -449,19 +363,11 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
 
                     <span className="text-slate-400 text-[11px]">• {rev.createdAt}</span>
 
-                    {/* COMPACT TARGET DOCTOR PILL */}
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-100 border border-slate-200/80 text-[11px]">
-                      <span className="text-slate-400 font-medium">Ulasan Untuk:</span>
-                      <img
-                        src={docInfo?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=60'}
-                        alt={rev.psychologistName}
-                        className="w-4 h-4 rounded-full object-cover shrink-0"
-                      />
-                      <span className="font-bold text-slate-800">
-                        {rev.psychologistName.split(',')[0]}
-                      </span>
-                      <span className="text-amber-500 font-bold font-mono">
-                        ({docInfo?.rating || rev.rating} ★)
+                    {/* SOLO DOCTOR BADGE */}
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-[11px]">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span className="font-bold text-emerald-900">
+                        dr. Sarah Jenkins, M.Psi.
                       </span>
                     </div>
                   </div>
@@ -512,7 +418,7 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
                     {isLowRating && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-200">
                         <AlertTriangle className="w-3 h-3 text-rose-600" />
-                        Evaluasi Supervisi HIMPSI
+                        Perlu Tindak Lanjut Layanan
                       </span>
                     )}
                   </div>

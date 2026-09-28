@@ -110,11 +110,11 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xl font-extrabold text-slate-900 tracking-tight">JiwaSehat</span>
                 <span className="text-[10px] font-bold px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded">
-                  HIMPSI Certified
+                  Berlisensi Resmi
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Platform Konsultasi Psikologi Terintegrasi
+                Praktik Mandiri Psikolog Klinis • dr. Sarah Jenkins, M.Psi.
               </p>
             </div>
           </div>

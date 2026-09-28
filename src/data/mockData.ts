@@ -116,50 +116,6 @@ export const INITIAL_USERS: User[] = [
     createdAt: '2026-01-15'
   },
   {
-    id: 'user-psy-2',
-    email: 'dr.adrian@jiwasehat.id',
-    name: 'Dr. Adrian Pratama, M.Psi., Psikolog',
-    role: 'PSYCHOLOGIST',
-    avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=200&auto=format&fit=crop&q=80',
-    status: 'ACTIVE',
-    phone: '0811-6677-8899',
-    isVerified: true,
-    createdAt: '2026-02-01'
-  },
-  {
-    id: 'user-psy-3',
-    email: 'maya.wulandari@jiwasehat.id',
-    name: 'Maya Wulandari, M.Psi., Psikolog',
-    role: 'PSYCHOLOGIST',
-    avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=200&auto=format&fit=crop&q=80',
-    status: 'PENDING_VERIFICATION',
-    phone: '0812-7788-9900',
-    isVerified: false,
-    createdAt: '2026-09-10'
-  },
-  {
-    id: 'user-psy-4',
-    email: 'dimas.raditya@jiwasehat.id',
-    name: 'dr. Dimas Raditya, M.Psi., Psikolog',
-    role: 'PSYCHOLOGIST',
-    avatar: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=200&auto=format&fit=crop&q=80',
-    status: 'ACTIVE',
-    phone: '0812-4455-6677',
-    isVerified: true,
-    createdAt: '2026-03-12'
-  },
-  {
-    id: 'user-psy-5',
-    email: 'nabila.putri@jiwasehat.id',
-    name: 'Nabila Putri, M.Psi., Psikolog',
-    role: 'PSYCHOLOGIST',
-    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&auto=format&fit=crop&q=80',
-    status: 'ACTIVE',
-    phone: '0813-2211-4433',
-    isVerified: true,
-    createdAt: '2026-04-05'
-  },
-  {
     id: 'user-adm-1',
     email: 'admin@jiwasehat.id',
     name: 'Super Admin JiwaSehat',
@@ -178,95 +134,22 @@ export const INITIAL_PSYCHOLOGISTS: PsychologistProfile[] = [
     title: 'Psikolog Klinis Dewasa & Hubungan Interpersonal',
     strNumber: 'STR-PSI-2021-09842',
     sipNumber: 'SIP.503/042-DPMPTSP/2022',
-    experienceYears: 8,
-    bio: 'Berpengalaman lebih dari 8 tahun mendampingi pasien dengan gangguan kecemasan (anxiety), depresi ringan-sedang, trauma masa lalu, dan krisis karier. Menggunakan pendekatan Cognitive Behavioral Therapy (CBT) dan Acceptance & Commitment Therapy (ACT) yang hangat, solutif, dan berbasis bukti klinis.',
-    specialties: ['Anxiety & Panic Attack', 'Depresi & Burnout', 'Relationship & Family', 'Self-Esteem'],
-    therapyApproaches: ['Cognitive Behavioral Therapy (CBT)', 'Acceptance & Commitment (ACT)', 'Mindfulness-Based Stress Reduction'],
+    experienceYears: 10,
+    bio: 'Berpengalaman lebih dari 10 tahun mendampingi pasien dengan gangguan kecemasan (anxiety), depresi ringan-sedang, trauma masa lalu, burnout karier, dan dinamika hubungan interpersonal. Menggunakan pendekatan Cognitive Behavioral Therapy (CBT), Acceptance & Commitment Therapy (ACT), dan Mindfulness-Based Stress Reduction yang hangat, solutif, empatis, dan berbasis bukti klinis ilmiah.',
+    specialties: ['Anxiety & Panic Attack', 'Depresi & Burnout', 'Relationship & Family', 'Self-Esteem & Trauma'],
+    therapyApproaches: ['Cognitive Behavioral Therapy (CBT)', 'Acceptance & Commitment (ACT)', 'Mindfulness-Based Stress Reduction', 'Solution-Focused Brief Therapy (SFBT)'],
     rating: 4.9,
     reviewCount: 168,
     consultationFeeOnline: 250000,
-    consultationFeeOffline: 350000,
+    consultationFeeOffline: 375000,
     languages: ['Bahasa Indonesia', 'English'],
-    clinicAddress: 'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
+    clinicAddress: 'Praktik Mandiri JiwaSehat, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
     isAvailableToday: true,
     education: ['S1 Fakultas Psikologi Universitas Indonesia (Cum Laude)', 'S2 Magister Psikologi Profesi Klinis Dewasa UI'],
     strExpiry: '2028-12-31',
     sipExpiry: '2027-06-30',
-    clinicalHours: 2450,
-    practicePolicy: 'Menjunjung tinggi standar etika kerahasiaan Kode Etik Psikologi Indonesia (HIMPSI). Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
-  },
-  {
-    userId: 'user-psy-2',
-    title: 'Psikolog Klinis & Spesialis Stres Kerja / Karier',
-    strNumber: 'STR-PSI-2019-11409',
-    sipNumber: 'SIP.503/077-DPMPTSP/2020',
-    experienceYears: 11,
-    bio: 'Fokus pada manajemen stres profesional, krisis eksistensial, quarter-life crisis, trauma masa kecil, serta gangguan tidur/insomnia. Berkomitmen menciptakan ruang aman yang bebas dari penghakiman (judgement-free zone).',
-    specialties: ['Workplace Burnout & Stress', 'Krisis Eksistensial', 'Trauma & Grief', 'Gangguan Tidur & Psikosomatis'],
-    therapyApproaches: ['Humanistic Psychotherapy', 'Solution-Focused Brief Therapy (SFBT)', 'Compassion-Focused Therapy'],
-    rating: 4.8,
-    reviewCount: 112,
-    consultationFeeOnline: 275000,
-    consultationFeeOffline: 375000,
-    languages: ['Bahasa Indonesia', 'English', 'Jawa'],
-    clinicAddress: 'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
-    isAvailableToday: true,
-    education: ['S1 Psikologi Universitas Gadjah Mada (UGM)', 'S2 Magister Psikologi Profesi Klinis UGM'],
-    strExpiry: '2029-05-15',
-    sipExpiry: '2028-02-28',
-    clinicalHours: 3800,
-    practicePolicy: 'Menyediakan ruang konseling privat yang aman, terstandarisasi etis, dengan pendekatan berbasis bukti ilmiah dan pemberdayaan individu.'
-  },
-  {
-    userId: 'user-psy-3',
-    title: 'Psikolog Remaja, Tumbuh Kembang & Emosi',
-    strNumber: 'STR-PSI-2023-45120',
-    sipNumber: 'SIP.503/118-DPMPTSP/2024',
-    experienceYears: 4,
-    bio: 'Menangani permasalahan emosi remaja, regulasi diri, motivasi belajar, tantrum, serta komunikasi orang tua dan anak. Menekankan terapi bermain terstruktur dan psikoedukasi keluarga.',
-    specialties: ['Parenting & Pola Asuh', 'Kecemasan Remaja', 'Regulasi Emosi', 'Dukungan Perkembangan'],
-    therapyApproaches: ['Play Therapy', 'CBT Remaja', 'Family Systems Therapy'],
-    rating: 4.1,
-    reviewCount: 32,
-    consultationFeeOnline: 225000,
-    consultationFeeOffline: 320000,
-    languages: ['Bahasa Indonesia'],
-    clinicAddress: 'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
-    isAvailableToday: false
-  },
-  {
-    userId: 'user-psy-4',
-    title: 'Psikolog Klinis Dewasa & Trauma Recovery',
-    strNumber: 'STR-PSI-2020-33291',
-    sipNumber: 'SIP.503/209-DPMPTSP/2021',
-    experienceYears: 7,
-    bio: 'Berpengalaman menangani trauma masa kecil, PTSD, kecemasan sosial, dan masalah kepercayaan diri. Menerapkan pendekatan EMDR dan Somatic Experiencing yang holistik dan menenangkan.',
-    specialties: ['Trauma & PTSD', 'Kecemasan Sosial', 'Panic Attack', 'Self-Esteem'],
-    therapyApproaches: ['Eye Movement Desensitization (EMDR)', 'Somatic Experiencing', 'CBT'],
-    rating: 4.9,
-    reviewCount: 94,
-    consultationFeeOnline: 260000,
-    consultationFeeOffline: 360000,
-    languages: ['Bahasa Indonesia', 'English'],
-    clinicAddress: 'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
-    isAvailableToday: true
-  },
-  {
-    userId: 'user-psy-5',
-    title: 'Psikolog Klinis Hubungan & Krisis Emosional',
-    strNumber: 'STR-PSI-2022-77104',
-    sipNumber: 'SIP.503/301-DPMPTSP/2023',
-    experienceYears: 5,
-    bio: 'Membantu klien menghadapi konflik relasi, perceraian, quarter-life crisis, dan overthinking kronis. Mengedepankan ruang bicara yang suportif, validatif, dan terarah menuju solusi.',
-    specialties: ['Relationship & Family', 'Overthinking & Stres', 'Quarter-Life Crisis', 'Regulasi Emosi'],
-    therapyApproaches: ['Emotion-Focused Therapy (EFT)', 'Mindfulness-Based CBT', 'SFBT'],
-    rating: 4.8,
-    reviewCount: 76,
-    consultationFeeOnline: 240000,
-    consultationFeeOffline: 340000,
-    languages: ['Bahasa Indonesia'],
-    clinicAddress: 'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
-    isAvailableToday: true
+    clinicalHours: 3200,
+    practicePolicy: 'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis dan regulasi Kemenkes RI. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
   }
 ];
 
@@ -954,11 +837,11 @@ export const INITIAL_SCHEDULES: ScheduleSlot[] = [
   { id: 'slot-7', psychologistId: 'user-psy-1', date: '2026-09-18', startTime: '11:00', endTime: '12:00', isAvailable: true, isBooked: false },
   { id: 'slot-8', psychologistId: 'user-psy-1', date: '2026-09-18', startTime: '15:30', endTime: '16:30', isAvailable: false, isBooked: false }, // Libur
 
-  // Dr. Adrian Pratama (user-psy-2)
-  { id: 'slot-9', psychologistId: 'user-psy-2', date: '2026-09-16', startTime: '11:00', endTime: '12:00', isAvailable: true, isBooked: false },
-  { id: 'slot-10', psychologistId: 'user-psy-2', date: '2026-09-16', startTime: '14:00', endTime: '15:00', isAvailable: true, isBooked: false },
-  { id: 'slot-11', psychologistId: 'user-psy-2', date: '2026-09-17', startTime: '09:00', endTime: '10:00', isAvailable: true, isBooked: false },
-  { id: 'slot-12', psychologistId: 'user-psy-2', date: '2026-09-17', startTime: '13:00', endTime: '14:00', isAvailable: false, isBooked: true, appointmentId: 'apt-pending-1' }
+  // Slot Tambahan Praktik dr. Sarah Jenkins (user-psy-1)
+  { id: 'slot-9', psychologistId: 'user-psy-1', date: '2026-09-16', startTime: '11:00', endTime: '12:00', isAvailable: true, isBooked: false },
+  { id: 'slot-10', psychologistId: 'user-psy-1', date: '2026-09-16', startTime: '14:00', endTime: '15:00', isAvailable: true, isBooked: false },
+  { id: 'slot-11', psychologistId: 'user-psy-1', date: '2026-09-17', startTime: '09:00', endTime: '10:00', isAvailable: true, isBooked: false },
+  { id: 'slot-12', psychologistId: 'user-psy-1', date: '2026-09-17', startTime: '13:00', endTime: '14:00', isAvailable: false, isBooked: true, appointmentId: 'apt-pending-1' }
 ];
 
 export const INITIAL_APPOINTMENTS: Appointment[] = [
@@ -1011,15 +894,15 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     clinicalNotesId: 'note-past-1',
     reviewId: 'rev-1'
   },
-  // 3. Pending Offline Appointment (Budi Santoso & Dr. Adrian)
+  // 3. Pending Offline Appointment (Budi Santoso & dr. Sarah Jenkins)
   {
     id: 'apt-pending-1',
     bookingCode: 'JS-20260917-04',
     patientId: 'user-pat-1',
     patientName: 'Budi Santoso',
     patientEmail: 'budi.santoso@gmail.com',
-    psychologistId: 'user-psy-2',
-    psychologistName: 'Dr. Adrian Pratama, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     packageId: 'pkg-offline-1',
     packageName: 'Sesi Tatap Muka (Offline di Klinik)',
     packageType: 'OFFLINE_CLINIC',
@@ -1058,15 +941,15 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     createdAt: '2026-09-08 18:00',
     clinicalNotesId: 'note-past-2'
   },
-  // 5. Completed Offline Appointment (Dr. Adrian Pratama)
+  // 5. Completed Offline Appointment (dr. Sarah Jenkins)
   {
     id: 'apt-past-3',
     bookingCode: 'JS-20260904-03',
     patientId: 'user-pat-4',
     patientName: 'Rina Kartika',
     patientEmail: 'rina.kartika@office.co.id',
-    psychologistId: 'user-psy-2',
-    psychologistName: 'Dr. Adrian Pratama, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     packageId: 'pkg-offline-1',
     packageName: 'Sesi Tatap Muka (Offline di Klinik)',
     packageType: 'OFFLINE_CLINIC',
@@ -1082,15 +965,15 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     createdAt: '2026-09-01 14:00',
     clinicalNotesId: 'note-past-3'
   },
-  // 6. Completed Online Consultation (Dr. Adrian Pratama)
+  // 6. Completed Online Consultation (dr. Sarah Jenkins)
   {
     id: 'apt-past-4',
     bookingCode: 'JS-20260911-05',
     patientId: 'user-pat-5',
     patientName: 'Taufik Hidayat',
     patientEmail: 'taufik.hidayat@gmail.com',
-    psychologistId: 'user-psy-2',
-    psychologistName: 'Dr. Adrian Pratama, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     packageId: 'pkg-chat-1',
     packageName: 'Sesi Konsultasi Online (Chat Privat)',
     packageType: 'ONLINE_CHAT',
@@ -1105,15 +988,15 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     hasTestResult: true,
     createdAt: '2026-09-09 11:30'
   },
-  // 7. Completed Assessment Bundling (dr. Nadira Utami)
+  // 7. Completed Assessment Bundling (dr. Sarah Jenkins)
   {
     id: 'apt-past-5',
     bookingCode: 'JS-20260907-06',
     patientId: 'user-pat-2',
     patientName: 'Siti Amanda',
     patientEmail: 'siti.amanda@outlook.com',
-    psychologistId: 'user-psy-4',
-    psychologistName: 'dr. Nadira Utami, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     packageId: 'pkg-bundling-1',
     packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
     packageType: 'BUNDLING_ASSESSMENT',
@@ -1129,15 +1012,15 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     createdAt: '2026-09-03 16:45',
     reviewId: 'rev-top-1'
   },
-  // 8. Completed Online Chat (Farhan Wicaksono)
+  // 8. Completed Online Chat (dr. Sarah Jenkins)
   {
     id: 'apt-past-6',
     bookingCode: 'JS-20260908-07',
     patientId: 'user-pat-1',
     patientName: 'Budi Santoso',
     patientEmail: 'budi.santoso@gmail.com',
-    psychologistId: 'user-psy-3',
-    psychologistName: 'Farhan Wicaksono, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     packageId: 'pkg-chat-1',
     packageName: 'Sesi Konsultasi Online (Chat Privat)',
     packageType: 'ONLINE_CHAT',
@@ -1153,15 +1036,15 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     createdAt: '2026-09-05 10:20',
     reviewId: 'rev-eval-1'
   },
-  // 9. Completed Offline Consultation (dr. Maya Anggraini)
+  // 9. Completed Offline Consultation (dr. Sarah Jenkins)
   {
     id: 'apt-past-7',
     bookingCode: 'JS-20260913-08',
     patientId: 'user-pat-6',
     patientName: 'Anindya Putri',
     patientEmail: 'anindya.putri@gmail.com',
-    psychologistId: 'user-psy-5',
-    psychologistName: 'dr. Maya Anggraini, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     packageId: 'pkg-offline-1',
     packageName: 'Sesi Tatap Muka (Offline di Klinik)',
     packageType: 'OFFLINE_CLINIC',
@@ -1187,7 +1070,7 @@ export const INITIAL_CHAT_MESSAGES: Record<string, ChatMessage[]> = {
       senderId: 'system',
       senderRole: 'SYSTEM',
       senderName: 'Sistem JiwaSehat',
-      text: 'Sesi konsultasi terenkripsi telah dimulai. Waktu sesi Anda adalah 60 menit. Seluruh percakapan dijamin kerahasiaannya di bawah Kode Etik HIMPSI.',
+      text: 'Sesi konsultasi privat terenkripsi telah dimulai. Waktu sesi Anda adalah 60 menit. Seluruh percakapan dijamin kerahasiaannya di bawah Standar Etika Profesi Psikologi & Kemenkes RI.',
       timestamp: '10:30'
     },
     {
@@ -1341,8 +1224,8 @@ export const INITIAL_REVIEWS: Review[] = [
     patientId: 'user-pat-6',
     patientName: 'Anindya Putri',
     isAnonymous: false,
-    psychologistId: 'user-psy-2',
-    psychologistName: 'Dr. Adrian Pratama, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 4,
     comment: 'Konseling tatap muka sangat berbobot, klinik sangat rapi. Akan menjadwalkan sesi tindak lanjut.',
     isApproved: false, // Pending moderation
@@ -1354,10 +1237,10 @@ export const INITIAL_REVIEWS: Review[] = [
     patientId: 'user-pat-1',
     patientName: 'Budi Santoso',
     isAnonymous: false,
-    psychologistId: 'user-psy-3',
-    psychologistName: 'Farhan Wicaksono, M.Psi., Psikolog',
-    rating: 3,
-    comment: 'Penjelasan teori cukup bagus, tapi sesi terasa agak terburu-buru dan psikolog beberapa kali memotong pembicaraan. Perlu lebih sabar mendengarkan keluhan klien.',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 4,
+    comment: 'Penjelasan teori dan latihan pernapasan cukup bagus. Sesi terasa hangat dan terarah menuju solusi.',
     isApproved: true,
     createdAt: '2026-09-08'
   },
@@ -1368,10 +1251,10 @@ export const INITIAL_REVIEWS: Review[] = [
     patientName: 'Siti Amanda',
     isAnonymous: true,
     anonymousAlias: 'Klien Anonim',
-    psychologistId: 'user-psy-4',
-    psychologistName: 'dr. Nadira Utami, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 5,
-    comment: 'Luar biasa! Pendekatan EMDR yang dilakukan dr. Nadira sangat membantu meredakan trauma masa kecil saya yang sudah menahun. Sangat profesional dan menenangkan.',
+    comment: 'Luar biasa! Pendekatan CBT & mindfulness yang dilakukan dr. Sarah sangat membantu meredakan kecemasan dan insomnia saya. Sangat profesional dan menenangkan.',
     isApproved: true,
     createdAt: '2026-09-12'
   },
@@ -1381,10 +1264,10 @@ export const INITIAL_REVIEWS: Review[] = [
     patientId: 'user-pat-4',
     patientName: 'Rina Kartika',
     isAnonymous: false,
-    psychologistId: 'user-psy-2',
-    psychologistName: 'Dr. Adrian Pratama, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 5,
-    comment: 'Sangat terbantu dengan sesi tatap muka bersama Dr. Adrian di Senopati. Beliau memberikan panduan restrukturisasi kognitif yang sangat aplikatif untuk kecemasan karier saya.',
+    comment: 'Sangat terbantu dengan sesi tatap muka bersama dr. Sarah di Senopati. Beliau memberikan panduan restrukturisasi kognitif yang sangat aplikatif untuk kecemasan karier saya.',
     isApproved: true,
     createdAt: '2026-09-06'
   },
@@ -1395,10 +1278,10 @@ export const INITIAL_REVIEWS: Review[] = [
     patientName: 'Anindya Putri',
     isAnonymous: true,
     anonymousAlias: 'Ibu Muda Bahagia',
-    psychologistId: 'user-psy-5',
-    psychologistName: 'dr. Maya Anggraini, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 5,
-    comment: 'Dokter Maya sangat hangat dan penuh penerimaan. Pendampingan psikologi pasca-melahirkan yang beliau berikan sungguh menjadi penyelamat kesehatan mental saya.',
+    comment: 'Dokter Sarah sangat hangat dan penuh penerimaan. Pendampingan psikologi pasca-melahirkan yang beliau berikan sungguh menjadi penyelamat kesehatan mental saya.',
     isApproved: true,
     createdAt: '2026-09-14'
   },
@@ -1408,10 +1291,10 @@ export const INITIAL_REVIEWS: Review[] = [
     patientId: 'user-pat-7',
     patientName: 'Bagas Wicaksono',
     isAnonymous: false,
-    psychologistId: 'user-psy-6',
-    psychologistName: 'Reza Firmansyah, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 4,
-    comment: 'Sesi mindfulness berjalan sangat kondusif. Teknik grounding 5-4-3-2-1 yang diajarkan Mas Reza langsung saya pakai saat mulai overthinking.',
+    comment: 'Sesi mindfulness berjalan sangat kondusif. Teknik grounding 5-4-3-2-1 yang diajarkan dr. Sarah langsung saya pakai saat mulai overthinking.',
     isApproved: true,
     createdAt: '2026-09-15'
   },
@@ -1435,10 +1318,10 @@ export const INITIAL_REVIEWS: Review[] = [
     patientName: 'Taufik Hidayat',
     isAnonymous: true,
     anonymousAlias: 'Klien Anonim',
-    psychologistId: 'user-psy-3',
-    psychologistName: 'Farhan Wicaksono, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 4,
-    comment: 'Meskipun awalnya agak canggung, sesi kedua berjalan jauh lebih baik. Pak Farhan memberikan framework pemecahan masalah yang jelas.',
+    comment: 'Meskipun awalnya agak canggung, sesi kedua berjalan jauh lebih baik. Bu Sarah memberikan framework pemecahan masalah yang jelas.',
     isApproved: false,
     createdAt: '2026-09-16'
   },
@@ -1449,49 +1332,50 @@ export const INITIAL_REVIEWS: Review[] = [
     patientName: 'Budi Santoso',
     isAnonymous: true,
     anonymousAlias: 'Software Engineer',
-    psychologistId: 'user-psy-4',
-    psychologistName: 'dr. Nadira Utami, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 5,
-    comment: 'Pelayanan prima. Penjadwalan mudah dan sesi konseling sangat membuka perspektif baru dalam menghadapi burnout.',
+    comment: 'Pelayanan prima. Penjadwalan mudah dan sesi konseling privat sangat membuka perspektif baru dalam menghadapi burnout.',
     isApproved: true,
     createdAt: '2026-09-16'
   }
 ];
 
 export const INITIAL_LANDING_CMS: LandingPageCmsConfig = {
-  heroBadge: 'Layanan Psikologi Berizin Resmi HIMPSI & Kemenkes RI',
+  heroBadge: 'Praktik Mandiri Berizin Resmi Kemenkes RI',
   heroTitle: 'Ruang Aman untuk Mendengar, Menyembuhkan, dan Bertumbuh.',
-  heroSubtitle: 'Konsultasikan keresahan batin, stres kerja, dan kecemasan Anda dengan psikolog klinis berlisensi. Pilihan sesi fleksibel via Chat Online privat terenkripsi atau Tatap Muka di klinik Senopati.',
-  sliderTitle: 'Psikolog Siap Sedia Hari Ini',
-  sliderSubtitle: 'Tenaga psikolog klinis yang siap melayani sesi konsultasi online atau tatap muka hari ini tanpa perlu antre berhari-hari.',
+  heroSubtitle: 'Konsultasikan keresahan batin, stres kerja, dan kecemasan Anda secara privat bersama dr. Sarah Jenkins, M.Psi., Psikolog Klinis. Pilihan sesi fleksibel via Chat Online privat terenkripsi atau Tatap Muka di ruang praktik Senopati.',
+  sliderTitle: 'Praktik Aktif Hari Ini',
+  sliderSubtitle: 'Jadwal konsultasi online dan tatap muka tersedia hari ini bersama dr. Sarah Jenkins, M.Psi.',
   sliderIntervalSeconds: 4,
   sliderAutoPlay: true,
-  clinicName: 'JiwaSehat Clinic Center Senopati',
+  clinicName: 'Praktik Mandiri dr. Sarah Jenkins, M.Psi.',
   clinicAddress: 'Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan 12190',
-  clinicHours: 'Senin - Sabtu: 08:00 - 21:00 WIB • Minggu: 09:00 - 17:00 WIB',
+  clinicHours: 'Senin - Sabtu: 08:00 - 21:00 WIB • Minggu: Libur Praktik',
   clinicPhone: '+62 21 5790 1234',
-  clinicWhatsapp: '+62 812 3456 7890',
+  clinicWhatsapp: '+62 811-2233-4455',
   clinicEmail: 'halo@jiwasehat.id'
 };
 
 export const INITIAL_PATIENT_CMS: PatientPageCmsConfig = {
   welcomeBannerTitle: 'Selamat Datang di Ruang Pulih JiwaSehat',
-  welcomeBannerSubtitle: 'Langkah pertama mencari bantuan adalah bukti keberanian diri. Psikolog klinis berlisensi kami siap mendampingi perjalanan pemulihan emosional Anda.',
+  welcomeBannerSubtitle: 'Langkah pertama mencari bantuan adalah bukti keberanian diri. dr. Sarah Jenkins, M.Psi., Psikolog Klinis siap mendampingi perjalanan pemulihan emosional Anda.',
   dailyMentalHealthTip: 'Saat pikiran cemas mulai berkejaran (racing thoughts), letakkan kedua telapak kaki di lantai dan bernapaslah dengan teknik 4-7-8 (tarik 4 detik, tahan 7 detik, hembuskan 8 detik).',
   crisisHotlineTitle: 'Layanan Bantuan Krisis & Siaga 24 Jam',
   crisisHotlineNumber: '119 ext 8 (Sejiwa Kemenkes RI)',
   crisisWhatsapp: '+62 811-1929-555',
   crisisNotice: 'Jika Anda atau kerabat sedang mengalami krisis emosional mendalam, serangan panik berat, atau dorongan menyakiti diri, mohon segera hubungi hotline darurat di atas. Layanan ini bebas pulsa 24 jam.',
-  announcementText: 'Pemberitahuan: Seluruh sesi telekonsultasi terlindungi enkripsi end-to-end. Rekam medis Anda hanya dapat diakses oleh psikolog penanggung jawab.'
+  announcementText: 'Pemberitahuan: Seluruh sesi telekonsultasi privat terlindungi enkripsi end-to-end. Rekam medis Anda hanya dapat diakses secara rahasia oleh dr. Sarah Jenkins.'
 };
 
 export const INITIAL_PSYCHOLOGIST_CMS: PsychologistPageCmsConfig = {
   guidelinesTitle: 'Standar Prosedur Operasional (SOP) & Etika Klinis',
-  guidelinesContent: 'Sesuai Kode Etik Psikologi Indonesia (HIMPSI), psikolog diwajibkan menyelesaikan input Rekam Medis (Catatan SOAP) paling lambat 24 jam setelah sesi konsultasi berakhir. Jaga objektivitas diagnosis dan lakukan eskalasi rujukan psikiater bila terindikasi risiko bahaya.',
-  announcementTitle: 'Maklumat Dewan Etik & Supervisi Klinis',
-  announcementContent: 'Sesi Peer Clinical Supervision bulanan akan diselenggarakan setiap hari Jumat pekan ketiga. Kehadiran dihitung sebagai bagian dari Continuing Professional Development (CPD).',
-  remunerationPolicy: 'Bagi hasil honor sesi konsultasi (80% Psikolog : 20% Klinik) ditransfer setiap tanggal 25 setiap bulannya ke rekening terdaftar.',
-  clinicalSupervisorContact: 'Kordinator Klinis: dr. Adrian Pratama, M.Psi. (WA: +62 811-6677-8899)'
+  guidelinesContent: 'Sesuai Standar Kode Etik Profesi Psikologi & Regulasi Tenaga Kesehatan RI, psikolog diwajibkan menyelesaikan input Rekam Medis (Catatan SOAP) paling lambat 24 jam setelah sesi konsultasi berakhir. Jaga objektivitas diagnosis, informed consent, dan kerahasiaan penuh rekam medis pasien.',
+  announcementTitle: 'Maklumat Praktik Mandiri',
+  announcementContent: 'Jadwal konsultasi tatap muka dan rekapitulasi data rekam medis pasien terintegrasi secara aman.',
+  remunerationPolicy: 'Alokasi honorarium sesi konsultasi ditransfer setiap tanggal 25 setiap bulannya ke rekening terdaftar dokter.',
+  clinicalSupervisorContact: 'Kontak Darurat Praktik: dr. Sarah Jenkins (WA: +62 811-2233-4455)'
 };
+
 
 

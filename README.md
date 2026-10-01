@@ -1,20 +1,52 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# JiwaSehat - Platform Konsultasi Psikologi
 
-# Run and deploy your AI Studio app
+JiwaSehat adalah aplikasi frontend React untuk simulasi platform konsultasi psikologi. Aplikasi ini memiliki tampilan publik, dashboard pasien, dashboard psikolog, dashboard admin, dan halaman blueprint arsitektur.
 
-This contains everything you need to run your app locally.
+## Stack
 
-View your app in AI Studio: https://ai.studio/apps/104cb91c-0e07-4082-b0a7-88fcabd77404
+- React 19
+- TypeScript
+- Vite
+- Tailwind CSS
+- LocalStorage sebagai persistence sementara
+- Mock data di `src/data/mockData.ts`
 
-## Run Locally
+## Struktur Dokumentasi
 
-**Prerequisites:**  Node.js
+Dokumentasi proyek ada di folder `docs/`:
 
+- `PROJECT_CONTEXT.md` - konteks produk dan ruang lingkup
+- `ARCHITECTURE.md` - struktur teknis dan alur aplikasi
+- `CODING_RULES.md` - aturan coding
+- `BUSINESS_RULES.md` - aturan bisnis
+- `WORKFLOW.md` - cara kerja developer dan AI
+- `DATABASE.md` - rancangan data dan persistence
+- `API.md` - kontrak API target
+- `ROLES_PERMISSIONS.md` - role dan izin
+- `FEATURES.md` - daftar fitur
+- `DECISIONS.md` - catatan keputusan teknis
+- `KNOWN_ISSUES.md` - isu yang sudah diketahui
+- `TODO.md` - daftar pekerjaan berikutnya
+- `CHANGELOG.md` - riwayat perubahan
+- `SESSION_HANDOFF.md` - catatan handoff sesi
 
-1. Install dependencies:
-   `npm install`
+## Instalasi Lokal
 
-2. Run the app:
-   `npm run dev`
+```bash
+npm ci
+```
+
+## Script
+
+```bash
+npm run dev
+npm run build
+npm run preview
+npm run lint
+```
+
+Catatan: jalankan script hanya saat memang diperlukan. Untuk sesi kerja AI saat ini, developer meminta AI tidak menjalankan `npm run dev` dan `npm run build`.
+
+## Aturan Git
+
+Git sepenuhnya dikelola oleh developer. AI tidak boleh menjalankan operasi Git seperti `git add`, `git commit`, `git push`, `git pull`, `git merge`, `git rebase`, `git reset`, `git checkout`, `git switch`, `git stash`, atau `git clean`.

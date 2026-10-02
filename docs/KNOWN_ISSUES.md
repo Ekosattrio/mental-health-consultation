@@ -6,12 +6,12 @@
 - Auth masih berupa simulasi client-side.
 - Data tersimpan di LocalStorage, sehingga tidak aman untuk data produksi.
 - Data klinis belum memiliki authorization server-side.
-- UI masih memiliki konsep chat, padahal requirement terbaru menyebut tidak ada konsultasi online/chat via web.
-- Intake form masih ada di prototype, padahal requirement terbaru ingin diganti menjadi pre-test sebelum booking.
+- Sisa data LocalStorage browser lama mungkin masih menyimpan state dari versi sebelum chat dihapus; reset data demo/clear storage jika tampilan tidak berubah.
+- Pre-test masih memakai struktur data lama `IntakeForm` di TypeScript dan LocalStorage, walaupun label dan alurnya sudah diubah menjadi pre-test.
 - Payment status masih simulasi.
-- Payment belum mendukung skema DP 50% dan pelunasan 50%.
-- Booking belum punya mekanisme locking slot yang aman dari double booking.
-- Role permission prototype belum sesuai hierarki terbaru: psikolog/super admin/pengelola harus menjadi role tertinggi.
+- Payment sudah disimulasikan sebagai DP 50% dan pelunasan 50%, tetapi belum ada upload file/backend/payment gateway nyata.
+- Booking belum punya mekanisme locking slot server-side yang aman dari double booking.
+- Role permission frontend sudah diarahkan ke hierarki terbaru, tetapi belum ada authorization server-side.
 - File `tsc_errors.txt` ada di root dan perlu dicek untuk mengetahui error TypeScript historis dari repo.
 - Folder `dist/` pernah terbentuk dari build sebelumnya dan diabaikan oleh `.gitignore`.
 

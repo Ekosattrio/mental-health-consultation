@@ -60,7 +60,7 @@ export interface IntakeForm {
   goals: string;
 }
 
-export type PackageType = 'ONLINE_CHAT' | 'OFFLINE_CLINIC' | 'BUNDLING_ASSESSMENT';
+export type PackageType = 'OFFLINE_CLINIC' | 'BUNDLING_ASSESSMENT';
 
 export interface ConsultationPackage {
   id: string;
@@ -103,7 +103,7 @@ export interface Appointment {
   startTime: string;
   endTime: string;
   status: AppointmentStatus;
-  paymentStatus: 'PENDING' | 'PAID' | 'REFUNDED';
+  paymentStatus: 'PENDING' | 'DP_PENDING_VERIFICATION' | 'DP_PAID' | 'FINAL_PENDING_VERIFICATION' | 'PAID' | 'REFUNDED';
   totalAmount: number;
   meetingLocation: string; // Virtual Room ID or Clinic Room
   hasIntakeForm: boolean;
@@ -155,17 +155,6 @@ export interface TestResult {
   severityLevel: 'NORMAL' | 'RINGAN' | 'SEDANG' | 'BERAT' | 'SANGAT_BERAT';
   interpretation: string;
   clinicalRecommendation: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  appointmentId: string;
-  senderId: string;
-  senderRole: 'PATIENT' | 'PSYCHOLOGIST' | 'SYSTEM';
-  senderName: string;
-  text: string;
-  timestamp: string;
-  isRead?: boolean;
 }
 
 export interface ClinicalNote {
@@ -252,5 +241,17 @@ export interface PsychologistPageCmsConfig {
   announcementContent: string;
   remunerationPolicy: string;
   clinicalSupervisorContact: string;
+
+  // Kop Surat Resmi Laporan Keuangan & Dokumen Dinas
+  letterheadClinicName: string;
+  letterheadDoctorName: string;
+  letterheadSipNumber: string;
+  letterheadStrNumber: string;
+  letterheadAddress: string;
+  letterheadPhone: string;
+  letterheadEmail: string;
+  letterheadWebsite: string;
+  letterheadCity: string;
+  letterheadSignerRole: string;
 }
 

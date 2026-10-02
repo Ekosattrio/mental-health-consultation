@@ -1,25 +1,23 @@
 import React from 'react';
 import { Appointment, ScheduleSlot, PsychologistProfile, PsychologistPageCmsConfig } from '../../../types';
-import { MessageSquare, ShieldCheck, CheckCircle2, Sparkles } from 'lucide-react';
+import { FileText, ShieldCheck, CheckCircle2, Sparkles } from 'lucide-react';
 
 interface OverviewTabProps {
   myAppointments: Appointment[];
   mySchedules: ScheduleSlot[];
   profile: PsychologistProfile | undefined;
-  activeChatApt: Appointment | undefined;
+  activeAppointment: Appointment | undefined;
   psychologistCms: PsychologistPageCmsConfig;
   onOpenEmr: (patientId: string, aptId: string) => void;
-  onOpenChat: () => void;
 }
 
 export const OverviewTab: React.FC<OverviewTabProps> = ({
   myAppointments,
   mySchedules,
   profile,
-  activeChatApt,
+  activeAppointment,
   psychologistCms,
-  onOpenEmr,
-  onOpenChat
+  onOpenEmr
 }) => {
   return (
     <div className="space-y-6">
@@ -52,7 +50,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       </div>
 
       {/* Active Consultation Banner */}
-      {activeChatApt && (
+      {activeAppointment && (
         <div className="p-6 bg-gradient-to-r from-sky-900 to-slate-900 rounded-3xl text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30">
@@ -60,25 +58,25 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               Sesi Konsultasi Terjadwal
             </span>
             <h3 className="text-xl font-bold mt-2">
-              Pasien: {activeChatApt.patientName} ({activeChatApt.packageName})
+              Pasien: {activeAppointment.patientName} ({activeAppointment.packageName})
             </h3>
             <p className="text-xs text-sky-200 mt-1">
-              Jadwal: {activeChatApt.date} • {activeChatApt.startTime} - {activeChatApt.endTime} WIB • Lokasi: {activeChatApt.meetingLocation}
+              Jadwal: {activeAppointment.date} • {activeAppointment.startTime} - {activeAppointment.endTime} WIB • Lokasi: {activeAppointment.meetingLocation}
             </p>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => onOpenEmr(activeChatApt.patientId, activeChatApt.id)}
+              onClick={() => onOpenEmr(activeAppointment.patientId, activeAppointment.id)}
               className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-colors"
             >
-              Buka Rekam Medis EMR
+              Buka Data Pasien & SOAP
             </button>
             <button
-              onClick={onOpenChat}
+              onClick={() => onOpenEmr(activeAppointment.patientId, activeAppointment.id)}
               className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
             >
-              <MessageSquare className="w-4 h-4" />
-              Buka Live Chat
+              <FileText className="w-4 h-4" />
+              Buka Detail Booking
             </button>
           </div>
         </div>

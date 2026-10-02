@@ -2,7 +2,7 @@ import { Appointment as AppointmentEntity, AppointmentStatus } from '../types';
 
 /**
  * Appointment Domain Model (OOP)
- * Encapsulates status checks, date/time formatting, and live-chat eligibility.
+ * Encapsulates status checks, date/time formatting, and booking eligibility.
  */
 export class AppointmentModel {
   private _data: AppointmentEntity;
@@ -73,10 +73,6 @@ export class AppointmentModel {
   }
 
   // Domain behavioral methods
-  public isOnline(): boolean {
-    return this._data.packageType === 'ONLINE_CHAT';
-  }
-
   public isOffline(): boolean {
     return this._data.packageType === 'OFFLINE_CLINIC';
   }
@@ -97,7 +93,7 @@ export class AppointmentModel {
     return this._data.status === 'CANCELLED';
   }
 
-  public canJoinLiveSession(): boolean {
+  public canOpenSessionDetail(): boolean {
     return this.isConfirmed() || this.isInProgress();
   }
 

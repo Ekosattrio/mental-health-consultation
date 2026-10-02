@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { PsychologistProfile } from '../../types';
 import {
@@ -11,13 +11,14 @@ import {
   CheckCircle2,
   ArrowRight,
   Sparkles,
-  MessageSquare,
-  Users,
   FileCheck,
   ExternalLink,
   GraduationCap,
   Award,
-  BookOpen
+  BookOpen,
+  HelpCircle,
+  ChevronDown,
+  Stethoscope
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -39,6 +40,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
   } = useApp();
 
   const [isBioModalOpen, setIsBioModalOpen] = useState<boolean>(false);
+  const [testimonialPage, setTestimonialPage] = useState(0);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
   // Single Doctor definition
   const soloPsychologist: PsychologistProfile = psychologists[0];
@@ -59,6 +62,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
   };
 
   const approvedReviews = reviews.filter(r => r.isApproved);
+  const testimonialItems = approvedReviews.length > 0
+    ? Array.from({ length: 10 }, (_, index) => approvedReviews[index % approvedReviews.length])
+    : [];
+  const visibleTestimonials = testimonialItems.slice(testimonialPage, testimonialPage + 3);
+
+  useEffect(() => {
+    if (testimonialItems.length <= 3) return;
+    const timer = window.setInterval(() => {
+      setTestimonialPage(prev => (prev + 1) % Math.max(1, testimonialItems.length - 2));
+    }, 3500);
+    return () => window.clearInterval(timer);
+  }, [testimonialItems.length]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -95,11 +110,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                 </button>
 
                 <button
-                  onClick={() => requireAuth(onTakeTest, 'mengikuti tes psikologi online mandiri')}
+                  onClick={() => requireAuth(onTakeTest, 'mengikuti assessment mandiri')}
                   className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 font-semibold text-sm backdrop-blur-md transition-all flex items-center gap-2 cursor-pointer"
                 >
                   <FileCheck className="w-4 h-4 text-amber-300" />
-                  Tes Psikologi Online Mandiri (Gratis)
+                  Assessment Mandiri (Opsional)
                 </button>
               </div>
 
@@ -135,17 +150,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                     </span>
                   </div>
                   <span className="text-[11px] font-bold text-slate-400">
-                    Kemenkes RI Verified
+                    Praktik Terjadwal
                   </span>
                 </div>
 
-                {/* Doctor Avatar & Identity */}
+                {/* Doctor Identity Badge */}
                 <div className="flex items-center gap-4">
-                  <img
-                    src={soloUser?.avatar}
-                    alt={soloUser?.name}
-                    className="w-18 h-18 rounded-2xl object-cover border-2 border-teal-600 shadow-md shrink-0"
-                  />
+                  <div className="w-18 h-18 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shrink-0">
+                    <Stethoscope className="w-9 h-9" />
+                  </div>
                   <div className="min-w-0">
                     <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold mb-1">
                       <Sparkles className="w-3 h-3 text-teal-600" />
@@ -157,7 +170,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                     <p className="text-xs text-teal-700 font-semibold mt-0.5">
                       {soloPsychologist?.title}
                     </p>
-                    <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
                       SIP: {soloPsychologist?.sipNumber}
                     </p>
                   </div>
@@ -198,9 +211,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                 {/* Fee & Action Buttons */}
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
                   <div>
-                    <span className="text-[10px] text-slate-400 font-medium block">Biaya Sesi Online</span>
+                    <span className="text-[10px] text-slate-400 font-medium block">DP Awal 50%</span>
                     <span className="text-sm font-black text-slate-900">
-                      Rp {soloPsychologist?.consultationFeeOnline.toLocaleString('id-ID')}
+                      Rp {Math.ceil((soloPsychologist?.consultationFeeOffline || 0) * 0.5).toLocaleString('id-ID')}
                     </span>
                   </div>
 
@@ -231,20 +244,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
       {/* 2. TENTANG PSIKOLOG & PENDEKATAN KLINIS (PROFIL MANDIRI 1 DOKTER) */}
       <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left Column: Doctor Photo & Badges */}
+          {/* Left Column: Doctor Identity & Badges */}
           <div className="lg:col-span-5 space-y-4">
-            <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200 bg-white">
-              <img
-                src={soloUser?.avatar}
-                alt={soloUser?.name}
-                className="w-full h-96 object-cover object-top"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent flex flex-col justify-end p-6 text-white">
-                <span className="text-xs font-bold text-teal-300 uppercase tracking-wider">
-                  Psikolog Klinis Berizin Resmi
-                </span>
-                <h3 className="text-xl font-black mt-0.5">{soloUser?.name}</h3>
-                <p className="text-xs text-slate-300">{soloPsychologist?.title}</p>
+            <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200 bg-gradient-to-br from-teal-900 via-slate-900 to-slate-950 p-8 text-white flex flex-col justify-between min-h-[360px]">
+              <div className="space-y-4">
+                <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center shadow-inner">
+                  <Stethoscope className="w-8 h-8" />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-teal-300 uppercase tracking-wider block">
+                    Psikolog Klinis Praktik Terjadwal
+                  </span>
+                  <h3 className="text-2xl font-black mt-1 text-white">{soloUser?.name}</h3>
+                  <p className="text-sm text-teal-100 font-medium mt-0.5">{soloPsychologist?.title}</p>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t border-white/10 space-y-2">
+                <div className="flex items-center gap-2 text-xs text-teal-200">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="font-semibold">Praktik Berizin Resmi & Terverifikasi Klinis</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed italic">
+                  &ldquo;Mendampingi setiap langkah pemulihan Anda dalam ruang konseling yang aman, hangat, dan bebas stigma.&rdquo;
+                </p>
               </div>
             </div>
 
@@ -253,12 +276,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
               <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 shadow-2xs space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-teal-700">
                   <Award className="w-4 h-4 text-teal-600" />
-                  <span>Legalisasi Kemenkes</span>
+                  <span>Identitas Praktik</span>
                 </div>
-                <p className="text-[11px] text-slate-600 font-mono">
+                <p className="text-[11px] text-slate-600 font-semibold">
                   STR: {soloPsychologist?.strNumber}
                 </p>
-                <p className="text-[11px] text-slate-600 font-mono">
+                <p className="text-[11px] text-slate-600 font-semibold">
                   SIP: {soloPsychologist?.sipNumber}
                 </p>
               </div>
@@ -390,8 +413,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                     {/* Header Package */}
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-3 bg-teal-50 text-teal-700 rounded-2xl border border-teal-100">
-                        {pkg.type === 'ONLINE_CHAT' && <MessageSquare className="w-6 h-6" />}
-                        {pkg.type === 'OFFLINE_CLINIC' && <Users className="w-6 h-6" />}
+                        {pkg.type === 'OFFLINE_CLINIC' && <Calendar className="w-6 h-6" />}
                         {pkg.type === 'BUNDLING_ASSESSMENT' && <FileCheck className="w-6 h-6" />}
                       </div>
                       <div>
@@ -517,7 +539,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                   <div className="w-3 h-3 rounded-full bg-rose-500 animate-pulse" />
                   <span className="text-xs font-bold text-slate-900">{landingCms.clinicName}</span>
                 </div>
-                <span className="text-[11px] text-slate-500 font-medium font-mono">Senopati, Jakarta Selatan</span>
+                <span className="text-[11px] text-slate-500 font-semibold">Senopati, Jakarta Selatan</span>
               </div>
 
               <div className="h-84 sm:h-96 w-full bg-slate-800 relative flex items-center justify-center p-8">
@@ -590,9 +612,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {approvedReviews.map(rev => (
+            {visibleTestimonials.map((rev, index) => (
               <div
-                key={rev.id}
+                key={`${rev.id}-${testimonialPage}-${index}`}
                 className="p-6 rounded-3xl bg-slate-50 border border-slate-200/80 flex flex-col justify-between"
               >
                 <div>
@@ -631,10 +653,103 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
               </div>
             ))}
           </div>
+
+          {testimonialItems.length > 3 && (
+            <div className="flex items-center justify-center gap-2 mt-8">
+              <button
+                type="button"
+                onClick={() => setTestimonialPage(prev => (prev - 1 + Math.max(1, testimonialItems.length - 2)) % Math.max(1, testimonialItems.length - 2))}
+                className="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold"
+              >
+                Sebelumnya
+              </button>
+              <span className="text-xs text-slate-500 font-semibold">
+                {testimonialPage + 1} / {Math.max(1, testimonialItems.length - 2)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setTestimonialPage(prev => (prev + 1) % Math.max(1, testimonialItems.length - 2))}
+                className="px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold"
+              >
+                Berikutnya
+              </button>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* 6. CALL TO ACTION (CTA) FOOTER */}
+      {/* 6. FAQ & PERTANYAAN UMUM (PALING BAWAH SEBELUM CTA FOOTER) */}
+      <section className="py-20 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <span className="text-xs font-bold text-teal-600 uppercase tracking-wider flex items-center justify-center gap-1.5">
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Pusat Informasi & Bantuan</span>
+            </span>
+            <h2 className="text-3xl font-extrabold text-slate-900 mt-1">
+              Pertanyaan yang Sering Diajukan (FAQ)
+            </h2>
+            <p className="text-sm text-slate-500 mt-2">
+              Jawaban seputar privasi data, mekanisme booking, kebijakan DP 50%, dan alur konsultasi klinis.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              {
+                q: 'Apakah sesi konsultasi di JiwaSehat dijamin kerahasiaannya?',
+                a: 'Ya, 100% rahasia medis klinis. Seluruh data, catatan klinis, dan riwayat sesi Anda dilindungi penuh oleh Kode Etik Psikologi Indonesia (HIMPSI) dan prinsip informed consent legal. Informasi Anda tidak akan pernah dibagikan kepada pihak ketiga tanpa izin tertulis dari Anda.'
+              },
+              {
+                q: 'Bagaimana sistem pembayaran dan reservasi jadwal?',
+                a: 'Untuk mengunci slot waktu pada jadwal dokter, pasien melakukan pembayaran uang muka (DP) sebesar 50% melalui transfer bank resmi. Sisa pelunasan 50% dapat diselesaikan setelah sesi konsultasi tatap muka selesai di klinik.'
+              },
+              {
+                q: 'Apakah saya bisa mengajukan perubahan jadwal (reschedule)?',
+                a: 'Bisa. Reschedule dapat diajukan secara mandiri melalui menu Jadwal & Riwayat di portal pasien minimal H-1 (24 jam sebelum sesi dimulai) tanpa potongan biaya, dengan memilih slot ketersediaan dokter yang baru.'
+              },
+              {
+                q: 'Apakah saya wajib mengisi pre-test keluhan sebelum konsultasi?',
+                a: 'Pengisian pre-test singkat langsung terintegrasi di langkah pemesanan jadwal. Hal ini sangat dianjurkan agar psikolog dapat memetakan fokus permasalahan Anda terlebih dahulu sebelum sesi tatap muka berlangsung sehingga durasi konsultasi menjadi jauh lebih efektif dan mendalam.'
+              },
+              {
+                q: 'Di mana lokasi ruang praktik konsultasi tatap muka?',
+                a: 'Praktik tatap muka bertempat di JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan. Ruangan didesain kedap suara, tenang, ber-AC, dan memiliki ruang tunggu privat yang nyaman.'
+              }
+            ].map((faq, idx) => {
+              const isOpen = openFaqIndex === idx;
+              return (
+                <div
+                  key={idx}
+                  className="rounded-2xl border border-slate-200/80 bg-white overflow-hidden shadow-2xs transition-all"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : idx)}
+                    className="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/50 transition-colors"
+                  >
+                    <span className="text-sm font-bold text-slate-900 leading-snug">
+                      {faq.q}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                        isOpen ? 'rotate-180 text-teal-600' : ''
+                      }`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="px-4 sm:px-5 pb-5 pt-1 text-xs text-slate-600 leading-relaxed border-t border-slate-100 animate-fadeIn">
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* 7. CALL TO ACTION (CTA) FOOTER */}
       <section className="bg-slate-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="max-w-3xl mx-auto space-y-6">
@@ -642,7 +757,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
               Kesehatan Mental Anda Sama Berharganya dengan Kesehatan Fisik.
             </h2>
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Jangan biarkan kecemasan dan stres membebani hari-hari Anda sendirian. Jadwalkan sesi konsultasi pertama Anda hari ini bersama {soloUser?.name}.
+              Jangan biarkan kecemasan dan stres membebani hari-hari Anda sendirian. Isi pre-test lalu jadwalkan konsultasi mulai besok bersama {soloUser?.name}.
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -680,11 +795,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
           >
             <div className="flex items-start justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <img
-                  src={soloUser?.avatar}
-                  alt={soloUser?.name}
-                  className="w-14 h-14 rounded-2xl object-cover border border-slate-200"
-                />
+                <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
+                  <Stethoscope className="w-7 h-7" />
+                </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">{soloUser?.name}</h3>
                   <p className="text-xs text-teal-700 font-semibold">{soloPsychologist?.title}</p>
@@ -711,7 +824,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1 font-mono text-[11px] text-slate-600">
+              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1 text-[11px] text-slate-600">
                 <div>STR: <strong>{soloPsychologist?.strNumber}</strong> (Berlaku s/d {soloPsychologist?.strExpiry})</div>
                 <div>SIP: <strong>{soloPsychologist?.sipNumber}</strong> (Berlaku s/d {soloPsychologist?.sipExpiry})</div>
                 <div>Total Jam Terbang Klinis: <strong>{soloPsychologist?.clinicalHours}+ Jam</strong></div>

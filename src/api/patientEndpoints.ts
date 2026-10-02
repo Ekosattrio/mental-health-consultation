@@ -5,7 +5,6 @@ import {
   IntakeForm,
   ScheduleSlot,
   TestResult,
-  ChatMessage,
   Review,
   User
 } from '../types';
@@ -67,6 +66,20 @@ export class PatientEndpoints {
           );
         }
 
+        if (!intakeForms[payload.patientId]) {
+          throw new ApiError(
+            'Pre-test wajib diisi sebelum booking. Lengkapi pre-test terlebih dahulu.',
+            422
+          );
+        }
+
+        if (payload.date < '2026-10-02') {
+          throw new ApiError(
+            'Booking tidak bisa dilakukan untuk hari yang sama. Pilih jadwal minimal H+1.',
+            422
+          );
+        }
+
         // Overlapping appointment check
         const overlapping = appointments.find(
           apt =>
@@ -102,13 +115,10 @@ export class PatientEndpoints {
           date: slot.date,
           startTime: slot.startTime,
           endTime: slot.endTime,
-          status: 'CONFIRMED',
-          paymentStatus: 'PAID',
+          status: 'PENDING',
+          paymentStatus: 'DP_PENDING_VERIFICATION',
           totalAmount: selectedPkg.price,
-          meetingLocation:
-            selectedPkg.type === 'OFFLINE_CLINIC'
-              ? 'Klinik JiwaSehat Ruang Lavender Lt. 3'
-              : `Room-Live-${bookingCode.slice(-4)}`,
+          meetingLocation: 'Ruang Praktik JiwaSehat - detail dikirim setelah admin confirmed',
           hasIntakeForm: !!intakeForms[payload.patientId],
           hasTestResult: testResults.some(r => r.patientId === payload.patientId),
           createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
@@ -165,29 +175,6 @@ export class PatientEndpoints {
           completedAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
         };
         return newResult;
-      }
-    );
-  }
-
-  /**
-   * POST /api/v1/chat/send
-   */
-  public static async sendChatMessage(
-    appointmentId: string,
-    message: Omit<ChatMessage, 'id' | 'timestamp'>
-  ): Promise<ApiResponse<ChatMessage>> {
-    return ApiClient.post(
-      `/api/v1/chat/${appointmentId}/messages`,
-      message,
-      () => {
-        const timeNow = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-        const newMsg: ChatMessage = {
-          ...message,
-          id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          timestamp: timeNow,
-          isRead: false
-        };
-        return newMsg;
       }
     );
   }

@@ -9,7 +9,6 @@ import {
   IntakeForm,
   ClinicalNote,
   Review,
-  ChatMessage,
   LandingPageCmsConfig,
   PatientPageCmsConfig,
   PsychologistPageCmsConfig
@@ -105,6 +104,138 @@ export const INITIAL_USERS: User[] = [
     createdAt: '2026-09-12'
   },
   {
+    id: 'user-pat-9',
+    email: 'hendra.gunawan@studio.com',
+    name: 'Hendra Gunawan',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0812-5566-7788',
+    isVerified: true,
+    createdAt: '2026-06-01'
+  },
+  {
+    id: 'user-pat-10',
+    email: 'maya.kartini@univ.ac.id',
+    name: 'Maya Kartini',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0813-1122-3344',
+    isVerified: true,
+    createdAt: '2026-06-15'
+  },
+  {
+    id: 'user-pat-11',
+    email: 'reza.fahrezi@fintech.co.id',
+    name: 'Reza Fahrezi',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0817-2233-4455',
+    isVerified: true,
+    createdAt: '2026-07-02'
+  },
+  {
+    id: 'user-pat-12',
+    email: 'nadya.dental@clinic.id',
+    name: 'Nadya Stephanie',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0818-3344-5566',
+    isVerified: true,
+    createdAt: '2026-07-18'
+  },
+  {
+    id: 'user-pat-13',
+    email: 'farhan.pratama@mail.com',
+    name: 'Farhan Pratama',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0819-4455-6677',
+    isVerified: true,
+    createdAt: '2026-07-29'
+  },
+  {
+    id: 'user-pat-14',
+    email: 'dewi.lestari@advisory.id',
+    name: 'Dewi Lestari',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0811-5566-7788',
+    isVerified: true,
+    createdAt: '2026-08-05'
+  },
+  {
+    id: 'user-pat-15',
+    email: 'aditya.nugroho@retail.com',
+    name: 'Aditya Nugroho',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0812-6677-8899',
+    isVerified: true,
+    createdAt: '2026-08-18'
+  },
+  {
+    id: 'user-pat-16',
+    email: 'tiara.maharani@corporate.id',
+    name: 'Tiara Maharani',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1567532939604-b6b5b0db2604?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0813-7788-9900',
+    isVerified: true,
+    createdAt: '2026-08-25'
+  },
+  {
+    id: 'user-pat-17',
+    email: 'yoga.prasetyo@analytics.net',
+    name: 'Yoga Prasetyo',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0815-8899-0011',
+    isVerified: true,
+    createdAt: '2026-09-02'
+  },
+  {
+    id: 'user-pat-18',
+    email: 'melati.kusuma@pasca.ac.id',
+    name: 'Melati Kusuma',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1548142813-c348350df52b?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0816-9900-1122',
+    isVerified: true,
+    createdAt: '2026-09-10'
+  },
+  {
+    id: 'user-pat-19',
+    email: 'fajar.ramadhan@people.id',
+    name: 'Fajar Ramadhan',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0817-0011-2233',
+    isVerified: true,
+    createdAt: '2026-09-18'
+  },
+  {
+    id: 'user-pat-20',
+    email: 'gita.savitri@agency.id',
+    name: 'Gita Savitri',
+    role: 'PATIENT',
+    avatar: 'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=150&auto=format&fit=crop&q=80',
+    status: 'ACTIVE',
+    phone: '0818-1122-3344',
+    isVerified: true,
+    createdAt: '2026-09-24'
+  },
+  {
     id: 'user-psy-1',
     email: 'sarah.jenkins@jiwasehat.id',
     name: 'dr. Sarah Jenkins, M.Psi., Psikolog',
@@ -118,7 +249,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'user-adm-1',
     email: 'admin@jiwasehat.id',
-    name: 'Super Admin JiwaSehat',
+    name: 'Admin Operasional JiwaSehat',
     role: 'ADMIN',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
     status: 'ACTIVE',
@@ -149,27 +280,27 @@ export const INITIAL_PSYCHOLOGISTS: PsychologistProfile[] = [
     strExpiry: '2028-12-31',
     sipExpiry: '2027-06-30',
     clinicalHours: 3200,
-    practicePolicy: 'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis dan regulasi Kemenkes RI. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
+    practicePolicy: 'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
   }
 ];
 
 export const INITIAL_PACKAGES: ConsultationPackage[] = [
   {
-    id: 'pkg-chat-1',
-    name: 'Sesi Konsultasi Online (Chat Privat)',
-    type: 'ONLINE_CHAT',
+    id: 'pkg-regular-1',
+    name: 'Sesi Konsultasi Reguler',
+    type: 'OFFLINE_CLINIC',
     durationMinutes: 60,
     price: 250000,
     badge: 'Paling Populer',
-    description: 'Konsultasi real-time melalui ruang chat terenkripsi end-to-end dengan psikolog berizin. Nyaman, fleksibel, dan terhubung langsung dari ponsel/laptop.',
+    description: 'Konsultasi terjadwal bersama psikolog di ruang praktik. Pasien wajib mengisi pre-test dan membayar DP sebelum jadwal dikonfirmasi admin.',
     benefits: [
-      'Durasi interaktif 60 menit dengan timer klinis',
-      'Ruang privat 1-on-1 terenkripsi',
-      'Ringkasan insight & saran pasca-sesi dari psikolog',
-      'Fleksibel dari mana saja tanpa perlu keluar rumah'
+      'Durasi konsultasi 60 menit',
+      'Pre-test singkat sebelum booking',
+      'DP 50% untuk mengunci pengajuan jadwal',
+      'Konfirmasi admin setelah bukti pembayaran diverifikasi'
     ],
     isActive: true,
-    iconName: 'MessageSquare'
+    iconName: 'Calendar'
   },
   {
     id: 'pkg-offline-1',
@@ -199,7 +330,7 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     benefits: [
       'Akses asesmen tes psikometri lengkap online',
       'Interpretasi psikogram & kalkulasi skor keparahan otomatis',
-      'Sesi konsultasi 90 menit (Online/Offline) bedah hasil',
+      'Sesi konsultasi 90 menit untuk membahas hasil',
       'Laporan evaluasi klinis resmi bertanda tangan SIP'
     ],
     isActive: true,
@@ -686,6 +817,273 @@ export const INITIAL_INTAKE_FORMS: Record<string, IntakeForm> = {
     sleepQuality: 'Insomnia Akut',
     suicideRiskFlag: true, // Emergency risk flag for clinical triage test!
     goals: 'Meredakan kepanikan akut harian, menata batas jam kerja, dan pendampingan suportif bersama psikiater.'
+  },
+  // Patient 9: Hendro Wijaya (Tech Lead Burnout)
+  'user-pat-9': {
+    id: 'intake-pat-9',
+    patientId: 'user-pat-9',
+    completedAt: '2026-06-03 10:30',
+    birthDate: '1991-04-12',
+    gender: 'Laki-laki',
+    occupation: 'Principal Software Architect',
+    emergencyContact: {
+      name: 'Ratih Wijaya (Istri)',
+      relationship: 'Pasangan',
+      phone: '0812-3344-5566'
+    },
+    primaryConcerns: ['Burnout Kronis', 'Insomnia Akut', 'Kecemasan Kinerja Tim'],
+    concernDescription: 'Beban memimpin arsitektur sistem berskala besar selama masa restrukturisasi membuat tidur tidak nyenyak dan sering terjaga pukul 03.00 pagi dengan palpitasi jantung.',
+    previousTherapy: true,
+    previousDiagnosis: 'Insomnia Terkait Stres Kerja',
+    currentMedications: 'Suplemen Melatonin 3mg',
+    currentStressLevel: 8,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Mengembalikan pola tidur alami dan menetapkan batas tegas antara pekerjaan dan istirahat pribadi.'
+  },
+  // Patient 10: Maya Kartini (Creative Director)
+  'user-pat-10': {
+    id: 'intake-pat-10',
+    patientId: 'user-pat-10',
+    completedAt: '2026-06-12 14:15',
+    birthDate: '1998-08-25',
+    gender: 'Perempuan',
+    occupation: 'Creative Director',
+    emergencyContact: {
+      name: 'Bambang Kartini (Ayah)',
+      relationship: 'Keluarga',
+      phone: '0813-2233-4455'
+    },
+    primaryConcerns: ['Imposter Syndrome', 'Kelelahan Kreatif (Creative Block)', 'Kecemasan Sosial'],
+    concernDescription: 'Merasa keberhasilan karir saat ini hanyalah kebetulan dan sewaktu-waktu ketidakmampuannya akan terungkap. Selalu cemas menjelang sesi pitch klien.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 7,
+    sleepQuality: 'Cukup',
+    suicideRiskFlag: false,
+    goals: 'Membangun kepercayaan diri autentik dan mengatasi ketakutan berlebih terhadap kritik profesional.'
+  },
+  // Patient 11: Reza Fahrezi (Fintech Risk Manager)
+  'user-pat-11': {
+    id: 'intake-pat-11',
+    patientId: 'user-pat-11',
+    completedAt: '2026-06-28 09:00',
+    birthDate: '1993-11-05',
+    gender: 'Laki-laki',
+    occupation: 'Senior Risk Manager Fintech',
+    emergencyContact: {
+      name: 'Sarah Fahrezi (Adik)',
+      relationship: 'Keluarga',
+      phone: '0817-9988-7766'
+    },
+    primaryConcerns: ['Kecemasan Finansial Perusahaan', 'Ketegangan Otot Psikosomatis', 'Serangan Cemas Singkat'],
+    concernDescription: 'Bertanggung jawab atas audit mitigasi risiko miliaran rupiah. Merasa punggung dan pundak selalu tegang seperti memikul beban berat setiap hari kerja.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 8,
+    sleepQuality: 'Cukup',
+    suicideRiskFlag: false,
+    goals: 'Belajar manajemen stres berbasis mindfulness dan meredakan ketegangan fisik psikosomatis.'
+  },
+  // Patient 12: Nadya Stephanie (Dokter Gigi)
+  'user-pat-12': {
+    id: 'intake-pat-12',
+    patientId: 'user-pat-12',
+    completedAt: '2026-07-15 16:20',
+    birthDate: '1997-03-18',
+    gender: 'Perempuan',
+    occupation: 'Dokter Gigi Spesialis',
+    emergencyContact: {
+      name: 'drg. Hendra (Rekan Sejawat)',
+      relationship: 'Kolega',
+      phone: '0818-7766-5544'
+    },
+    primaryConcerns: ['Perfeksionisme Maladaptif', 'Kelelahan Pasien Klinis', 'Kecemasan Kesalahan Medis'],
+    concernDescription: 'Sangat takut melakukan kesalahan sekecil apapun dalam tindakan klinis. Sering memikirkan ulang prosedur pasien bahkan saat sedang libur akhir pekan.',
+    previousTherapy: true,
+    previousDiagnosis: 'Anxiety NOS',
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 7,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Menerima batasan kendali diri, meredakan perfeksionisme ekstrem, dan self-compassion klinis.'
+  },
+  // Patient 13: Farhan Pratama (Content Creator)
+  'user-pat-13': {
+    id: 'intake-pat-13',
+    patientId: 'user-pat-13',
+    completedAt: '2026-07-26 11:45',
+    birthDate: '2002-05-14',
+    gender: 'Laki-laki',
+    occupation: 'Content Creator & Podcaster',
+    emergencyContact: {
+      name: 'Dian Pratama (Ibu)',
+      relationship: 'Keluarga',
+      phone: '0819-3322-1100'
+    },
+    primaryConcerns: ['Kecemasan Validasi Digital', 'Burnout Produksi Konten', 'Insomnia Ritme Sirkadian'],
+    concernDescription: 'Algoritma platform dan komentar negatif netizen menyebabkan fluktuasi suasana hati yang drastis. Jam tidur terbalik dari pagi ke malam.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 8,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Detoks digital terencana, memperbaiki jam biologis tubuh, dan ketahanan mental menghadapi kritik publik.'
+  },
+  // Patient 14: Dewi Lestari (Strategic Advisor)
+  'user-pat-14': {
+    id: 'intake-pat-14',
+    patientId: 'user-pat-14',
+    completedAt: '2026-08-01 13:10',
+    birthDate: '1988-12-09',
+    gender: 'Perempuan',
+    occupation: 'Strategic Business Advisor',
+    emergencyContact: {
+      name: 'Irwan Lestari (Suami)',
+      relationship: 'Pasangan',
+      phone: '0811-1234-5678'
+    },
+    primaryConcerns: ['Krisis Paruh Baya', 'Konflik Peran Keluarga-Karir', 'Stres Pengasuhan Remaja'],
+    concernDescription: 'Anak sulung mulai beranjak dewasa dan mandiri sementara tuntutan advisory di kantor semakin tinggi. Merasa hampa dan kehilangan identitas diri di luar pekerjaan.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 6,
+    sleepQuality: 'Cukup',
+    suicideRiskFlag: false,
+    goals: 'Menemukan kembali makna hidup (meaning-centered therapy) dan membangun kedekatan emosional dengan keluarga.'
+  },
+  // Patient 15: Aditya Nugroho (Retail Business Owner)
+  'user-pat-15': {
+    id: 'intake-pat-15',
+    patientId: 'user-pat-15',
+    completedAt: '2026-08-14 15:30',
+    birthDate: '1994-09-20',
+    gender: 'Laki-laki',
+    occupation: 'Retail Business Owner',
+    emergencyContact: {
+      name: 'Rian Nugroho (Saudara Kandung)',
+      relationship: 'Keluarga',
+      phone: '0812-9900-1122'
+    },
+    primaryConcerns: ['Kecemasan Arus Kas Bisnis', 'Psikosomatis Asam Lambung (GERD)', 'Stres Persaingan Ritel'],
+    concernDescription: 'Perubahan tren belanja pasca-pandemi menekan omset gerai ritel. Sering mengalami refluks asam lambung mendadak saat memeriksa laporan keuangan bulanan.',
+    previousTherapy: false,
+    currentMedications: 'Omeprazole 20mg (Resep Internis)',
+    currentStressLevel: 8,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Meredakan keterkaitan cemas-lambung (gut-brain axis) dan mengasah ketahanan psikologis kewirausahaan.'
+  },
+  // Patient 16: Tiara Maharani (Legal Counsel)
+  'user-pat-16': {
+    id: 'intake-pat-16',
+    patientId: 'user-pat-16',
+    completedAt: '2026-08-20 18:00',
+    birthDate: '1999-01-30',
+    gender: 'Perempuan',
+    occupation: 'Corporate Legal Counsel',
+    emergencyContact: {
+      name: 'Nur Maharani (Ibu)',
+      relationship: 'Keluarga',
+      phone: '0813-8877-6655'
+    },
+    primaryConcerns: ['Kelelahan Jam Kerja Ekstrem', 'Ketegangan Leher & Migrain', 'Kecemasan Tenggat Waktu'],
+    concernDescription: 'Sering bekerja hingga larut malam menyusun kontrak korporat mendesak. Sering mengalami migrain tegang saat menghadapi negosiasi alot.',
+    previousTherapy: false,
+    currentMedications: 'Paracetamol sesuai kebutuhan',
+    currentStressLevel: 7,
+    sleepQuality: 'Cukup',
+    suicideRiskFlag: false,
+    goals: 'Teknik relaksasi otot progresif untuk migrain dan komunikasi asertif dalam pembagian beban kerja tim.'
+  },
+  // Patient 17: Yoga Prasetyo (Data Scientist)
+  'user-pat-17': {
+    id: 'intake-pat-17',
+    patientId: 'user-pat-17',
+    completedAt: '2026-08-28 10:15',
+    birthDate: '1996-06-17',
+    gender: 'Laki-laki',
+    occupation: 'Data Scientist',
+    emergencyContact: {
+      name: 'Dedi Prasetyo (Paman)',
+      relationship: 'Keluarga',
+      phone: '0815-4433-2211'
+    },
+    primaryConcerns: ['Isolasi Sosial Remote Work', 'Kesepian Kronis', 'Kesulitan Membina Hubungan Romantis'],
+    concernDescription: 'Bekerja penuh dari kamar kos selama 2 tahun terakhir tanpa interaksi tatap muka yang berarti. Merasa canggung dan gamang saat harus berkomunikasi kasual.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 7,
+    sleepQuality: 'Cukup',
+    suicideRiskFlag: false,
+    goals: 'Meningkatkan keterampilan sosial praktis dan mengatasi penghindaran interaksi nyata.'
+  },
+  // Patient 18: Melati Kusuma (Mahasiswi Pascasarjana)
+  'user-pat-18': {
+    id: 'intake-pat-18',
+    patientId: 'user-pat-18',
+    completedAt: '2026-09-05 14:00',
+    birthDate: '2001-02-14',
+    gender: 'Perempuan',
+    occupation: 'Mahasiswi Pascasarjana Bioteknologi',
+    emergencyContact: {
+      name: 'Prof. Sutrisno (Dosen Pembimbing Akademik)',
+      relationship: 'Kolega',
+      phone: '0816-5544-3322'
+    },
+    primaryConcerns: ['Academic Burnout Tesis', 'Prokrastinasi Kecemasan', 'Takut Kegagalan Laboratorium'],
+    concernDescription: 'Hasil eksperimen penelitian tesis tidak sesuai hipotesis selama 3 bulan berturut-turut. Menghindari membuka laptop karena merasa tidak kompeten.',
+    previousTherapy: true,
+    previousDiagnosis: 'Episode Depresif Ringan',
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 8,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Memecah hambatan penulisan tesis dengan micro-habits dan meredam ketakutan akan hasil eksperimen.'
+  },
+  // Patient 19: Fajar Ramadhan (Head of HR)
+  'user-pat-19': {
+    id: 'intake-pat-19',
+    patientId: 'user-pat-19',
+    completedAt: '2026-09-12 11:00',
+    birthDate: '1990-10-28',
+    gender: 'Laki-laki',
+    occupation: 'Head of People & Culture',
+    emergencyContact: {
+      name: 'Anisa Ramadhan (Istri)',
+      relationship: 'Pasangan',
+      phone: '0817-6677-8899'
+    },
+    primaryConcerns: ['Compassion Fatigue (Kelelahan Empati)', 'Beban Emosional PHK Karyawan', 'Distres Moral'],
+    concernDescription: 'Memimpin proses efisiensi dan perpisahan 50 karyawan kantor. Menyerap kesedihan dan kemarahan orang lain hingga merasa mati rasa secara emosional di rumah.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 9,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Memulihkan energi empati, melepaskan beban rasa bersalah institusional, dan pemulihan batas psikologis.'
+  },
+  // Patient 20: Gita Savitri (Campaign Specialist)
+  'user-pat-20': {
+    id: 'intake-pat-20',
+    patientId: 'user-pat-20',
+    completedAt: '2026-09-15 16:45',
+    birthDate: '1995-07-08',
+    gender: 'Perempuan',
+    occupation: 'Marketing Campaign Specialist',
+    emergencyContact: {
+      name: 'Vina Savitri (Kakak Kandung)',
+      relationship: 'Keluarga',
+      phone: '0818-1100-2233'
+    },
+    primaryConcerns: ['Overthinking Masa Depan', 'Kecemasan Eksistensial', 'Insomnia Pemikiran Berulang'],
+    concernDescription: 'Terus-menerus mempertanyakan tujuan hidup dan takut tertinggal oleh pencapaian rekan sebaya di media sosial (FOMO kronis). Sulit menenangkan pikiran malam hari.',
+    previousTherapy: false,
+    currentMedications: 'Tidak ada',
+    currentStressLevel: 7,
+    sleepQuality: 'Buruk',
+    suicideRiskFlag: false,
+    goals: 'Latihan mindfulness penerimaan diri, mengurangi paparan perbandingan sosial, dan regulasi emosi harian.'
   }
 };
 
@@ -823,6 +1221,234 @@ export const INITIAL_TEST_RESULTS: TestResult[] = [
     severityLevel: 'SANGAT_BERAT',
     interpretation: 'Distres psikologis Ekstrem / Sangat Berat pada ketiga dimensi (Depresi 15, Ansietas 14, Stres 13). Disertai tanda kelelahan fisik menyeluruh.',
     clinicalRecommendation: 'Kolaborasi intensif psikolog klinis & psikiater, krisis intervensi penstabilan stres, dan rehat kerja medis darurat.'
+  },
+  // Hendro Wijaya
+  {
+    id: 'res-9',
+    patientId: 'user-pat-9',
+    patientName: 'Hendro Wijaya',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-06-03 10:45',
+    totalScore: 31,
+    subscaleScores: {
+      depression: 9,
+      anxiety: 10,
+      stress: 12
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Tingkat stres tinggi dengan kecemasan sedang akibat akumulasi beban kerja teknis berkepanjangan.',
+    clinicalRecommendation: 'Pendekatan restrukturisasi kognitif beban kerja, sleep hygiene untuk insomnia, dan work-life boundaries.'
+  },
+  // Maya Kartini
+  {
+    id: 'res-10',
+    patientId: 'user-pat-10',
+    patientName: 'Maya Kartini',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-06-12 14:30',
+    totalScore: 23,
+    subscaleScores: {
+      depression: 5,
+      anxiety: 11,
+      stress: 7
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Skor kecemasan menonjol (11, Sedang) dipicu oleh imposter syndrome dan takut evaluasi negatif.',
+    clinicalRecommendation: 'CBT untuk core beliefs ketidakmampuan diri, afirmasi pencapaian, dan exposure therapy presentasi.'
+  },
+  // Reza Fahrezi
+  {
+    id: 'res-11',
+    patientId: 'user-pat-11',
+    patientName: 'Reza Fahrezi',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-06-28 09:15',
+    totalScore: 27,
+    subscaleScores: {
+      depression: 6,
+      anxiety: 10,
+      stress: 11
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Stres sedang dan ansietas sedang dengan somatisasi ketegangan otot bahu dan leher.',
+    clinicalRecommendation: 'Progressive Muscle Relaxation (PMR), somatic grounding, dan time boxing tugas audit berisiko tinggi.'
+  },
+  // Nadya Stephanie
+  {
+    id: 'res-12',
+    patientId: 'user-pat-12',
+    patientName: 'Nadya Stephanie',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-07-15 16:40',
+    totalScore: 25,
+    subscaleScores: {
+      depression: 5,
+      anxiety: 11,
+      stress: 9
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Kecemasan perfeksionistik klinis dengan over-checking behavior dan ketakutan malapraktik.',
+    clinicalRecommendation: 'Acceptance and Commitment Therapy (ACT) untuk toleransi ketidakpastian dan belas kasih diri medis.'
+  },
+  // Farhan Pratama
+  {
+    id: 'res-13',
+    patientId: 'user-pat-13',
+    patientName: 'Farhan Pratama',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-07-26 12:00',
+    totalScore: 30,
+    subscaleScores: {
+      depression: 10,
+      anxiety: 12,
+      stress: 8
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Kombinasi depresi ringan-sedang dan ansietas sedang terkait paparan media sosial terus menerus.',
+    clinicalRecommendation: 'Protokol pembatasan media sosial bertahap, restrukturisasi kognitif validasi diri internal.'
+  },
+  // Dewi Lestari
+  {
+    id: 'res-14',
+    patientId: 'user-pat-14',
+    patientName: 'Dewi Lestari',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-08-01 13:30',
+    totalScore: 20,
+    subscaleScores: {
+      depression: 7,
+      anxiety: 6,
+      stress: 7
+    },
+    severityLevel: 'RINGAN',
+    interpretation: 'Gejala distres ringan transisi kehidupan (krisis paruh baya & anak mandiri). Fungsi keseharian masih baik.',
+    clinicalRecommendation: 'Eksplorasi nilai hidup bermakna (Logotherapy), penguatan komunikasi relasi suami-istri.'
+  },
+  // Aditya Nugroho
+  {
+    id: 'res-15',
+    patientId: 'user-pat-15',
+    patientName: 'Aditya Nugroho',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-08-14 15:50',
+    totalScore: 29,
+    subscaleScores: {
+      depression: 7,
+      anxiety: 12,
+      stress: 10
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Kecemasan finansial memicu dispepsia/GERD fungsional psikogenik. Tingkat kecemasan pada skala sedang-tinggi.',
+    clinicalRecommendation: 'Latihan pernapasan diafragma saat stres puncak, pemisahan waktu memikirkan solusi bisnis dari jam istirahat.'
+  },
+  // Tiara Maharani
+  {
+    id: 'res-16',
+    patientId: 'user-pat-16',
+    patientName: 'Tiara Maharani',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-08-20 18:20',
+    totalScore: 26,
+    subscaleScores: {
+      depression: 6,
+      anxiety: 9,
+      stress: 11
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Stres tingkat sedang terkait beban jam kerja advokat. Disertai kelelahan fisik dan migrain periodik.',
+    clinicalRecommendation: 'Latihan asertivitas batas jam kerja, relaksasi biofeedback sederhana, dan micro-breaks.'
+  },
+  // Yoga Prasetyo
+  {
+    id: 'res-17',
+    patientId: 'user-pat-17',
+    patientName: 'Yoga Prasetyo',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-08-28 10:35',
+    totalScore: 28,
+    subscaleScores: {
+      depression: 11,
+      anxiety: 9,
+      stress: 8
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Indikasi depresi sedang akibat isolasi sosial kronis selama bekerja jarak jauh (remote work).',
+    clinicalRecommendation: 'Behavioral activation dengan bergabung ke komunitas minat offline, pendampingan interaksi sosial bertahap.'
+  },
+  // Melati Kusuma
+  {
+    id: 'res-18',
+    patientId: 'user-pat-18',
+    patientName: 'Melati Kusuma',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-09-05 14:20',
+    totalScore: 33,
+    subscaleScores: {
+      depression: 13,
+      anxiety: 10,
+      stress: 10
+    },
+    severityLevel: 'BERAT',
+    interpretation: 'Skor depresi mendekati batas berat (13) terkait kebuntuan progres riset pascasarjana dan hilangnya self-efficacy.',
+    clinicalRecommendation: 'Intervensi kognitif untuk mendobrak pola avoidance, penjadwalan bimbingan bertahap dengan dosen.'
+  },
+  // Fajar Ramadhan
+  {
+    id: 'res-19',
+    patientId: 'user-pat-19',
+    patientName: 'Fajar Ramadhan',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-09-12 11:20',
+    totalScore: 35,
+    subscaleScores: {
+      depression: 11,
+      anxiety: 11,
+      stress: 13
+    },
+    severityLevel: 'BERAT',
+    interpretation: 'Tingkat stres berat (13) dan kelelahan empati (compassion fatigue) tinggi pasca eksekusi restrukturisasi organisasi.',
+    clinicalRecommendation: 'Debriefing psikologis profesional, melepaskan rasa tanggung jawab emosional yang berlebihan, cuti pemulihan.'
+  },
+  // Gita Savitri
+  {
+    id: 'res-20',
+    patientId: 'user-pat-20',
+    patientName: 'Gita Savitri',
+    testId: 'test-dass21',
+    testCode: 'DASS-21',
+    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
+    completedAt: '2026-09-15 17:05',
+    totalScore: 24,
+    subscaleScores: {
+      depression: 6,
+      anxiety: 10,
+      stress: 8
+    },
+    severityLevel: 'SEDANG',
+    interpretation: 'Kecemasan eksistensial dan overthinking berulang derajat sedang dengan kesulitan mempertahankan fokus kerja.',
+    clinicalRecommendation: 'Mindfulness grounding 5-4-3-2-1, pembatasan konsumsi konten pembanding, dan reframing arah karir masa depan.'
   }
 ];
 
@@ -854,16 +1480,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientEmail: 'budi.santoso@gmail.com',
     psychologistId: 'user-psy-1',
     psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
-    packageId: 'pkg-chat-1',
-    packageName: 'Sesi Konsultasi Online (Chat Privat)',
-    packageType: 'ONLINE_CHAT',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
     date: '2026-09-16',
     startTime: '10:30',
     endTime: '11:30',
     status: 'CONFIRMED',
     paymentStatus: 'PAID',
     totalAmount: 250000,
-    meetingLocation: 'Room-Live-JS01',
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
     hasTestResult: true,
     createdAt: '2026-09-14 11:20',
@@ -926,16 +1552,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientEmail: 'dimas.pratama@kampus.ac.id',
     psychologistId: 'user-psy-1',
     psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
-    packageId: 'pkg-chat-1',
-    packageName: 'Sesi Konsultasi Online (Chat Privat)',
-    packageType: 'ONLINE_CHAT',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
     date: '2026-09-10',
     startTime: '16:00',
     endTime: '17:00',
     status: 'COMPLETED',
     paymentStatus: 'PAID',
     totalAmount: 250000,
-    meetingLocation: 'Room-Live-JS02',
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
     hasTestResult: true,
     createdAt: '2026-09-08 18:00',
@@ -965,7 +1591,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     createdAt: '2026-09-01 14:00',
     clinicalNotesId: 'note-past-3'
   },
-  // 6. Completed Online Consultation (dr. Sarah Jenkins)
+  // 6. Completed Consultation (dr. Sarah Jenkins)
   {
     id: 'apt-past-4',
     bookingCode: 'JS-20260911-05',
@@ -974,16 +1600,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientEmail: 'taufik.hidayat@gmail.com',
     psychologistId: 'user-psy-1',
     psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
-    packageId: 'pkg-chat-1',
-    packageName: 'Sesi Konsultasi Online (Chat Privat)',
-    packageType: 'ONLINE_CHAT',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
     date: '2026-09-11',
     startTime: '14:00',
     endTime: '15:00',
     status: 'COMPLETED',
     paymentStatus: 'PAID',
     totalAmount: 250000,
-    meetingLocation: 'Room-Live-JS03',
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
     hasTestResult: true,
     createdAt: '2026-09-09 11:30'
@@ -1012,7 +1638,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     createdAt: '2026-09-03 16:45',
     reviewId: 'rev-top-1'
   },
-  // 8. Completed Online Chat (dr. Sarah Jenkins)
+  // 8. Completed Regular Consultation (dr. Sarah Jenkins)
   {
     id: 'apt-past-6',
     bookingCode: 'JS-20260908-07',
@@ -1021,16 +1647,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     patientEmail: 'budi.santoso@gmail.com',
     psychologistId: 'user-psy-1',
     psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
-    packageId: 'pkg-chat-1',
-    packageName: 'Sesi Konsultasi Online (Chat Privat)',
-    packageType: 'ONLINE_CHAT',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
     date: '2026-09-08',
     startTime: '15:30',
     endTime: '16:30',
     status: 'COMPLETED',
     paymentStatus: 'PAID',
     totalAmount: 250000,
-    meetingLocation: 'Room-Live-JS04',
+    meetingLocation: 'Klinik Ruang Teratai Lt. 1',
     hasIntakeForm: true,
     hasTestResult: true,
     createdAt: '2026-09-05 10:20',
@@ -1058,59 +1684,621 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     hasIntakeForm: true,
     hasTestResult: true,
     createdAt: '2026-09-10 09:10'
+  },
+
+  // ==========================================
+  // HISTORICAL APPOINTMENTS - TAHUN 2025
+  // ==========================================
+  // November 2025
+  {
+    id: 'apt-2025-11-01',
+    bookingCode: 'JS-20251110-01',
+    patientId: 'user-pat-9',
+    patientName: 'Hendro Wijaya',
+    patientEmail: 'hendro.wijaya@tech.co.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2025-11-10',
+    startTime: '10:00',
+    endTime: '11:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2025-11-07 14:00'
+  },
+  {
+    id: 'apt-2025-11-02',
+    bookingCode: 'JS-20251118-02',
+    patientId: 'user-pat-10',
+    patientName: 'Maya Kartini',
+    patientEmail: 'maya.kartini@agency.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2025-11-18',
+    startTime: '13:30',
+    endTime: '14:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2025-11-15 09:30'
+  },
+  {
+    id: 'apt-2025-11-03',
+    bookingCode: 'JS-20251125-03',
+    patientId: 'user-pat-11',
+    patientName: 'Reza Fahrezi',
+    patientEmail: 'reza.fahrezi@fintech.co.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2025-11-25',
+    startTime: '15:00',
+    endTime: '16:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2025-11-22 16:15'
+  },
+  // Desember 2025
+  {
+    id: 'apt-2025-12-01',
+    bookingCode: 'JS-20251208-01',
+    patientId: 'user-pat-12',
+    patientName: 'Nadya Stephanie',
+    patientEmail: 'nadya.dental@clinic.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2025-12-08',
+    startTime: '09:30',
+    endTime: '10:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Teratai Lt. 1',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2025-12-05 11:20'
+  },
+  {
+    id: 'apt-2025-12-02',
+    bookingCode: 'JS-20251215-02',
+    patientId: 'user-pat-13',
+    patientName: 'Farhan Pratama',
+    patientEmail: 'farhan.pratama@mail.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2025-12-15',
+    startTime: '14:00',
+    endTime: '15:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2025-12-12 10:45'
+  },
+  {
+    id: 'apt-2025-12-03',
+    bookingCode: 'JS-20251222-03',
+    patientId: 'user-pat-14',
+    patientName: 'Dewi Lestari',
+    patientEmail: 'dewi.lestari@advisory.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2025-12-22',
+    startTime: '16:00',
+    endTime: '17:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2025-12-19 13:00'
+  },
+
+  // ==========================================
+  // APPOINTMENTS - TAHUN 2026
+  // ==========================================
+  // Juni 2026
+  {
+    id: 'apt-2026-06-01',
+    bookingCode: 'JS-20260608-01',
+    patientId: 'user-pat-15',
+    patientName: 'Aditya Nugroho',
+    patientEmail: 'aditya.nugroho@retail.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-06-08',
+    startTime: '10:00',
+    endTime: '11:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-06-05 08:30'
+  },
+  {
+    id: 'apt-2026-06-02',
+    bookingCode: 'JS-20260615-02',
+    patientId: 'user-pat-16',
+    patientName: 'Tiara Maharani',
+    patientEmail: 'tiara.maharani@corporate.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-06-15',
+    startTime: '13:00',
+    endTime: '14:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-06-12 11:20'
+  },
+  {
+    id: 'apt-2026-06-03',
+    bookingCode: 'JS-20260622-03',
+    patientId: 'user-pat-17',
+    patientName: 'Yoga Prasetyo',
+    patientEmail: 'yoga.prasetyo@analytics.net',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2026-06-22',
+    startTime: '15:00',
+    endTime: '16:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-06-19 14:00'
+  },
+  {
+    id: 'apt-2026-06-04',
+    bookingCode: 'JS-20260627-04',
+    patientId: 'user-pat-18',
+    patientName: 'Melati Kusuma',
+    patientEmail: 'melati.kusuma@pasca.ac.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-06-27',
+    startTime: '11:00',
+    endTime: '12:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Lily Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-06-24 16:45'
+  },
+
+  // Juli 2026
+  {
+    id: 'apt-2026-07-01',
+    bookingCode: 'JS-20260706-01',
+    patientId: 'user-pat-19',
+    patientName: 'Fajar Ramadhan',
+    patientEmail: 'fajar.ramadhan@people.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-07-06',
+    startTime: '09:00',
+    endTime: '10:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-07-03 10:15'
+  },
+  {
+    id: 'apt-2026-07-02',
+    bookingCode: 'JS-20260713-02',
+    patientId: 'user-pat-20',
+    patientName: 'Gita Savitri',
+    patientEmail: 'gita.savitri@agency.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2026-07-13',
+    startTime: '14:00',
+    endTime: '15:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-07-10 13:40'
+  },
+  {
+    id: 'apt-2026-07-03',
+    bookingCode: 'JS-20260720-03',
+    patientId: 'user-pat-9',
+    patientName: 'Hendro Wijaya',
+    patientEmail: 'hendro.wijaya@tech.co.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-07-20',
+    startTime: '11:00',
+    endTime: '12:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Teratai Lt. 1',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-07-17 15:30'
+  },
+  {
+    id: 'apt-2026-07-04',
+    bookingCode: 'JS-20260724-04',
+    patientId: 'user-pat-10',
+    patientName: 'Maya Kartini',
+    patientEmail: 'maya.kartini@agency.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-07-24',
+    startTime: '15:30',
+    endTime: '16:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-07-21 09:10'
+  },
+
+  // Agustus 2026
+  {
+    id: 'apt-2026-08-01',
+    bookingCode: 'JS-20260804-01',
+    patientId: 'user-pat-11',
+    patientName: 'Reza Fahrezi',
+    patientEmail: 'reza.fahrezi@fintech.co.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-08-04',
+    startTime: '10:00',
+    endTime: '11:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-08-01 11:00'
+  },
+  {
+    id: 'apt-2026-08-02',
+    bookingCode: 'JS-20260811-02',
+    patientId: 'user-pat-12',
+    patientName: 'Nadya Stephanie',
+    patientEmail: 'nadya.dental@clinic.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2026-08-11',
+    startTime: '13:00',
+    endTime: '14:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-08-08 14:20'
+  },
+  {
+    id: 'apt-2026-08-03',
+    bookingCode: 'JS-20260818-03',
+    patientId: 'user-pat-13',
+    patientName: 'Farhan Pratama',
+    patientEmail: 'farhan.pratama@mail.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-08-18',
+    startTime: '14:00',
+    endTime: '15:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-08-15 16:30'
+  },
+  {
+    id: 'apt-2026-08-04',
+    bookingCode: 'JS-20260822-04',
+    patientId: 'user-pat-14',
+    patientName: 'Dewi Lestari',
+    patientEmail: 'dewi.lestari@advisory.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-08-22',
+    startTime: '16:00',
+    endTime: '17:00',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Lily Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-08-19 12:00'
+  },
+  {
+    id: 'apt-2026-08-05',
+    bookingCode: 'JS-20260828-05',
+    patientId: 'user-pat-15',
+    patientName: 'Aditya Nugroho',
+    patientEmail: 'aditya.nugroho@retail.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2026-08-28',
+    startTime: '10:00',
+    endTime: '11:30',
+    status: 'COMPLETED',
+    paymentStatus: 'PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-08-25 09:45'
+  },
+
+  // September 2026 (Variasi Status Pembayaran & Reservasi Tambahan)
+  {
+    id: 'apt-2026-09-10',
+    bookingCode: 'JS-20260918-10',
+    patientId: 'user-pat-16',
+    patientName: 'Tiara Maharani',
+    patientEmail: 'tiara.maharani@corporate.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-09-18',
+    startTime: '11:00',
+    endTime: '12:00',
+    status: 'CONFIRMED',
+    paymentStatus: 'DP_PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-09-15 10:00'
+  },
+  {
+    id: 'apt-2026-09-11',
+    bookingCode: 'JS-20260919-11',
+    patientId: 'user-pat-17',
+    patientName: 'Yoga Prasetyo',
+    patientEmail: 'yoga.prasetyo@analytics.net',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2026-09-19',
+    startTime: '14:00',
+    endTime: '15:30',
+    status: 'CONFIRMED',
+    paymentStatus: 'DP_PAID',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-09-16 11:30'
+  },
+  {
+    id: 'apt-2026-09-12',
+    bookingCode: 'JS-20260920-12',
+    patientId: 'user-pat-18',
+    patientName: 'Melati Kusuma',
+    patientEmail: 'melati.kusuma@pasca.ac.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-09-20',
+    startTime: '15:00',
+    endTime: '16:00',
+    status: 'PENDING',
+    paymentStatus: 'DP_PENDING_VERIFICATION',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-09-17 09:15'
+  },
+  {
+    id: 'apt-2026-09-13',
+    bookingCode: 'JS-20260922-13',
+    patientId: 'user-pat-19',
+    patientName: 'Fajar Ramadhan',
+    patientEmail: 'fajar.ramadhan@people.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-09-22',
+    startTime: '10:00',
+    endTime: '11:00',
+    status: 'CANCELLED',
+    paymentStatus: 'REFUNDED',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Teratai Lt. 1',
+    hasIntakeForm: true,
+    hasTestResult: false,
+    createdAt: '2026-09-15 14:00'
+  },
+
+  // Oktober 2026
+  {
+    id: 'apt-2026-10-01',
+    bookingCode: 'JS-20261002-01',
+    patientId: 'user-pat-20',
+    patientName: 'Gita Savitri',
+    patientEmail: 'gita.savitri@agency.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-10-02',
+    startTime: '09:00',
+    endTime: '10:00',
+    status: 'CONFIRMED',
+    paymentStatus: 'DP_PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Lavender Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-09-29 10:20'
+  },
+  {
+    id: 'apt-2026-10-02',
+    bookingCode: 'JS-20261005-02',
+    patientId: 'user-pat-9',
+    patientName: 'Hendro Wijaya',
+    patientEmail: 'hendro.wijaya@tech.co.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-offline-1',
+    packageName: 'Sesi Tatap Muka (Offline di Klinik)',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-10-05',
+    startTime: '13:00',
+    endTime: '14:00',
+    status: 'CONFIRMED',
+    paymentStatus: 'DP_PAID',
+    totalAmount: 375000,
+    meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-09-30 14:15'
+  },
+  {
+    id: 'apt-2026-10-03',
+    bookingCode: 'JS-20261008-03',
+    patientId: 'user-pat-10',
+    patientName: 'Maya Kartini',
+    patientEmail: 'maya.kartini@agency.com',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-bundling-1',
+    packageName: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    packageType: 'BUNDLING_ASSESSMENT',
+    date: '2026-10-08',
+    startTime: '15:00',
+    endTime: '16:30',
+    status: 'PENDING',
+    paymentStatus: 'PENDING',
+    totalAmount: 490000,
+    meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-10-01 09:30'
+  },
+  {
+    id: 'apt-2026-10-04',
+    bookingCode: 'JS-20261012-04',
+    patientId: 'user-pat-11',
+    patientName: 'Reza Fahrezi',
+    patientEmail: 'reza.fahrezi@fintech.co.id',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    packageId: 'pkg-regular-1',
+    packageName: 'Sesi Konsultasi Reguler',
+    packageType: 'OFFLINE_CLINIC',
+    date: '2026-10-12',
+    startTime: '16:00',
+    endTime: '17:00',
+    status: 'CONFIRMED',
+    paymentStatus: 'PAID',
+    totalAmount: 250000,
+    meetingLocation: 'Klinik Ruang Lily Lt. 2',
+    hasIntakeForm: true,
+    hasTestResult: true,
+    createdAt: '2026-10-01 11:00'
   }
 ];
-
-// REALTIME CHAT CONVERSATION HISTORY
-export const INITIAL_CHAT_MESSAGES: Record<string, ChatMessage[]> = {
-  'apt-active-1': [
-    {
-      id: 'msg-1',
-      appointmentId: 'apt-active-1',
-      senderId: 'system',
-      senderRole: 'SYSTEM',
-      senderName: 'Sistem JiwaSehat',
-      text: 'Sesi konsultasi privat terenkripsi telah dimulai. Waktu sesi Anda adalah 60 menit. Seluruh percakapan dijamin kerahasiaannya di bawah Standar Etika Profesi Psikologi & Kemenkes RI.',
-      timestamp: '10:30'
-    },
-    {
-      id: 'msg-2',
-      appointmentId: 'apt-active-1',
-      senderId: 'user-psy-1',
-      senderRole: 'PSYCHOLOGIST',
-      senderName: 'dr. Sarah Jenkins, M.Psi.',
-      text: 'Halo Mas Budi, selamat pagi. Saya dr. Sarah Jenkins yang mendampingi sesi Anda hari ini. Bagaimana kabar dan perasaan Anda pagi ini?',
-      timestamp: '10:31'
-    },
-    {
-      id: 'msg-3',
-      appointmentId: 'apt-active-1',
-      senderId: 'user-pat-1',
-      senderRole: 'PATIENT',
-      senderName: 'Budi Santoso',
-      text: 'Pagi Bu Sarah. Sejujurnya agak tegang dan sedikit sesak sejak bangun tadi pagi, karena ada tekanan rilis produk di kantor yang menumpuk.',
-      timestamp: '10:32'
-    },
-    {
-      id: 'msg-4',
-      appointmentId: 'apt-active-1',
-      senderId: 'user-psy-1',
-      senderRole: 'PSYCHOLOGIST',
-      senderName: 'dr. Sarah Jenkins, M.Psi.',
-      text: 'Terima kasih sudah mau berbagi dengan jujur, Mas Budi. Ketegangan itu sangat manusiawi saat beban kerja meningkat. Mari kita ambil napas perlahan bersama. Bisakah diceritakan apa yang paling Anda khawatirkan saat sensasi sesak itu muncul?',
-      timestamp: '10:33'
-    },
-    {
-      id: 'msg-5',
-      appointmentId: 'apt-active-1',
-      senderId: 'user-pat-1',
-      senderRole: 'PATIENT',
-      senderName: 'Budi Santoso',
-      text: 'Saya takut tiba-tiba nge-blank saat presentasi di depan direksi besok lusa. Rasanya jantung berdegup kencang dan pikiran tidak bisa diajak fokus.',
-      timestamp: '10:34'
-    }
-  ]
-};
 
 // CLINICAL NOTES (SOAP FORMAT) PRE-POPULATED
 export const INITIAL_CLINICAL_NOTES: Record<string, ClinicalNote> = {
@@ -1121,7 +2309,7 @@ export const INITIAL_CLINICAL_NOTES: Record<string, ClinicalNote> = {
     psychologistId: 'user-psy-1',
     sessionDate: '2026-09-16',
     subjective: 'Klien (31 thn, Lead Software Engineer) mengeluhkan sensasi sesak dada dan ketegangan otot leher setiap pagi hari menjelang jam kerja. Merasa cemas berlebihan akan penilaian direksi dan performa sprint.',
-    objective: 'Respons chat kooperatif, artikulatif. Klien menyadari pola pikir catastrophizing (overthinking). Hasil tes DASS-21 kecemasan skala sedang (skor 11). Tidak ada riwayat penggunaan zat atau gejala psikotik.',
+    objective: 'Respons sesi kooperatif, artikulatif. Klien menyadari pola pikir catastrophizing (overthinking). Hasil tes DASS-21 kecemasan skala sedang (skor 11). Tidak ada riwayat penggunaan zat atau gejala psikotik.',
     assessment: 'Diagnosis kerja: F41.1 Generalized Anxiety Disorder (derajat sedang) yang dieksaserbasi oleh stres beban kerja berlebih (workplace burnout).',
     plan: '1. Psikoedukasi fisiologis respons cemas (fight-or-flight).\n2. Latihan teknik pernapasan diafragma 4-7-8 untuk grounding.\n3. Thought record journaling untuk menangkap pikiran otomatis negatif.\n4. Rencana sesi lanjutan 1 minggu ke depan.',
     prognosis: 'Baik',
@@ -1196,8 +2384,8 @@ export const INITIAL_REVIEWS: Review[] = [
     patientName: 'Rina Kartika',
     isAnonymous: true,
     anonymousAlias: 'Klien Profesional (Anonim)',
-    psychologistId: 'user-psy-2',
-    psychologistName: 'Dr. Adrian Pratama, M.Psi., Psikolog',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 5,
     comment: 'Fasilitas klinik di Senopati sangat nyaman dan tenang. Privasi terjaga dengan baik. Penjelasan hasil tes asesmen juga sangat detail membuka mata saya tentang akar rasa cemas saya.',
     isApproved: true,
@@ -1214,7 +2402,7 @@ export const INITIAL_REVIEWS: Review[] = [
     psychologistId: 'user-psy-1',
     psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 5,
-    comment: 'Sesi online chat sangat tepat waktu. Psikolog merespons dengan cepat dan memberi latihan pernapasan yang langsung meredakan panik saya saat itu juga.',
+    comment: 'Sesi konsultasi sangat tepat waktu. Psikolog merespons dengan tenang dan memberi latihan pernapasan yang langsung meredakan panik saya saat itu juga.',
     isApproved: false, // Pending moderation
     createdAt: '2026-09-15'
   },
@@ -1338,15 +2526,96 @@ export const INITIAL_REVIEWS: Review[] = [
     comment: 'Pelayanan prima. Penjadwalan mudah dan sesi konseling privat sangat membuka perspektif baru dalam menghadapi burnout.',
     isApproved: true,
     createdAt: '2026-09-16'
+  },
+  {
+    id: 'rev-extra-7',
+    appointmentId: 'apt-2026-06-01',
+    patientId: 'user-pat-15',
+    patientName: 'Aditya Nugroho',
+    isAnonymous: false,
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 5,
+    comment: 'dr. Sarah sangat cermat mengidentifikasi kaitan antara stres omset bisnis dan penyakit GERD saya. Latihan grounding diafragma sangat aplikatif.',
+    isApproved: true,
+    createdAt: '2026-06-10'
+  },
+  {
+    id: 'rev-extra-8',
+    appointmentId: 'apt-2026-06-02',
+    patientId: 'user-pat-16',
+    patientName: 'Tiara Maharani',
+    isAnonymous: true,
+    anonymousAlias: 'Legal Corporate (Anonim)',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 4,
+    comment: 'Ruang konseling di Senopati sangat tenang dan private. Teknik relaksasi otot progresif membantu meredakan tegang leher dan migrain saya.',
+    isApproved: true,
+    createdAt: '2026-06-18'
+  },
+  {
+    id: 'rev-extra-9',
+    appointmentId: 'apt-2026-07-01',
+    patientId: 'user-pat-19',
+    patientName: 'Fajar Ramadhan',
+    isAnonymous: true,
+    anonymousAlias: 'HR Leader',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 5,
+    comment: 'Sangat melegakan bisa mendiskusikan compassion fatigue secara aman tanpa dihakimi. Saya merasa kembali berdaya memimpin tim.',
+    isApproved: true,
+    createdAt: '2026-07-08'
+  },
+  {
+    id: 'rev-extra-10',
+    appointmentId: 'apt-2026-07-03',
+    patientId: 'user-pat-9',
+    patientName: 'Hendro Wijaya',
+    isAnonymous: false,
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 5,
+    comment: 'Pendekatan sleep hygiene dan boundary-setting dr. Sarah mengubah kualitas tidur saya yang tadinya berantakan akibat beban sistem IT.',
+    isApproved: true,
+    createdAt: '2026-07-22'
+  },
+  {
+    id: 'rev-extra-11',
+    appointmentId: 'apt-2026-08-01',
+    patientId: 'user-pat-11',
+    patientName: 'Reza Fahrezi',
+    isAnonymous: true,
+    anonymousAlias: 'Risk Specialist',
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 4,
+    comment: 'Pemeriksaan asesmen DASS-21 sangat akurat menggambarkan kecemasan kerja saya. Sesi berlangsung tepat waktu dan solutif.',
+    isApproved: false, // Pending moderation
+    createdAt: '2026-08-06'
+  },
+  {
+    id: 'rev-extra-12',
+    appointmentId: 'apt-2026-08-02',
+    patientId: 'user-pat-12',
+    patientName: 'Nadya Stephanie',
+    isAnonymous: false,
+    psychologistId: 'user-psy-1',
+    psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+    rating: 5,
+    comment: 'Sebagai tenaga medis, saya sering merasa harus selalu sempurna. Dokter Sarah mengajarkan self-compassion yang sangat menenteramkan.',
+    isApproved: false, // Pending moderation
+    createdAt: '2026-08-13'
   }
 ];
 
 export const INITIAL_LANDING_CMS: LandingPageCmsConfig = {
-  heroBadge: 'Praktik Mandiri Berizin Resmi Kemenkes RI',
+  heroBadge: 'Booking Konsultasi Psikologi Terjadwal',
   heroTitle: 'Ruang Aman untuk Mendengar, Menyembuhkan, dan Bertumbuh.',
-  heroSubtitle: 'Konsultasikan keresahan batin, stres kerja, dan kecemasan Anda secara privat bersama dr. Sarah Jenkins, M.Psi., Psikolog Klinis. Pilihan sesi fleksibel via Chat Online privat terenkripsi atau Tatap Muka di ruang praktik Senopati.',
-  sliderTitle: 'Praktik Aktif Hari Ini',
-  sliderSubtitle: 'Jadwal konsultasi online dan tatap muka tersedia hari ini bersama dr. Sarah Jenkins, M.Psi.',
+  heroSubtitle: 'Konsultasikan keresahan batin, stres kerja, dan kecemasan Anda secara privat bersama dr. Sarah Jenkins, M.Psi., Psikolog Klinis. Booking dilakukan minimal H+1 dengan pre-test singkat sebelum jadwal dikirim.',
+  sliderTitle: 'Jadwal Praktik Terencana',
+  sliderSubtitle: 'Pilih jadwal konsultasi mulai besok sesuai ketersediaan psikolog dan kapasitas harian praktik.',
   sliderIntervalSeconds: 4,
   sliderAutoPlay: true,
   clinicName: 'Praktik Mandiri dr. Sarah Jenkins, M.Psi.',
@@ -1365,7 +2634,7 @@ export const INITIAL_PATIENT_CMS: PatientPageCmsConfig = {
   crisisHotlineNumber: '119 ext 8 (Sejiwa Kemenkes RI)',
   crisisWhatsapp: '+62 811-1929-555',
   crisisNotice: 'Jika Anda atau kerabat sedang mengalami krisis emosional mendalam, serangan panik berat, atau dorongan menyakiti diri, mohon segera hubungi hotline darurat di atas. Layanan ini bebas pulsa 24 jam.',
-  announcementText: 'Pemberitahuan: Seluruh sesi telekonsultasi privat terlindungi enkripsi end-to-end. Rekam medis Anda hanya dapat diakses secara rahasia oleh dr. Sarah Jenkins.'
+  announcementText: 'Pemberitahuan: Seluruh data sesi konsultasi klinis privat terlindungi enkripsi end-to-end. Rekam medis Anda hanya dapat diakses secara rahasia oleh dr. Sarah Jenkins.'
 };
 
 export const INITIAL_PSYCHOLOGIST_CMS: PsychologistPageCmsConfig = {
@@ -1374,7 +2643,19 @@ export const INITIAL_PSYCHOLOGIST_CMS: PsychologistPageCmsConfig = {
   announcementTitle: 'Maklumat Praktik Mandiri',
   announcementContent: 'Jadwal konsultasi tatap muka dan rekapitulasi data rekam medis pasien terintegrasi secara aman.',
   remunerationPolicy: 'Alokasi honorarium sesi konsultasi ditransfer setiap tanggal 25 setiap bulannya ke rekening terdaftar dokter.',
-  clinicalSupervisorContact: 'Kontak Darurat Praktik: dr. Sarah Jenkins (WA: +62 811-2233-4455)'
+  clinicalSupervisorContact: 'Kontak Darurat Praktik: dr. Sarah Jenkins (WA: +62 811-2233-4455)',
+
+  // Kop Surat Resmi Laporan Keuangan & Dokumen Dinas
+  letterheadClinicName: 'Praktik Mandiri Psikolog Klinis JiwaSehat',
+  letterheadDoctorName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
+  letterheadSipNumber: 'SIP.503/042-DPMPTSP/2022',
+  letterheadStrNumber: 'STR-PSI-2021-09842',
+  letterheadAddress: 'Jl. Senopati Raya No. 42, Kebayoran Baru, Jakarta Selatan 12190',
+  letterheadPhone: '(021) 7890-1234',
+  letterheadEmail: 'klinik@jiwasehat.id',
+  letterheadWebsite: 'www.jiwasehat.id',
+  letterheadCity: 'Jakarta',
+  letterheadSignerRole: 'Psikolog Penanggung Jawab Praktik'
 };
 
 

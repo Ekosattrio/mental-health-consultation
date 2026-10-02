@@ -55,17 +55,17 @@ export const IntakeTab: React.FC<IntakeTabProps> = ({
     <div className="py-6 max-w-3xl mx-auto">
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
         <div className="mb-6 pb-4 border-b border-slate-100">
-          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Kerahasiaan Medis & Privasi Terjamin</div>
-          <h3 className="text-2xl font-extrabold text-slate-900 mt-1">Form Identitas & Keluhan Awal (Intake Form)</h3>
+          <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Syarat Sebelum Booking</div>
+          <h3 className="text-2xl font-extrabold text-slate-900 mt-1">Pre-Test & General Info Pasien</h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            Informasi ini tersimpan aman di EMR klinis dan hanya dapat dibaca oleh Psikolog yang mendampingi sesi Anda.
+            Informasi ini wajib diisi sebelum booking agar psikolog dan admin memahami kebutuhan awal pasien.
           </p>
         </div>
 
         {intakeSuccess && (
           <div className="p-4 rounded-2xl mb-6 bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-medium flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            Form Intake berhasil diperbarui dan disinkronkan ke rekam medis Anda.
+            Pre-test berhasil diperbarui. Anda sudah bisa mengirim booking konsultasi.
           </div>
         )}
 
@@ -285,7 +285,7 @@ export const IntakeTab: React.FC<IntakeTabProps> = ({
               className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
-              Simpan Form Intake Pasien
+              Simpan Pre-Test Pasien
             </button>
           </div>
         </form>

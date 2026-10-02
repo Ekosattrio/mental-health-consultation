@@ -184,7 +184,18 @@ export class AdminController extends BaseController {
         throw new Error(response.message);
       }
 
-      this.callbacks.setAppointments(response.data);
+      const adjustedAppointments = response.data.map(apt => {
+        if (apt.id !== aptId) return apt;
+        if (status === 'CONFIRMED') {
+          return { ...apt, paymentStatus: 'DP_PAID' as Appointment['paymentStatus'] };
+        }
+        if (status === 'COMPLETED') {
+          return { ...apt, paymentStatus: 'PAID' as Appointment['paymentStatus'] };
+        }
+        return apt;
+      });
+
+      this.callbacks.setAppointments(adjustedAppointments);
       this.notify('Status Reservasi Diperbarui', `Janji temu diperbarui menjadi ${status}.`, 'info');
     } catch (err: any) {
       this.handleError(err, 'Gagal Mengubah Status');

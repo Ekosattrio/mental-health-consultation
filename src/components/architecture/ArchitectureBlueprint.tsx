@@ -61,7 +61,7 @@ export const ArchitectureBlueprint: React.FC = () => {
               Arsitektur Sistem & Spesifikasi Enterprise JiwaSehat
             </h1>
             <p className="text-sm text-slate-300 max-w-2xl mt-2 leading-relaxed">
-              Dokumentasi komprehensif Role-Based Access Control (RBAC), skema database relasional (ERD 11 tabel), desain API RESTful, serta implementasi kode kunci pencegah race-condition booking & WebSocket guard.
+              Dokumentasi komprehensif Role-Based Access Control (RBAC), skema database relasional, desain API RESTful, serta implementasi kode kunci untuk pre-test, booking H+1, verifikasi DP, dan pencegahan bentrok jadwal.
             </p>
           </div>
 
@@ -112,7 +112,7 @@ export const ArchitectureBlueprint: React.FC = () => {
             <div className="mb-6">
               <h3 className="text-xl font-extrabold text-slate-900">Tabel Matriks Hak Akses (Role-Based Access Control)</h3>
               <p className="text-xs text-slate-500 mt-1">
-                Matriks permission granular yang memisahkan boundary keamanan antara Pasien, Psikolog/Dokter, dan Administrator.
+                Matriks permission granular yang memisahkan boundary keamanan antara Pasien, Psikolog/Pengelola, dan Admin Operasional.
               </p>
             </div>
 
@@ -123,8 +123,8 @@ export const ArchitectureBlueprint: React.FC = () => {
                     <th className="py-3 px-4">Modul & Kapabilitas Sistem</th>
                     <th className="py-3 px-4 text-center bg-slate-50 text-slate-500">Tamu / Publik</th>
                     <th className="py-3 px-4 text-center bg-emerald-50 text-emerald-800">Pasien (Klien)</th>
-                    <th className="py-3 px-4 text-center bg-sky-50 text-sky-800">Psikolog / Dokter</th>
-                    <th className="py-3 px-4 text-center bg-purple-50 text-purple-800">Administrator</th>
+                    <th className="py-3 px-4 text-center bg-sky-50 text-sky-800">Psikolog / Pengelola</th>
+                    <th className="py-3 px-4 text-center bg-purple-50 text-purple-800">Admin Operasional</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -132,18 +132,18 @@ export const ArchitectureBlueprint: React.FC = () => {
                     { module: 'Melihat Profil Psikolog, Lokasi & Kontak', guest: true, pat: true, psy: true, adm: true },
                     { module: 'Melihat Testimoni & Review Publik Terverifikasi', guest: true, pat: true, psy: true, adm: true },
                     { module: 'Mengerjakan Tes Psikologi Mandiri (DASS-21)', guest: true, pat: true, psy: false, adm: false },
-                    { module: 'Mengisi & Mengubah Form Intake Pasien', guest: false, pat: true, psy: false, adm: false },
-                    { module: 'Reservasi Jadwal & Pembayaran Paket', guest: false, pat: true, psy: false, adm: false },
-                    { module: 'Akses Ruang Live Chat Sesi Aktif', guest: false, pat: true, psy: true, adm: false, note: 'Hanya room sesi terkait' },
+                    { module: 'Mengisi Pre-Test & General Info sebelum booking', guest: false, pat: true, psy: false, adm: false },
+                    { module: 'Reservasi Jadwal H+1 dan Unggah Bukti DP 50%', guest: false, pat: true, psy: false, adm: false },
+                    { module: 'Mengajukan Reschedule H+1 melalui form bantuan admin', guest: false, pat: true, psy: false, adm: true },
                     { module: 'Memberikan Rating & Ulasan Pasca-Sesi', guest: false, pat: true, psy: false, adm: false },
-                    { module: 'Mengelola Profil & Biografi Profesional', guest: false, pat: false, psy: true, adm: true },
-                    { module: 'Manajemen Slot Jadwal (Availability Matrix)', guest: false, pat: false, psy: true, adm: false },
-                    { module: 'Melihat Hasil Tes & Intake Form Pasien Bimbingan', guest: false, pat: false, psy: true, adm: false, note: 'Protected EMR' },
+                    { module: 'Mengelola Profil Praktik, CMS, dan Konten Landing', guest: false, pat: false, psy: true, adm: false },
+                    { module: 'Manajemen Jam Kerja, Hari Libur, dan Kapasitas Harian', guest: false, pat: false, psy: true, adm: false },
+                    { module: 'Melihat Hasil Tes & Pre-Test Pasien Bimbingan', guest: false, pat: false, psy: true, adm: false, note: 'Protected EMR' },
                     { module: 'Menulis Catatan Perkembangan Klinis (SOAP Notes)', guest: false, pat: false, psy: true, adm: false },
-                    { module: 'Verifikasi Kredensial STR / SIP Psikolog', guest: false, pat: false, psy: false, adm: true },
+                    { module: 'Verifikasi DP 50%, Konfirmasi Booking, dan Tandai Completed', guest: false, pat: false, psy: false, adm: true },
                     { module: 'Moderasi Review Pasien (Approve/Reject)', guest: false, pat: false, psy: false, adm: true },
-                    { module: 'CRUD Paket Konsultasi & Instrumen Asesmen', guest: false, pat: false, psy: false, adm: true },
-                    { module: 'Monitoring Seluruh Janji Temu & Laporan Keuangan', guest: false, pat: false, psy: false, adm: true }
+                    { module: 'Monitoring User dan Booking', guest: false, pat: false, psy: false, adm: true },
+                    { module: 'Analytics Keuangan dan Laporan Export', guest: false, pat: false, psy: true, adm: false }
                   ].map((row, idx) => (
                     <tr key={idx} className="hover:bg-slate-50">
                       <td className="py-3 px-4 font-semibold text-slate-800">
@@ -177,16 +177,16 @@ export const ArchitectureBlueprint: React.FC = () => {
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-6 gap-4">
               <div>
-                <h3 className="text-xl font-extrabold text-slate-900">Skema Database Relasional (11 Tabel Inti)</h3>
+                <h3 className="text-xl font-extrabold text-slate-900">Skema Database Relasional (12 Tabel Inti)</h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Mencakup relasi `users`, `roles`, `profiles`, `psychologist_schedules`, `packages`, `appointments`, `tests`, `test_results`, `chats`, `clinical_notes`, dan `reviews`.
+                  Mencakup relasi `users`, `roles`, `profiles`, `psychologist_schedules`, `practice_holidays`, `pre_tests`, `packages`, `appointments`, `payment_proofs`, `test_results`, `clinical_notes`, dan `reviews`.
                 </p>
               </div>
 
               <button
                 onClick={() =>
                   copyToClipboard(
-                    `-- PostgreSQL Schema JiwaSehat (11 Tables DDL)\n-- Includes Foreign Keys, Indexes, and Constraints...`,
+                    `-- PostgreSQL Schema JiwaSehat (12 Tables DDL)\n-- Includes booking H+1, payment proof, reschedule, indexes, and constraints...`,
                     'sql'
                   )
                 }
@@ -212,23 +212,38 @@ export const ArchitectureBlueprint: React.FC = () => {
                 },
                 {
                   table: 'profiles',
-                  desc: 'Detail kredensial & bio dokter / pasien',
+                  desc: 'Detail general info pasien dan profil psikolog',
                   cols: ['id (UUID, PK)', 'user_id (UUID, FK -> users.id, UNIQUE)', 'title (VARCHAR)', 'str_number (VARCHAR)', 'sip_number (VARCHAR)', 'bio (TEXT)', 'specialties (TEXT[])', 'rating (DECIMAL)']
                 },
                 {
                   table: 'psychologist_schedules',
-                  desc: 'Slot ketersediaan waktu dokter',
+                  desc: 'Slot ketersediaan waktu praktik',
                   cols: ['id (UUID, PK)', 'psychologist_id (UUID, FK -> users.id)', 'date (DATE)', 'start_time (TIME)', 'end_time (TIME)', 'is_available (BOOLEAN)', 'is_booked (BOOLEAN)']
+                },
+                {
+                  table: 'practice_holidays',
+                  desc: 'Hari libur dan pengecualian praktik',
+                  cols: ['id (UUID, PK)', 'psychologist_id (UUID, FK)', 'date (DATE)', 'reason (TEXT)', 'created_at (TIMESTAMP)']
+                },
+                {
+                  table: 'pre_tests',
+                  desc: 'Pre-test wajib sebelum pasien booking',
+                  cols: ['id (UUID, PK)', 'patient_id (UUID, FK)', 'general_info (JSONB)', 'complaint_summary (TEXT)', 'risk_flags (JSONB)', 'submitted_at (TIMESTAMP)']
                 },
                 {
                   table: 'packages',
                   desc: 'Katalog layanan konsultasi klinik',
-                  cols: ['id (UUID, PK)', 'name (VARCHAR)', 'type (ENUM: CHAT, OFFLINE, BUNDLING)', 'duration_minutes (INT)', 'price (BIGINT)', 'benefits (JSONB)', 'is_active (BOOLEAN)']
+                  cols: ['id (UUID, PK)', 'name (VARCHAR)', 'type (ENUM: OFFLINE, BUNDLING)', 'duration_minutes (INT)', 'price (BIGINT)', 'benefits (JSONB)', 'is_active (BOOLEAN)']
                 },
                 {
                   table: 'appointments',
                   desc: 'Pemesanan & reservasi sesi',
-                  cols: ['id (UUID, PK)', 'booking_code (VARCHAR, UNIQUE)', 'patient_id (UUID, FK)', 'psychologist_id (UUID, FK)', 'package_id (UUID, FK)', 'schedule_slot_id (UUID, FK)', 'status (ENUM)', 'payment_status (ENUM)']
+                  cols: ['id (UUID, PK)', 'booking_code (VARCHAR, UNIQUE)', 'patient_id (UUID, FK)', 'psychologist_id (UUID, FK)', 'pre_test_id (UUID, FK)', 'package_id (UUID, FK)', 'status (ENUM)', 'payment_status (ENUM)']
+                },
+                {
+                  table: 'payment_proofs',
+                  desc: 'Bukti pembayaran DP dan pelunasan',
+                  cols: ['id (UUID, PK)', 'appointment_id (UUID, FK)', 'phase (ENUM: DP, FINAL)', 'amount (BIGINT)', 'file_url (TEXT)', 'verification_status (ENUM)', 'verified_by (UUID, FK)']
                 },
                 {
                   table: 'tests',
@@ -239,11 +254,6 @@ export const ArchitectureBlueprint: React.FC = () => {
                   table: 'test_results',
                   desc: 'Hasil pengerjaan kuesioner pasien',
                   cols: ['id (UUID, PK)', 'patient_id (UUID, FK -> users.id)', 'test_id (UUID, FK -> tests.id)', 'total_score (INT)', 'subscale_scores (JSONB)', 'severity_level (ENUM)', 'completed_at']
-                },
-                {
-                  table: 'chats',
-                  desc: 'Log percakapan ruang konsultasi privat',
-                  cols: ['id (UUID, PK)', 'appointment_id (UUID, FK -> appointments.id)', 'sender_id (UUID, FK -> users.id)', 'message_text (TEXT)', 'sent_at (TIMESTAMP)', 'is_read (BOOLEAN)']
                 },
                 {
                   table: 'clinical_notes',
@@ -295,19 +305,40 @@ CREATE TABLE psychologist_schedules (
     CONSTRAINT unique_psychologist_slot UNIQUE (psychologist_id, date, start_time)
 );
 
+CREATE TABLE pre_tests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID NOT NULL REFERENCES users(id),
+    general_info JSONB NOT NULL,
+    complaint_summary TEXT NOT NULL,
+    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE appointments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     booking_code VARCHAR(32) UNIQUE NOT NULL,
     patient_id UUID NOT NULL REFERENCES users(id),
     psychologist_id UUID NOT NULL REFERENCES users(id),
+    pre_test_id UUID NOT NULL REFERENCES pre_tests(id),
     package_id UUID NOT NULL,
     date DATE NOT NULL,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
-    status VARCHAR(50) DEFAULT 'CONFIRMED',
-    payment_status VARCHAR(50) DEFAULT 'PAID',
+    status VARCHAR(50) DEFAULT 'PENDING',
+    payment_status VARCHAR(50) DEFAULT 'DP_PENDING_VERIFICATION',
     total_amount NUMERIC(12,2) NOT NULL,
+    dp_amount NUMERIC(12,2) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE payment_proofs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    appointment_id UUID NOT NULL REFERENCES appointments(id),
+    phase VARCHAR(20) NOT NULL CHECK (phase IN ('DP', 'FINAL')),
+    amount NUMERIC(12,2) NOT NULL,
+    file_url TEXT NOT NULL,
+    verification_status VARCHAR(50) DEFAULT 'PENDING',
+    verified_by UUID REFERENCES users(id),
+    verified_at TIMESTAMP WITH TIME ZONE
 );
 
 CREATE TABLE clinical_notes (
@@ -334,7 +365,7 @@ CREATE TABLE clinical_notes (
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
             <h3 className="text-xl font-extrabold text-slate-900 mb-1">Daftar Endpoint RESTful & Middleware Authorization</h3>
             <p className="text-xs text-slate-500 mb-6">
-              Arsitektur rute API dengan guard middleware `verifyToken`, `requireRole`, dan `verifyAppointmentParticipant`.
+                  Arsitektur rute API dengan guard middleware `verifyToken`, `requireRole`, dan validasi kepemilikan data.
             </p>
 
             <div className="space-y-3">
@@ -353,9 +384,9 @@ CREATE TABLE clinical_notes (
                 },
                 {
                   method: 'POST',
-                  endpoint: '/api/v1/patient/intake-form',
+                  endpoint: '/api/v1/patient/pre-test',
                   auth: 'requireRole([PATIENT])',
-                  desc: 'Menyimpan identitas awal, riwayat medis, dan keluhan sebelum sesi dimulai'
+                  desc: 'Menyimpan general info, keluhan awal, dan pre-test wajib sebelum booking'
                 },
                 {
                   method: 'POST',
@@ -367,19 +398,25 @@ CREATE TABLE clinical_notes (
                   method: 'POST',
                   endpoint: '/api/v1/appointments/reserve',
                   auth: 'requireRole([PATIENT])',
-                  desc: 'Eksekusi booking dengan transaksi locking (mencegah bentrok jadwal/double-booking)'
+                  desc: 'Eksekusi booking H+1 dengan pre-test, bukti DP 50%, dan transaksi locking'
                 },
                 {
-                  method: 'GET',
-                  endpoint: '/api/v1/appointments/:id/chat-history',
-                  auth: 'verifyAppointmentParticipant',
-                  desc: 'Mengambil riwayat percakapan sesi privat (hanya pasien atau dokter terkait)'
+                  method: 'POST',
+                  endpoint: '/api/v1/appointments/:id/reschedule-request',
+                  auth: 'requireRole([PATIENT, ADMIN])',
+                  desc: 'Mencatat permintaan reschedule minimal H+1 untuk diproses admin'
                 },
                 {
                   method: 'POST',
                   endpoint: '/api/v1/psychologist/schedules/slots',
                   auth: 'requireRole([PSYCHOLOGIST])',
-                  desc: 'Membuat atau memperbarui slot ketersediaan waktu praktik dokter'
+                  desc: 'Membuat atau memperbarui jam kerja, kapasitas harian, dan slot praktik'
+                },
+                {
+                  method: 'POST',
+                  endpoint: '/api/v1/psychologist/schedules/holidays',
+                  auth: 'requireRole([PSYCHOLOGIST])',
+                  desc: 'Menandai hari libur agar tidak muncul sebagai slot booking'
                 },
                 {
                   method: 'POST',
@@ -389,9 +426,9 @@ CREATE TABLE clinical_notes (
                 },
                 {
                   method: 'PATCH',
-                  endpoint: '/api/v1/admin/users/:id/verify-status',
+                  endpoint: '/api/v1/admin/appointments/:id/verify-dp',
                   auth: 'requireRole([ADMIN])',
-                  desc: 'Aktivasi akun psikolog baru setelah verifikasi dokumen STR dan SIP'
+                  desc: 'Verifikasi bukti DP 50% lalu mengubah booking PENDING menjadi CONFIRMED'
                 },
                 {
                   method: 'PATCH',
@@ -505,6 +542,9 @@ export async function reserveAppointmentWithConflictLock(params: {
   psychologistId: string;
   scheduleSlotId: string;
   packageId: string;
+  preTestId: string;
+  totalAmount: number;
+  dpProofUrl: string;
 }) {
   const client = await pool.connect();
   try {
@@ -527,7 +567,22 @@ export async function reserveAppointmentWithConflictLock(params: {
 
     const slot = slotResult.rows[0];
 
-    // 3. Validasi Kondisi Bentrok
+    // 3. Validasi pre-test, batas H+1, dan kondisi bentrok
+    const preTest = await client.query(
+      'SELECT id FROM pre_tests WHERE id = $1 AND patient_id = $2',
+      [params.preTestId, params.patientId]
+    );
+
+    if (preTest.rows.length === 0) {
+      throw new ConflictError('Pre-test wajib diisi sebelum booking.');
+    }
+
+    const minBookingDate = new Date();
+    minBookingDate.setDate(minBookingDate.getDate() + 1);
+    if (new Date(slot.date) < minBookingDate) {
+      throw new ConflictError('Booking hanya dapat dilakukan mulai besok (H+1).');
+    }
+
     if (!slot.is_available || slot.is_booked) {
       throw new ConflictError(
         'Bentrok Jadwal Terdeteksi: Slot waktu ini telah dipesan atau tidak lagi tersedia.'
@@ -546,13 +601,33 @@ export async function reserveAppointmentWithConflictLock(params: {
       throw new ConflictError('Dokter telah memiliki janji aktif pada jam tersebut.');
     }
 
-    // 5. Buat Record Appointment & Update Status Slot
+    // 5. Buat Record Appointment PENDING & simpan bukti DP
     const bookingCode = \`JS-\${slot.date.replace(/-/g, '')}-\${Math.floor(1000 + Math.random() * 9000)}\`;
     const newAppointment = await client.query(
-      \`INSERT INTO appointments (booking_code, patient_id, psychologist_id, package_id, date, start_time, end_time, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'CONFIRMED')
+      \`INSERT INTO appointments (
+        booking_code, patient_id, psychologist_id, pre_test_id, package_id,
+        date, start_time, end_time, status, payment_status, total_amount, dp_amount
+      )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PENDING', 'DP_PENDING_VERIFICATION', $9, $10)
        RETURNING *\`,
-      [bookingCode, params.patientId, params.psychologistId, params.packageId, slot.date, slot.start_time, slot.end_time]
+      [
+        bookingCode,
+        params.patientId,
+        params.psychologistId,
+        params.preTestId,
+        params.packageId,
+        slot.date,
+        slot.start_time,
+        slot.end_time,
+        params.totalAmount,
+        params.totalAmount * 0.5
+      ]
+    );
+
+    await client.query(
+      \`INSERT INTO payment_proofs (appointment_id, phase, amount, file_url)
+       VALUES ($1, 'DP', $2, $3)\`,
+      [newAppointment.rows[0].id, params.totalAmount * 0.5, params.dpProofUrl]
     );
 
     // Kunci slot sehingga tidak bisa dipilih pasien lain
@@ -573,21 +648,21 @@ export async function reserveAppointmentWithConflictLock(params: {
             </div>
           </div>
 
-          {/* Key Code 2: Real-time WebSocket Chat Guard */}
+          {/* Key Code 2: Admin Payment Verification */}
           <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-xs">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900">
-                  2. Skema Real-Time WebSocket Handler (Pembatasan Akses Pasien & Psikolog)
+                  2. Verifikasi DP Admin & Perubahan Status Booking
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Socket.io gateway dengan verifikasi JWT, room authorization, dan countdown session timer.
+                  Admin memverifikasi DP 50% untuk mengubah booking dari PENDING menjadi CONFIRMED.
                 </p>
               </div>
               <button
                 onClick={() =>
                   copyToClipboard(
-                    `// Socket.io Real-time Consultation Chat Gateway\nexport function setupConsultationSocket(...)`,
+                    `// Admin payment verification\nasync function verifyDpAndConfirmAppointment(...)`,
                     'code-ws'
                   )
                 }
@@ -598,90 +673,58 @@ export async function reserveAppointmentWithConflictLock(params: {
             </div>
 
             <div className="p-4 bg-slate-950 text-slate-200 rounded-2xl font-mono text-xs overflow-x-auto">
-              <pre>{`// backend/src/websocket/chatSocket.ts
-import { Server, Socket } from 'socket.io';
-import { verifyJwtToken } from '../utils/auth';
-import { db } from '../config/database';
+              <pre>{`// backend/src/services/adminAppointmentService.ts
+import { pool } from '../config/database';
+import { ConflictError, NotFoundError } from '../utils/errors';
 
-export function registerConsultationSocketServer(io: Server) {
-  // 1. Handshake Authentication Middleware
-  io.use(async (socket: Socket, next) => {
-    try {
-      const token = socket.handshake.auth.token;
-      if (!token) return next(new Error('Authentication token required'));
-      const decoded = await verifyJwtToken(token);
-      socket.data.user = decoded; // { id, role, name }
-      next();
-    } catch (err) {
-      next(new Error('Invalid token'));
+export async function verifyDpAndConfirmAppointment(params: {
+  appointmentId: string;
+  adminId: string;
+}) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    const appointmentResult = await client.query(
+      \`SELECT id, status, payment_status
+       FROM appointments
+       WHERE id = $1
+       FOR UPDATE\`,
+      [params.appointmentId]
+    );
+
+    if (appointmentResult.rows.length === 0) {
+      throw new NotFoundError('Booking tidak ditemukan.');
     }
-  });
 
-  io.on('connection', (socket: Socket) => {
-    const user = socket.data.user;
+    const appointment = appointmentResult.rows[0];
+    if (appointment.status !== 'PENDING') {
+      throw new ConflictError('Hanya booking PENDING yang dapat dikonfirmasi admin.');
+    }
 
-    // 2. Join Room Event dengan Verifikasi Kepemilikan Sesi
-    socket.on('join_consultation_room', async ({ appointmentId }) => {
-      // Periksa database: apakah user ini adalah Pasien ATAU Psikolog pada janji temu ini?
-      const appointment = await db.appointments.findUnique({
-        where: { id: appointmentId }
-      });
+    await client.query(
+      \`UPDATE payment_proofs
+       SET verification_status = 'VERIFIED', verified_by = $1, verified_at = NOW()
+       WHERE appointment_id = $2 AND phase = 'DP'\`,
+      [params.adminId, params.appointmentId]
+    );
 
-      if (!appointment) {
-        return socket.emit('error', { message: 'Janji temu tidak ditemukan' });
-      }
+    const confirmed = await client.query(
+      \`UPDATE appointments
+       SET status = 'CONFIRMED', payment_status = 'DP_PAID'
+       WHERE id = $1
+       RETURNING *\`,
+      [params.appointmentId]
+    );
 
-      const isParticipant =
-        appointment.patient_id === user.id || appointment.psychologist_id === user.id;
-
-      if (!isParticipant) {
-        // Blokir akses pihak ketiga / peretas ruangan
-        return socket.emit('error', {
-          message: 'Akses Ditolak: Anda bukan peserta yang berhak masuk ke ruang ini.'
-        });
-      }
-
-      const roomName = \`room_apt_\${appointmentId}\`;
-      socket.join(roomName);
-
-      // Beritahu ruang bahwa pengguna telah hadir
-      io.to(roomName).emit('user_joined', {
-        userId: user.id,
-        role: user.role,
-        name: user.name,
-        timestamp: new Date()
-      });
-    });
-
-    // 3. Kirim Pesan dengan Enkripsi & Audit Log
-    socket.on('send_message', async ({ appointmentId, text }) => {
-      const roomName = \`room_apt_\${appointmentId}\`;
-      
-      // Simpan pesan ke basis data
-      const savedMsg = await db.chats.create({
-        data: {
-          appointment_id: appointmentId,
-          sender_id: user.id,
-          message_text: text,
-          sent_at: new Date()
-        }
-      });
-
-      io.to(roomName).emit('receive_message', {
-        id: savedMsg.id,
-        senderId: user.id,
-        senderRole: user.role,
-        senderName: user.name,
-        text,
-        timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-      });
-    });
-
-    // 4. Disconnect & Cleanup
-    socket.on('disconnect', () => {
-      // Log sesi terputus
-    });
-  });
+    await client.query('COMMIT');
+    return confirmed.rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }`}</pre>
             </div>
           </div>
@@ -760,7 +803,7 @@ export function registerConsultationSocketServer(io: Server) {
                 <ul className="text-xs text-emerald-900 space-y-1.5 font-mono">
                   <li>• <strong className="text-slate-900">PatientDashboard</strong> (Portal Pasien)</li>
                   <li>• <strong className="text-slate-900">PsychologistDashboard</strong> (Praktik)</li>
-                  <li>• <strong className="text-slate-900">AdminDashboard</strong> (Super Admin)</li>
+                  <li>• <strong className="text-slate-900">AdminDashboard</strong> (Admin Operasional)</li>
                   <li>• <strong className="text-slate-900">LoginModal</strong> (Dialog Masuk/Daftar)</li>
                   <li>• <strong className="text-slate-900">LandingPage</strong> (Katalog Publik)</li>
                 </ul>

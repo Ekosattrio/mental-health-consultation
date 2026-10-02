@@ -108,7 +108,7 @@ Project saat ini berupa frontend React/Vite dengan data lokal:
 - domain model berada di `src/models`
 - controller facade berada di `src/controllers`
 
-Belum ada backend dan database nyata yang terhubung. Beberapa fitur prototype lama belum sesuai requirement terbaru, terutama chat, intake form, role permission, pembayaran, dan pengelolaan CMS.
+Belum ada backend dan database nyata yang terhubung. Frontend prototype sudah mulai disesuaikan dengan requirement terbaru, tetapi implementasi produksi masih perlu backend untuk authorization, booking lock, upload pembayaran, Google SSO, laporan, dan penyimpanan data sensitif.
 
 ## Arah Teknis
 

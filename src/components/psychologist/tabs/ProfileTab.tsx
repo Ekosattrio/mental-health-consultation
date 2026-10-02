@@ -48,7 +48,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   );
   const [profilePracticePolicy, setProfilePracticePolicy] = useState(
     profile?.practicePolicy ||
-    'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis dan regulasi Kemenkes RI. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
+    'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
   );
   const [profileFeeOnline, setProfileFeeOnline] = useState(profile?.consultationFeeOnline || 250000);
   const [profileFeeOffline, setProfileFeeOffline] = useState(profile?.consultationFeeOffline || 350000);
@@ -152,7 +152,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                     required
                     value={profileSipNumber}
                     onChange={e => setProfileSipNumber(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden font-semibold"
                   />
                 </div>
                 <div>
@@ -174,7 +174,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                     required
                     value={profileStrNumber}
                     onChange={e => setProfileStrNumber(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 font-mono text-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-hidden font-semibold"
                   />
                 </div>
                 <div>
@@ -343,31 +343,6 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-hidden leading-relaxed"
                 />
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tarif Sesi Online (Rp)</label>
-                  <input
-                    type="number"
-                    step="10000"
-                    required
-                    value={profileFeeOnline}
-                    onChange={e => setProfileFeeOnline(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">Tarif Sesi Tatap Muka (Rp)</label>
-                  <input
-                    type="number"
-                    step="10000"
-                    required
-                    value={profileFeeOffline}
-                    onChange={e => setProfileFeeOffline(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -398,15 +373,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
           {/* Public Psychologist Card Preview */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-5">
             <div className="flex items-start gap-4">
-              <img
-                src={currentUser?.avatar || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80'}
-                alt={currentUser?.name}
-                className="w-16 h-16 rounded-2xl object-cover border-2 border-sky-400/40 shadow-xs shrink-0"
-              />
+              <div className="w-16 h-16 rounded-2xl bg-sky-50 border-2 border-sky-300 text-sky-700 flex items-center justify-center shadow-xs shrink-0">
+                <Stethoscope className="w-8 h-8" />
+              </div>
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold mb-1">
                   <ShieldCheck className="w-3 h-3 text-sky-600" />
-                  Berizin Resmi Kemenkes RI
+                  Identitas Praktik Terverifikasi Internal
                 </div>
                 <h4 className="text-base font-extrabold text-slate-900 leading-tight truncate">
                   {currentUser?.name}
@@ -428,11 +401,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 text-[11px] space-y-1">
               <div className="flex items-center justify-between text-slate-600">
                 <span className="font-semibold">No. SIPP:</span>
-                <span className="font-mono text-slate-800 font-bold">{profileSipNumber}</span>
+                <span className="text-slate-800 font-bold">{profileSipNumber}</span>
               </div>
               <div className="flex items-center justify-between text-slate-600">
                 <span className="font-semibold">No. STR:</span>
-                <span className="font-mono text-slate-800 font-bold">{profileStrNumber}</span>
+                <span className="text-slate-800 font-bold">{profileStrNumber}</span>
               </div>
             </div>
 
@@ -474,16 +447,14 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
               </p>
             </div>
 
-            {/* Tariff Footer */}
+            {/* Status Layanan Praktik Footer */}
             <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <div>
-                <span className="text-[10px] text-slate-400 block">Tarif Sesi Mulai</span>
-                <div className="text-sm font-extrabold text-sky-900">
-                  Rp {Number(profileFeeOnline).toLocaleString('id-ID')}
-                </div>
+              <div className="flex items-center gap-1.5 text-emerald-700">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-[11px] font-bold">Menerima Pasien Baru</span>
               </div>
-              <div className="px-4 py-2 bg-sky-600 text-white rounded-xl text-xs font-bold shadow-xs">
-                Jadwalkan Sesi
+              <div className="px-3 py-1.5 bg-sky-50 text-sky-800 rounded-xl text-xs font-bold border border-sky-100">
+                Paket Konsultasi
               </div>
             </div>
           </div>

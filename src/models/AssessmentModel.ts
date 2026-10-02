@@ -112,7 +112,7 @@ export class Dass21Scorer {
       case 'BERAT':
         return 'Disarankan mengambil sesi konseling tatap muka atau video call untuk menyusun strategi coping terstruktur.';
       case 'SEDANG':
-        return 'Konsultasi via chat dengan psikolog direkomendasikan bersama latihan regulasi emosi mandiri.';
+        return 'Konsultasi terjadwal dengan psikolog direkomendasikan bersama latihan regulasi emosi mandiri.';
       case 'RINGAN':
         return 'Praktikkan teknik grounding, relaksasi pernapasan, serta manajemen waktu untuk mencegah eskalasi stres.';
       default:

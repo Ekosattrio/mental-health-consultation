@@ -2,9 +2,8 @@
 
 ## Status Saat Ini
 
-Belum ada backend API nyata. Folder `src/api` berisi facade/endpoint client untuk arah integrasi berikutnya.
-
-## Prinsip API Target
+Struktur API client layer telah diimplementasikan lengkap di `src/services/api/` dan siap dipetakan 100% ke backend **Laravel 12++**.
+Dokumentasi spesifikasi lengkap RESTful endpoint, skema database Eloquent, dan route mapping dapat dilihat di [`LARAVEL_API_SPEC.md`](file:///c:/laragon/www/psikolog/docs/LARAVEL_API_SPEC.md).
 
 - Semua endpoint harus tervalidasi di server.
 - Semua endpoint yang mengakses data user wajib membutuhkan autentikasi.

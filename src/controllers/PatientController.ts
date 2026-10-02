@@ -10,7 +10,6 @@ import {
   IntakeForm,
   ScheduleSlot,
   TestResult,
-  ChatMessage,
   Review,
   User as UserEntity,
   UserRole
@@ -21,14 +20,13 @@ export interface PatientStateCallbacks {
   setSchedules: React.Dispatch<React.SetStateAction<ScheduleSlot[]>>;
   setIntakeForms: React.Dispatch<React.SetStateAction<Record<string, IntakeForm>>>;
   setTestResults: React.Dispatch<React.SetStateAction<TestResult[]>>;
-  setChatMessages: React.Dispatch<React.SetStateAction<Record<string, ChatMessage[]>>>;
   setReviews: React.Dispatch<React.SetStateAction<Review[]>>;
 }
 
 /**
  * PatientController (OOP Controller)
  * Orchestrates patient workflows: appointment reservations with concurrency guards,
- * intake assessment submission, DASS-21 psychological test taking, live chat, and reviews.
+ * pre-test submission, DASS-21 psychological test taking, booking, payments, and reviews.
  */
 export class PatientController extends BaseController {
   private callbacks: PatientStateCallbacks;
@@ -78,14 +76,14 @@ export class PatientController extends BaseController {
       this.callbacks.setAppointments(prev => [appointment, ...prev]);
 
       this.notify(
-        'Reservasi Berhasil!',
-        `Janji temu ${appointment.bookingCode} berhasil dikonfirmasi. Silakan simpan E-Ticket Anda.`,
+        'Pengajuan Booking Terkirim',
+        `Booking ${appointment.bookingCode} menunggu verifikasi admin atas bukti DP 50%.`,
         'success'
       );
 
       return {
         success: true,
-        message: 'Janji temu berhasil dikonfirmasi.',
+        message: 'Pengajuan booking berhasil dikirim dan menunggu verifikasi admin.',
         appointment
       };
     } catch (err: any) {
@@ -124,20 +122,20 @@ export class PatientController extends BaseController {
       if (savedIntake.suicideRiskFlag) {
         this.notify(
           'Perhatian Khusus Disimpan',
-          'Data intake tersimpan dengan tanda perhatian khusus. Tim psikolog kami akan memberikan pendampingan intensif.',
+          'Pre-test tersimpan dengan tanda perhatian khusus. Tim psikolog kami akan memberikan pendampingan intensif.',
           'warning'
         );
       } else {
         this.notify(
-          'Formulir Intake Tersimpan',
-          'Data keluhan dan riwayat medis Anda telah disinkronkan ke rekam klinis psikolog.',
+          'Pre-Test Tersimpan',
+          'Data keluhan awal Anda telah disimpan dan booking konsultasi sudah bisa diajukan.',
           'success'
         );
       }
 
       return savedIntake;
     } catch (err: any) {
-      this.handleError(err, 'Gagal Menyimpan Intake');
+      this.handleError(err, 'Gagal Menyimpan Pre-Test');
       return null;
     }
   }
@@ -173,98 +171,6 @@ export class PatientController extends BaseController {
     } catch (err: any) {
       this.handleError(err, 'Gagal Memproses Hasil Tes');
       return null;
-    }
-  }
-
-  /**
-   * Send chat message & trigger realistic auto-reply based on role
-   */
-  public async sendChatMessage(
-    appointmentId: string,
-    senderId: string,
-    senderName: string,
-    text: string,
-    senderRole: 'PATIENT' | 'PSYCHOLOGIST' | 'SYSTEM' = 'PATIENT',
-    activeAppointment?: Appointment
-  ): Promise<void> {
-    try {
-      const response = await PatientEndpoints.sendChatMessage(appointmentId, {
-        appointmentId,
-        senderId,
-        senderRole,
-        senderName,
-        text
-      });
-
-      if (!response.success || !response.data) {
-        throw new Error(response.message);
-      }
-
-      const newMsg = response.data;
-      this.callbacks.setChatMessages(prev => ({
-        ...prev,
-        [appointmentId]: [...(prev[appointmentId] || []), newMsg]
-      }));
-
-      // If PATIENT sends a message, simulate realistic psychologist response
-      if (senderRole === 'PATIENT') {
-        setTimeout(() => {
-          const replies = [
-            'Terima kasih sudah berbagi. Saya mendengarkan dengan seksama dan mengerti perasaan Anda. Mari kita telaah pemicunya perlahan.',
-            'Apa yang Anda alami adalah reaksi yang sangat wajar terhadap tekanan beban pikiran saat ini. Coba tarik napas dalam 4 hitungan.',
-            'Catatan ini sangat membantu saya memahami pola kecemasan Anda. Apakah ada kejadian spesifik kemarin yang memicunya?',
-            'Saya sangat mengapresiasi keterbukaan Anda. Mari kita fokus pada hal-hal yang berada di bawah kendali Anda terlebih dahulu.'
-          ];
-          const randomReply = replies[Math.floor(Math.random() * replies.length)];
-          const replyTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-          const replyMsg: ChatMessage = {
-            id: `msg-reply-${Date.now()}`,
-            appointmentId,
-            senderId: activeAppointment?.psychologistId || 'user-psy-1',
-            senderRole: 'PSYCHOLOGIST',
-            senderName: activeAppointment?.psychologistName || 'dr. Sarah Jenkins, M.Psi., Psikolog',
-            text: randomReply,
-            timestamp: replyTime,
-            isRead: true
-          };
-
-          this.callbacks.setChatMessages(curr => ({
-            ...curr,
-            [appointmentId]: [...(curr[appointmentId] || []), replyMsg]
-          }));
-        }, 1400);
-      } else if (senderRole === 'PSYCHOLOGIST') {
-        // When DOCTOR sends message, simulate realistic PATIENT acknowledgment response
-        setTimeout(() => {
-          const patientReplies = [
-            'Baik dok, terima kasih banyak sarannya. Saya akan coba praktikkan teknik pernapasan dan relaksasi ini.',
-            'Mengerti dok. Saya merasa jauh lebih lega setelah mendengar penjelasan dan arahan dokter.',
-            'Iya dok, betul sekali, hal itu memang sering memicu cemas saya belakangan ini.',
-            'Siap dok, saya catat untuk evaluasi di sesi kita berikutnya. Terima kasih banyak.'
-          ];
-          const randomPatientReply = patientReplies[Math.floor(Math.random() * patientReplies.length)];
-          const replyTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-
-          const replyMsg: ChatMessage = {
-            id: `msg-patient-reply-${Date.now()}`,
-            appointmentId,
-            senderId: activeAppointment?.patientId || 'user-pat-1',
-            senderRole: 'PATIENT',
-            senderName: activeAppointment?.patientName || 'Budi Santoso',
-            text: randomPatientReply,
-            timestamp: replyTime,
-            isRead: true
-          };
-
-          this.callbacks.setChatMessages(curr => ({
-            ...curr,
-            [appointmentId]: [...(curr[appointmentId] || []), replyMsg]
-          }));
-        }, 1500);
-      }
-    } catch (err: any) {
-      this.handleError(err, 'Gagal Mengirim Pesan');
     }
   }
 

@@ -51,4 +51,4 @@ Untuk project ini, opsi yang paling aman secara bertahap adalah Laravel API + Re
 - Pisahkan state client dari API service.
 - Tambahkan backend, kemungkinan Laravel, dengan autentikasi, authorization, database, upload file, laporan, audit log, dan validasi server-side.
 - Jadikan frontend hanya consumer API, bukan sumber kebenaran data.
-- Hilangkan ruang chat dari scope aplikasi jika keputusan no-online-consultation sudah final.
+- Pertahankan scope tanpa ruang chat konsultasi online di web.

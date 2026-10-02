@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Appointment, Review } from '../../../types';
-import { Star, MessageSquare, CheckCircle2, ThumbsUp, ShieldCheck, Sparkles } from 'lucide-react';
+import { useApp } from '../../../context/AppContext';
+import { RescheduleModal } from '../RescheduleModal';
+import { Star, CheckCircle2, ThumbsUp, ShieldCheck, Sparkles, CalendarClock } from 'lucide-react';
 
 interface HistoryTabProps {
   patientAppointments: Appointment[];
@@ -13,7 +15,7 @@ interface HistoryTabProps {
     comment: string;
     isAnonymous: boolean;
   }) => void;
-  onNavigateTab: (tabId: 'chat') => void;
+  onNavigateTab: (tabId: 'booking') => void;
 }
 
 const FEEDBACK_TAGS = [
@@ -42,6 +44,8 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   submitReview,
   onNavigateTab
 }) => {
+  const { rescheduleAppointment } = useApp();
+  const [rescheduleModalApt, setRescheduleModalApt] = useState<Appointment | null>(null);
   const [reviewModalAptId, setReviewModalAptId] = useState<string | null>(null);
   const [reviewRating, setReviewRating] = useState<number>(5);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
@@ -71,7 +75,6 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
       setSelectedTags(prev => prev.filter(t => t !== tag));
     } else {
       setSelectedTags(prev => [...prev, tag]);
-      // Auto append to comment if not already included
       if (!reviewComment.includes(tag)) {
         setReviewComment(prev => (prev ? `${prev}. ${tag}` : tag));
       }
@@ -98,7 +101,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   const currentDisplayRating = hoverRating !== null ? hoverRating : reviewRating;
 
   return (
-    <div className="py-6 space-y-6">
+    <div className="space-y-4">
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-6 gap-3">
           <div>
@@ -130,7 +133,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 >
                   <div className="space-y-1.5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-xs font-black text-slate-900 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200">
+                      <span className="text-xs font-black text-slate-900 bg-white px-2.5 py-0.5 rounded-lg border border-slate-200">
                         {apt.bookingCode}
                       </span>
                       <span
@@ -181,28 +184,29 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-                    {/* Review button available if session completed OR confirmed */}
-                    <button
-                      type="button"
-                      onClick={() => handleOpenReviewModal(apt)}
-                      className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
-                        isReviewed
-                          ? 'bg-white border border-amber-300 text-amber-800 hover:bg-amber-50'
-                          : 'bg-amber-500 hover:bg-amber-600 text-white'
-                      }`}
-                    >
-                      <Star className={`w-3.5 h-3.5 ${isReviewed ? 'fill-amber-500 text-amber-500' : 'fill-white'}`} />
-                      <span>{isReviewed ? 'Edit Ulasan Saya' : 'Beri Rating & Ulasan'}</span>
-                    </button>
-
-                    {apt.status === 'CONFIRMED' && (
+                    {apt.status === 'COMPLETED' && (
                       <button
                         type="button"
-                        onClick={() => onNavigateTab('chat')}
+                        onClick={() => handleOpenReviewModal(apt)}
+                        className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                          isReviewed
+                            ? 'bg-white border border-amber-300 text-amber-800 hover:bg-amber-50'
+                            : 'bg-amber-500 hover:bg-amber-600 text-white'
+                        }`}
+                      >
+                        <Star className={`w-3.5 h-3.5 ${isReviewed ? 'fill-amber-500 text-amber-500' : 'fill-white'}`} />
+                        <span>{isReviewed ? 'Edit Ulasan Saya' : 'Beri Rating & Ulasan'}</span>
+                      </button>
+                    )}
+
+                    {(apt.status === 'PENDING' || apt.status === 'CONFIRMED') && (
+                      <button
+                        type="button"
+                        onClick={() => setRescheduleModalApt(apt)}
                         className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
                       >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Ruang Chat
+                        <CalendarClock className="w-3.5 h-3.5" />
+                        Ajukan Reschedule Jadwal
                       </button>
                     )}
                   </div>
@@ -358,6 +362,16 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* MODAL RESCHEDULE JADWAL KONSULTASI                                        */}
+      {/* ========================================================================= */}
+      <RescheduleModal
+        isOpen={!!rescheduleModalApt}
+        onClose={() => setRescheduleModalApt(null)}
+        appointment={rescheduleModalApt}
+        onConfirmReschedule={rescheduleAppointment}
+      />
     </div>
   );
 };

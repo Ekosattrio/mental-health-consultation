@@ -1,7 +1,123 @@
 # Changelog
 
+## 2026-10-02
+
+- Refactor navigasi sidebar dan drawer mobile pada Dashboard Pasien, Admin, dan Psikolog:
+  - Mode collapse desktop: ikon terpusat, badge mengambang, dan hover tooltip informatif.
+  - Mode mobile: drawer menu bar collapsible interaktif dengan tombol "Pilih Menu ▾" / "Tutup" yang ramah sentuhan jempol.
+- Integrasi alur Pre-Test ke Halaman Booking Konsultasi (`BookingTab`):
+  - Alur wizard terpadu 3-langkah (1. Jadwal & Paket -> 2. Isi Pre-Test & Keluhan -> 3. Konfirmasi Rincian & DP 50%).
+  - Menghapus tab pre-test intake yang berdiri sendiri dari navigasi portal pasien.
+- Peningkatan layouting Asesmen Psikologi Mandiri DASS-21 (`TestsTab`):
+  - Default beralih ke mode Stepper Soal per Soal (Next-Next) dengan kartu opsi jawaban besar dan touch-friendly.
+  - Menghilangkan kebutuhan scroll vertikal panjang di laptop dan mobile.
+  - Menyediakan navigasi jump button nomor soal dan auto-fill demo.
+- Restrukturisasi Beranda Pasien (`OverviewTab`):
+  - Mengubah ringkasan menjadi "Panduan & FAQ" interaktif (5 langkah alur konseling + accordion FAQ per kategori).
+  - Memisahkan data jadwal aktif dan riwayat konsultasi ke tab "Jadwal & Riwayat Saya" agar beranda tidak menumpuk.
+- Redesain Moderasi Ulasan Admin (`ReviewsTab`):
+  - Menghapus card profil dokter tunggal yang berulang.
+  - Mengubah daftar ulasan menjadi format Data Table profesional yang rapi.
+  - Menambahkan rating rata-rata, filter bintang lengkap (Bintang 5 s/d 1), pencarian, dan pagination terstandarisasi.
+- Redesain Portal Psikolog (`ScheduleTab`, `PatientsTab`, & `AnalyticsTab`):
+  - Menghapus input slot manual satu per satu, digantikan Manajemen Jadwal Mingguan (Senin-Minggu) padat & modern berformat tabel bergaris yang jelas terbaca orang tua.
+  - Menghapus catatan medis SOAP secara menyeluruh karena tidak diminta klien; tabel pasien difokuskan murni pada profil identitas, keluhan pre-test, asesmen DASS-21, dan riwayat sesi.
+  - Menyederhanakan tab Keuangan murni mencatat "Uang Masuk / Arus Kas" per bulan & tahun 2026, menghapus pembagian komisi 70-30, slip honor dokter berulang, dan audit rating yang tidak relevan.
+- Standarisasi Tipografi Global (Plus Jakarta Sans):
+  - Memperbaiki inkonsistensi font monospace bawaan Windows akibat `font-mono` pada angka nominal rupiah, kode booking, dan badge ID; seluruh elemen web diseragamkan mutlak menggunakan Plus Jakarta Sans via `@theme` Tailwind CSS v4.
+- Desain Ulang Beranda Pasien Lebih Rapat (`OverviewTab`):
+  - Tata letak dirombak menjadi model 2 kolom berdampingan yang rapat dan modern tanpa banyak scroll vertikal: Alur 5 Langkah Konseling di kolom kiri dan Accordion FAQ + Hotline Darurat di kolom kanan.
+- Peningkatan Kemudahan Manajemen Jadwal Psikolog (`ScheduleTab`):
+  - Status praktik harian diubah menjadi tombol segmented eksplisit `[🟢 Buka] [🔴 Libur]` agar pengguna awam langsung paham bahwa status hari dapat diubah.
+  - Menambahkan fitur "Penyesuaian Kuota & Praktik Tanggal Tertentu" (*Custom Date Quota Override*), memungkinkan psikolog menentukan kuota pasien maksimal (misal hanya 2 pasien) atau status libur pada tanggal tertentu.
+- Penyederhanaan Tab Jadwal Praktik Psikolog (`ScheduleTab`):
+  - Menghapus kolom "Skema Waktu" dari tabel jadwal mingguan.
+  - Memperbarui tombol status operasional harian menjadi segmented pill modern `[ 🟢 Buka ] [ 🔴 Libur ]`.
+  - Menghapus bagian "Fitur Cek Waktu" (simulator booking slot) agar tampilan tidak ramai.
+  - Merampingkan tata letak pengaturan kuota tanggal khusus & cuti dadakan agar pas di layar tanpa scroll berlebih.
+- Redesain UI Laporan Keuangan & Uang Masuk (`AnalyticsTab`):
+  - Mengganti filter periode menjadi segmented pill bergaya SaaS modern (`Semua`, `Bulan Ini`, `Bulan Lalu`, `Tahun 2026`) ditambah pemilih bulan spesifik yang rapi.
+  - Mempercantik kartu metrik uang masuk dengan gradien halus dan tata letak padat.
+  - Menambahkan pagination ringkas (8 transaksi/halaman) pada tabel mutasi pembayaran.
+- Transformasi CMS Konten Menjadi Accordion Eksklusif (`CmsTab`):
+  - Mengubah formulir konfigurasi Landing Page, Portal Pasien, dan Portal Psikolog menjadi sistem Accordion satu-terbuka (*single-open exclusive*) guna menghemat hingga 70% tinggi layar.
+- Penghapusan Header Bar Tambahan di Seluruh Dashboard:
+  - Menghapus header bar putih tambahan dari Dashboard Pasien, Psikolog, dan Admin agar tata letak tidak mubazir dan konten tab langsung berada di posisi paling atas tanpa memakan ruang vertikal.
+- Peningkatan Menu Profil Lengkap di Navbar Atas (`Navbar.tsx`):
+  - Mengembangkan user pill dan dropdown profil di samping tombol logout menjadi menu profil yang kaya dan profesional.
+  - Menampilkan kartu identitas pengguna (avatar, nama, email, role badge, ID pengguna), ringkasan status klinis (status pre-test / SIP / izin admin).
+  - Menyediakan tombol "Buka Detail Profil & Akun" yang memunculkan modal pop-up interaktif untuk melihat dan mengedit profil langsung dengan toast notifikasi sukses.
+  - Menyediakan menu pintasan navigasi ke tab dashboard sesuai peran pengguna (Pasien, Psikolog, Admin).
+  - Menempatkan tombol Keluar dari Akun (Logout) yang jelas dan tebal di bagian bawah menu dropdown.
+- Penambahan Tab Mandiri "Profil Saya" (`profile`) pada Portal Pasien:
+  - Memindahkan seluruh data detail akun, status kelengkapan pre-test, kontak darurat, dan ringkasan preferensi pasien ke tab navigasi tersendiri agar halaman utama tetap bersih dan ringkas.
+- Pembersihan Bug Hotline Krisis & Normalisasi Perataan Konten Pasien:
+  - Memperbaiki duplikasi teks dan frasa keliru pada box hotline darurat 24 jam di `OverviewTab.tsx`.
+  - Menghilangkan padding atas (`py-2`, `py-6`) pada `BookingTab`, `HistoryTab`, dan `TestsTab` sehingga seluruh tab pasien sejajar rata sempurna dengan posisi sidebar.
+- Pembuatan Tab Khusus "FAQ & Bantuan" (`FaqTab.tsx`):
+  - Memisahkan section FAQ dari Overview menjadi tab mandiri lengkap dengan pencarian pertanyaan, filter kategori topik, accordion, dan kontak WhatsApp darurat/admin.
+- Pembersihan Redundansi Menu Profil di Sidebar & Dropdown:
+  - Menghapus tab Profil dari sidebar Pasien dan Psikolog untuk menghilangkan redundansi (karena profil sudah ada di navbar atas).
+  - Menghapus Menu Pintasan dari dropdown profil di Navbar.
+  - Memperbaiki bug modal profil yang terpotong di tepi atas layar dengan memindahkannya ke `createPortal(..., document.body)` dengan `z-[9999]`.
+- Penyempurnaan Indikator Visual Jadwal Psikolog (`ScheduleTab.tsx`):
+  - Memperbaiki tombol status harian: hanya tombol yang berstatus ON yang memiliki warna solid dan pulsing dot (hijau untuk Buka, merah untuk Libur); tombol yang OFF polos transparan tanpa dot warna.
+- Redesain Tab Laporan Keuangan Psikolog & Admin (`AnalyticsTab.tsx`):
+  - Menghapus section grid bulanan berulang ("Rekap Uang Masuk per Bulan (Tahun 2026)").
+  - Mengganti filter periode menjadi pemilih Bulan ('Semua Bulan', 'Januari'-'Desember') dan Tahun ('Semua Tahun', '2026', '2025') yang responsif langsung terhadap analitik dan tabel mutasi.
+- Penghapusan Tarif Sesi Mulai di Profil Psikolog (`ProfileTab.tsx`):
+  - Menghapus input tarif sesi online dan offline dari formulir profil praktik.
+  - Menghapus teks "Tarif Sesi Mulai Rp 250.000" dan tombol jadwalkan sesi dari preview kartu profil publik, digantikan dengan status "Menerima Pasien Baru" dan badge "Paket Konsultasi".
+- Penempatan FAQ di Bagian Terbawah:
+  - Memindahkan tab FAQ ke urutan paling bawah pada sidebar navigasi Pasien (`PatientDashboard.tsx`).
+  - Menambahkan section FAQ interaktif di urutan terbawah Landing Page sebelum Footer (`LandingPage.tsx`).
+- Penyempurnaan Portal Pasien:
+  - Menghapus tombol export CSV dan cetak pada tab riwayat pasien (`HistoryTab.tsx`).
+  - Menghapus box/card "Tips Hari Ini (teknik pernapasan 4-7-8)" pada Overview Pasien (`OverviewTab.tsx`).
+  - Mengimplementasikan alur pengajuan Reschedule mandiri lengkap (`RescheduleModal.tsx` & `AppContext.tsx`): validasi tanggal minimal H+1, pilihan slot jam, input alasan & catatan, perbandingan jadwal, serta integrasi reaktif ke context & LocalStorage.
+- Stabilisasi Layout & Peningkatan Fitur Ekspor Keuangan (`AnalyticsTab.tsx` & `ExportFinanceModal.tsx`):
+  - Mengunci tinggi dan struktur kartu metrik arus kas (`h-full min-h-[125px]`) agar tidak loncat atau bergeser saat filter diganti.
+- Implementasi Komponen Tooltip & Konversi Tombol Aksi Menjadi Icon Button Minimalis:
+  - Membuat komponen reusable `src/components/common/Tooltip.tsx` berbasis Tailwind CSS dengan animasi fade/scale, dynamic arrow caret, dan dukungan keyboard focus / aria-label.
+  - Mengubah tombol pemicu modal ekspor/cetak dan reset filter di tab Keuangan (`AnalyticsTab.tsx`) menjadi icon button yang ringkas dengan tooltip informatif.
+  - Menambahkan barisan tombol icon cepat (Download CSV, Cetak PDF, Tutup) pada header dan mempercantik tombol footer di `ExportFinanceModal.tsx`.
+  - Mengubah tombol Export CSV dan Cetak di tab Reservasi Admin (`ReservationsTab.tsx`) menjadi icon buttons dengan tooltip.
+  - Mengubah tombol "Lihat Detail" pada tabel pasien (`PatientsTab.tsx`) menjadi icon button `Eye` dengan tooltip.
+- Ruang Ekspor & Pratinjau Khusus Tanpa Sidebar Utama (`ExportFinancePage.tsx`):
+  - Mengubah tema tombol printer di tab Keuangan (`AnalyticsTab.tsx`) dari warna hitam menjadi warna lembut senada brand (`bg-teal-50 text-teal-700 border-teal-200`).
+  - Mengalihkan alur ekspor dari pop-up modal menjadi halaman kerja penuh khusus yang dapat diakses melalui tombol cetak di tab Keuangan, tanpa menu di sidebar dashboard psikolog.
+  - Membangun sidebar panel internal untuk konfigurasi ekspor: format toggle (PDF vs Excel), pemilih rentang waktu, ringkasan transaksi, tombol aksi, serta Accordion FAQ interaktif cara mencetak A4 dan panduan Excel.
+  - Mengimplementasikan Live Preview ganda: Pratinjau Dokumen Cetak Kop Surat Dinas Resmi (PDF) dan Live Table Viewer Excel interaktif dengan formula bar, header hijau, dan tombol unduh berkas spreadsheet `.xls` resmi.
+- Pengayaan Data Dummy Menyeluruh & Eliminasi Total Livechat:
+  - Membersihkan 100% residu kode `Room-Live-JS0X` dari mock appointments dan menggantinya dengan nama ruang klinik tatap muka fisik (`Klinik Ruang Lavender Lt. 2`, `Klinik Ruang Magnolia Lt. 3`, `Klinik Ruang Cempaka Lt. 2`, `Klinik Ruang Teratai Lt. 1`).
+  - Mengubah tombol "Chat WhatsApp Admin" di FaqTab menjadi "Hubungi WhatsApp Admin" dan menyelaraskan teks pengumuman CMS dari telekonsultasi menjadi konsultasi klinis privat.
+  - Menambahkan 12 data pengguna pasien baru (`user-pat-9` s/d `user-pat-20`) dengan profil lengkap, nomor kontak, avatar, dan profesi realistis.
+  - Melengkapi formulir Pre-Test Intake dan hasil tes DASS-21 untuk seluruh 20 pasien, sehingga triage risiko dan preview riwayat pasien terisi lengkap.
+  - Memperbanyak janji temu dan transaksi dari 9 menjadi 33 transaksi riil dari November 2025 s/d Oktober 2026 dengan beragam status pembayaran (`PAID`, `DP_PAID`, `DP_PENDING_VERIFICATION`, `REFUNDED`) dan paket.
+  - Menambahkan variasi ulasan pasien bintang 5 & 4, anonim & terbuka, serta pending moderasi admin.
+  - Memperbarui `STORAGE_PREFIX` di `AppContext.tsx` dari `'jiwasehat_v2_'` ke `'jiwasehat_v3_'` sehingga browser pengguna langsung memuat set data dummy baru secara otomatis.
+- Penyempurnaan Sistem Cetak PDF A4 Multi-Page, Pratinjau Excel Ringkas, & Konfigurasi Kop Surat CMS:
+  - Mengimplementasikan pemisahan halaman dokumen A4 otomatis (*Automatic Multi-Page Chunking*): Halaman 1 memuat Kop Lengkap Dinas + 10 transaksi pertama + penomoran halaman; Halaman berikutnya memuat Kop Ringkas + 15 transaksi; Halaman terakhir memuat Rekap Total Akumulasi Dana Masuk + Blok Tanda Tangan Resmi.
+  - Menambahkan toolbar navigasi halaman A4 interaktif pada layar: Tombol `[Halaman Sebelumnya]`, `Halaman X dari Y`, `[Halaman Selanjutnya]`, serta opsi beralih mode pratinjau `[Per Halaman A4]` atau `[Semua Halaman]`.
+  - Menerapkan CSS cetak `@media print` (`page-break-after: always; break-after: page;`) untuk memastikan browser mencetak setiap lembar dokumen A4 secara terpisah tanpa baris atau tanda tangan terpotong.
+  - Membatasi pratinjau tabel spreadsheet Excel menjadi 10 baris per tampilan layar dengan navigasi Prev/Next baris data, dengan tombol "Download Berkas Excel (.xls)" yang tetap mengekspor 100% dari seluruh 33 transaksi.
+  - Menambahkan formulir pengaturan Kop Surat Resmi di CMS Konten Dokter (`CmsTab.tsx`): memungkinkan kustomisasi Nama Klinik/Praktik, Nama Psikolog & Gelar, No. SIP, No. STR, Alamat, No. Telp, Email, Website, Kota, dan Jabatan Penandatangan secara dinamis ke dokumen PDF dan berkas Excel.
+  - Menghilangkan bug templating atas/bawah: menambahkan `print:hidden` pada Navbar dan Footer website agar tidak terbawa saat cetak PDF, serta membungkus ruang ekspor dengan full-screen overlay `fixed inset-0 z-50 bg-slate-100 overflow-y-auto` agar Navbar tidak melayang di tengah tabel dan Footer website tidak tampak saat scrolling.
+
 ## 2026-10-01
 
+- Implementasi awal UI sesuai requirement terbaru:
+  - menghapus chat dari navigasi pasien dan psikolog
+  - menghapus file halaman chat lama dan jalur aksi chat dari context/controller/endpoint frontend
+  - mengganti intake menjadi pre-test sebelum booking
+  - menambahkan guard booking minimal H+1 dan pre-test wajib
+  - mengubah booking menjadi pengajuan `PENDING` dengan DP 50% menunggu verifikasi admin
+  - membatasi dashboard admin ke monitoring user, booking/verifikasi, dan moderasi review
+  - memindahkan analytics keuangan dan CMS ke dashboard psikolog/pengelola
+  - menambahkan kontrol hari libur, jam kerja, dan kapasitas harian di dashboard psikolog
+  - menambahkan sidebar collapsible pada dashboard pasien, psikolog, dan admin
+  - menyesuaikan landing page, footer, auth Google SSO demo, dan copywriting agar tidak memakai klaim organisasi yang belum valid
+  - menyesuaikan halaman architecture blueprint agar tidak lagi memuat WebSocket/live chat dan mengikuti booking H+1 + DP 50%
 - Mencatat requirement terbaru dari developer:
   - hierarki role psikolog/super admin/pengelola, admin, pasien
   - aturan booking H+1, hari libur, jam kerja, batas pertemuan harian, dan anti double booking

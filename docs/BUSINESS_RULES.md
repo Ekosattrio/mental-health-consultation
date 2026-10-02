@@ -19,6 +19,9 @@
 - Pasien dapat mengajukan reschedule ke admin melalui form jika tidak memahami cara reschedule mandiri.
 - Perubahan jadwal harus memperbarui database.
 - Slot yang sudah ter-booking tidak boleh tersedia untuk booking lain.
+- Skema Waktu Dinamis: Durasi slot yang dihasilkan pada sistem booking tidak dipatok kaku 60 menit, melainkan mengikuti durasi riil paket yang dipilih pasien (misal 60, 75, atau 90 menit). Slot dihitung dari jam buka klinik dengan interval fleksibel, mengecualikan waktu istirahat (12:00 - 13:00) dan bentrok dengan sesi yang sudah terdaftar.
+- Penyesuaian Kuota Tanggal Tertentu (*Custom Date Quota Override*): Psikolog dapat menetapkan kuota maksimal pasien atau status libur pada tanggal spesifik (contoh: tanggal tertentu hanya menerima 2 pasien). Aturan tanggal khusus ini diprioritaskan di atas jadwal mingguan standar.
+- Deteksi Ketersediaan Real-Time: Pasien lain hanya diperbolehkan memesan jika sisa kuota pasien hari tersebut masih tersedia (> 0) DAN terdapat rentang waktu luang yang cukup untuk menampung durasi paket yang diminta tanpa bertabrakan dengan jadwal pasien lain.
 - Appointment memiliki status:
   - `PENDING`
   - `CONFIRMED`
@@ -86,13 +89,28 @@
   - lunas
   - ditolak/refund jika diperlukan
 
+## Reschedule Jadwal Konsultasi
+
+- Pasien dapat mengajukan perubahan jadwal (reschedule) secara mandiri melalui menu Jadwal & Riwayat di portal pasien.
+- **Batas Waktu Pengajuan**: Pengajuan reschedule wajib dilakukan minimal **H-1 (24 jam sebelum jadwal sesi lama dimulai)**. Sistem memblokir pemilihan tanggal hari-H atau masa lalu.
+- **Perlakuan Pembayaran**: Pembayaran uang muka (DP 50%) atau biaya pelunasan yang sudah tercatat otomatis dialihkan 100% ke jadwal pengganti tanpa potongan biaya administrasi.
+- **Pemilihan Jadwal Baru**: Pasien memilih tanggal baru dan slot waktu yang tersedia dari jadwal operasional aktif psikolog.
+- **Pencatatan Alasan**: Pasien wajib memilih alasan reschedule (Kondisi Kesehatan, Pekerjaan/Dinas Mendadak, Keperluan Keluarga, Transportasi, atau Lainnya) serta catatan opsional untuk dokter.
+- **Pembaruan Sistem**: Jadwal pada kalender psikolog dan admin langsung diperbarui, dan status janji temu ditandai sebagai jadwal ter-reschedule.
+
 ## Laporan dan Export Data
 
-- Sistem dapat menghasilkan laporan.
-- Data dapat diekspor ke PDF.
-- Data dapat diekspor ke Excel.
-- Data laporan mengikuti data yang tersimpan dalam database.
-- Hak akses terhadap laporan mengikuti hak akses pengguna.
+- **Fleksibilitas Filter**: Laporan keuangan kas nyata dapat difilter berdasarkan:
+  - Pilihan Bulan dan Tahun spesifik
+  - Rentang Tanggal Spesifik (*Start Date* s/d *End Date*)
+  - Seluruh Riwayat Transaksi Praktik
+- **Kelengkapan Data 100%**: Fitur ekspor menangkap seluruh data baris yang lolos kriteria filter secara utuh tanpa terpotong oleh batasan pagination tabel antarmuka.
+- **Kop Surat Resmi Praktik Mandiri**:
+  - Pratinjau dokumen dan hasil cetak PDF wajib dilengkapi Kop Surat Resmi Klinik JiwaSehat (Nama Praktik Mandiri, Praktisi Penanggung Jawab, Nomor SIP & STR, Alamat Resmi Klinik, dan Kontak Hotline).
+  - Dilengkapi ringkasan eksekutif kas nyata, tabel rincian transaksi lengkap, serta lembar tanda tangan basah/legal psikolog penanggung jawab.
+- **Format Ekspor**:
+  - Cetak Langsung / Unduh PDF ber-Kop Surat Resmi (`@media print` siap cetak).
+  - Unduh Spreadsheet CSV / Excel dengan encoding UTF-8 BOM agar terbaca sempurna di Microsoft Excel.
 
 ## Review
 

@@ -1,12 +1,12 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
-import { HeartHandshake, ShieldCheck, MapPin, Phone, Mail, Clock, ExternalLink } from 'lucide-react';
+import { HeartHandshake, Instagram, MapPin, Phone, Mail, Clock } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   const { setViewMode, switchRole } = useApp();
 
   return (
-    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-12">
+    <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-12 print:hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 pb-12 border-b border-slate-800">
           {/* Brand & Mission */}
@@ -18,11 +18,11 @@ export const Footer: React.FC = () => {
               <span className="text-2xl font-black text-white tracking-tight">JiwaSehat</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              Praktik mandiri psikolog klinis berbasis teknologi modern. Memberikan akses konseling privat profesional, asesmen psikometri baku, dan rekam medis elektronik terstandarisasi bersama dr. Sarah Jenkins, M.Psi.
+              Praktik psikologi berbasis booking terjadwal. Pasien mengisi pre-test, mengajukan jadwal minimal H+1, dan admin memverifikasi pembayaran sebelum konsultasi.
             </p>
             <div className="pt-2 flex items-center gap-3 text-xs text-slate-400">
               <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-teal-400 font-bold border border-slate-700">
-                <ShieldCheck className="w-4 h-4" /> Berizin Praktik Resmi Kemenkes RI
+                <Instagram className="w-4 h-4" /> Instagram: @jiwasehat.id
               </span>
             </div>
           </div>
@@ -90,12 +90,12 @@ export const Footer: React.FC = () => {
           <div>
             <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Layanan Klinis</h4>
             <ul className="space-y-2 text-xs text-slate-400">
-              <li>Konseling Online Terenkripsi</li>
-              <li>Sesi Tatap Muka Klinik</li>
-              <li>Asesmen Psikologis DASS-21</li>
-              <li>Skrining Depresi & Burnout</li>
-              <li>Konsultasi Hubungan & Pasangan</li>
-              <li>Rujukan Terapi Psikiatri</li>
+              <li>Booking Konsultasi H+1</li>
+              <li>Pre-Test Sebelum Konsultasi</li>
+              <li>Sesi Praktik Terjadwal</li>
+              <li>Assessment Tambahan Jika Ditugaskan</li>
+              <li>Upload Bukti DP 50%</li>
+              <li>Riwayat dan Review Sesi</li>
             </ul>
           </div>
 
@@ -118,6 +118,10 @@ export const Footer: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-teal-400 shrink-0" />
                 <span>konseling@jiwasehat.id</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Instagram className="w-4 h-4 text-teal-400 shrink-0" />
+                <span>@jiwasehat.id</span>
               </div>
             </div>
           </div>

@@ -12,7 +12,6 @@ import {
   IntakeForm,
   ClinicalNote,
   Review,
-  ChatMessage,
   AnalyticsSummary,
   ToastNotification,
   LandingPageCmsConfig,
@@ -28,7 +27,6 @@ import {
   INITIAL_TEST_RESULTS,
   INITIAL_SCHEDULES,
   INITIAL_APPOINTMENTS,
-  INITIAL_CHAT_MESSAGES,
   INITIAL_CLINICAL_NOTES,
   INITIAL_REVIEWS,
   INITIAL_LANDING_CMS,
@@ -67,7 +65,6 @@ interface AppContextType {
   intakeForms: Record<string, IntakeForm>;
   clinicalNotes: Record<string, ClinicalNote>;
   reviews: Review[];
-  chatMessages: Record<string, ChatMessage[]>;
   analytics: AnalyticsSummary;
   toast: ToastNotification | null;
 
@@ -86,12 +83,12 @@ interface AppContextType {
   // Navigation & View
   viewMode: 'PLATFORM' | 'BLUEPRINT';
   setViewMode: (mode: 'PLATFORM' | 'BLUEPRINT') => void;
-  activePatientTab: 'overview' | 'booking' | 'tests' | 'intake' | 'chat' | 'history';
-  setActivePatientTab: (tab: 'overview' | 'booking' | 'tests' | 'intake' | 'chat' | 'history') => void;
-  activePsychologistTab: 'overview' | 'schedule' | 'patients' | 'chat' | 'history' | 'profile';
-  setActivePsychologistTab: (tab: 'overview' | 'schedule' | 'patients' | 'chat' | 'history' | 'profile') => void;
-  activeAdminTab: 'analytics' | 'users' | 'packages' | 'tests' | 'reservations' | 'reviews' | 'cms';
-  setActiveAdminTab: (tab: 'analytics' | 'users' | 'packages' | 'tests' | 'reservations' | 'reviews' | 'cms') => void;
+  activePatientTab: 'overview' | 'faq' | 'booking' | 'tests' | 'intake' | 'history' | 'profile';
+  setActivePatientTab: (tab: 'overview' | 'faq' | 'booking' | 'tests' | 'intake' | 'history' | 'profile') => void;
+  activePsychologistTab: 'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile';
+  setActivePsychologistTab: (tab: 'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile') => void;
+  activeAdminTab: 'users' | 'reservations' | 'reviews';
+  setActiveAdminTab: (tab: 'users' | 'reservations' | 'reviews') => void;
 
   // Landing Page CMS
   // Multi-Page CMS (Landing, Patient, Psychologist)
@@ -144,7 +141,6 @@ interface AppContextType {
 
   submitIntakeForm: (formData: Omit<IntakeForm, 'id' | 'completedAt'>) => Promise<IntakeForm | null>;
   submitTestResult: (resultData: Omit<TestResult, 'id' | 'completedAt'>) => Promise<TestResult | null>;
-  sendChatMessage: (appointmentId: string, text: string, role?: 'PATIENT' | 'PSYCHOLOGIST' | 'SYSTEM') => void;
   saveClinicalNotes: (appointmentId: string, notes: Omit<ClinicalNote, 'id' | 'createdAt' | 'updatedAt'>) => Promise<ClinicalNote | null>;
   submitReview: (reviewData: {
     appointmentId: string;
@@ -164,12 +160,19 @@ interface AppContextType {
   deletePackage: (packageId: string) => void;
   saveTest: (test: PsychologicalTest) => void;
   updateAppointmentStatus: (aptId: string, status: Appointment['status']) => void;
+  rescheduleAppointment: (
+    aptId: string,
+    newDate: string,
+    newStartTime: string,
+    newEndTime: string,
+    reason?: string
+  ) => Promise<boolean>;
   resetAllToDefault: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const STORAGE_PREFIX = 'jiwasehat_v2_';
+const STORAGE_PREFIX = 'jiwasehat_v3_';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Persistence helpers
@@ -194,7 +197,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [intakeForms, setIntakeForms] = useState<Record<string, IntakeForm>>(() => loadState('intakeForms', INITIAL_INTAKE_FORMS));
   const [clinicalNotes, setClinicalNotes] = useState<Record<string, ClinicalNote>>(() => loadState('clinicalNotes', INITIAL_CLINICAL_NOTES));
   const [reviews, setReviews] = useState<Review[]>(() => loadState('reviews', INITIAL_REVIEWS));
-  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(() => loadState('chatMessages', INITIAL_CHAT_MESSAGES));
   const [landingCms, setLandingCms] = useState<LandingPageCmsConfig>(() => loadState('landingCms', INITIAL_LANDING_CMS));
   const [patientCms, setPatientCms] = useState<PatientPageCmsConfig>(() => loadState('patientCms', INITIAL_PATIENT_CMS));
   const [psychologistCms, setPsychologistCms] = useState<PsychologistPageCmsConfig>(() => loadState('psychologistCms', INITIAL_PSYCHOLOGIST_CMS));
@@ -203,9 +205,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toast, setToast] = useState<ToastNotification | null>(null);
 
   // Tab controllers
-  const [activePatientTab, setActivePatientTab] = useState<'overview' | 'booking' | 'tests' | 'intake' | 'chat' | 'history'>('overview');
-  const [activePsychologistTab, setActivePsychologistTab] = useState<'overview' | 'schedule' | 'patients' | 'chat' | 'history' | 'profile'>('overview');
-  const [activeAdminTab, setActiveAdminTab] = useState<'analytics' | 'users' | 'packages' | 'tests' | 'reservations' | 'reviews' | 'cms'>('analytics');
+  const [activePatientTab, setActivePatientTab] = useState<'overview' | 'faq' | 'booking' | 'tests' | 'intake' | 'history' | 'profile'>('overview');
+  const [activePsychologistTab, setActivePsychologistTab] = useState<'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile'>('overview');
+  const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'reservations' | 'reviews'>('reservations');
 
   // Current active user ID
   const [currentUserId, setCurrentUserId] = useState<string>('user-pat-1');
@@ -247,9 +249,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     localStorage.setItem(STORAGE_PREFIX + 'reviews', JSON.stringify(reviews));
   }, [reviews]);
-  useEffect(() => {
-    localStorage.setItem(STORAGE_PREFIX + 'chatMessages', JSON.stringify(chatMessages));
-  }, [chatMessages]);
   useEffect(() => {
     localStorage.setItem(STORAGE_PREFIX + 'landingCms', JSON.stringify(landingCms));
   }, [landingCms]);
@@ -318,7 +317,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSchedules,
       setIntakeForms,
       setTestResults,
-      setChatMessages,
       setReviews
     });
   }, []);
@@ -366,7 +364,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setActivePatientTab('booking');
     setViewMode('PLATFORM');
-    showToast('Reservasi Jadwal', 'Pilih slot tanggal dan jam konsultasi yang Anda inginkan.', 'info');
+    showToast('Pre-Test & Booking', 'Lengkapi pre-test singkat, lalu pilih jadwal konsultasi minimal H+1.', 'info');
   };
 
   const startTestFlow = () => {
@@ -465,21 +463,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return patientController.submitTestResult(resultData.patientId, resultData);
   };
 
-  const sendChatMessage = (appointmentId: string, text: string, role?: 'PATIENT' | 'PSYCHOLOGIST' | 'SYSTEM') => {
-    const apt = appointments.find(a => a.id === appointmentId);
-    const roleCandidate = role || (currentUser?.role === 'PSYCHOLOGIST' ? 'PSYCHOLOGIST' : 'PATIENT');
-    const effectiveRole: 'PATIENT' | 'PSYCHOLOGIST' | 'SYSTEM' =
-      roleCandidate === 'PSYCHOLOGIST' ? 'PSYCHOLOGIST' : 'PATIENT';
-    patientController.sendChatMessage(
-      appointmentId,
-      currentUser?.id || (effectiveRole === 'PSYCHOLOGIST' ? 'user-psy-1' : 'user-pat-1'),
-      currentUser?.name || (effectiveRole === 'PSYCHOLOGIST' ? 'dr. Sarah Jenkins, M.Psi., Psikolog' : 'Pasien'),
-      text,
-      effectiveRole,
-      apt
-    );
-  };
-
   const submitReview = (data: {
     appointmentId: string;
     psychologistId: string;
@@ -566,6 +549,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     adminController.updateAppointmentStatus(aptId, status, appointments);
   };
 
+  const rescheduleAppointment = async (
+    aptId: string,
+    newDate: string,
+    newStartTime: string,
+    newEndTime: string,
+    reason?: string
+  ): Promise<boolean> => {
+    const aptIndex = appointments.findIndex(a => a.id === aptId);
+    if (aptIndex === -1) {
+      showToast('Gagal Reschedule', 'Data jadwal janji temu tidak ditemukan.', 'error');
+      return false;
+    }
+
+    const targetApt = appointments[aptIndex];
+    const updatedApt: Appointment = {
+      ...targetApt,
+      date: newDate,
+      startTime: newStartTime,
+      endTime: newEndTime,
+      status: 'CONFIRMED'
+    };
+
+    const nextAppointments = [...appointments];
+    nextAppointments[aptIndex] = updatedApt;
+    setAppointments(nextAppointments);
+
+    showToast(
+      'Reschedule Berhasil!',
+      `Sesi konsultasi Anda berhasil dipindahkan ke tanggal ${newDate} pukul ${newStartTime} - ${newEndTime} WIB.`,
+      'success'
+    );
+    return true;
+  };
+
   const resetAllToDefault = () => {
     localStorage.removeItem(STORAGE_PREFIX + 'users');
     localStorage.removeItem(STORAGE_PREFIX + 'psychologists');
@@ -577,7 +594,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     localStorage.removeItem(STORAGE_PREFIX + 'intakeForms');
     localStorage.removeItem(STORAGE_PREFIX + 'clinicalNotes');
     localStorage.removeItem(STORAGE_PREFIX + 'reviews');
-    localStorage.removeItem(STORAGE_PREFIX + 'chatMessages');
     localStorage.removeItem(STORAGE_PREFIX + 'landingCms');
     localStorage.removeItem(STORAGE_PREFIX + 'patientCms');
     localStorage.removeItem(STORAGE_PREFIX + 'psychologistCms');
@@ -592,7 +608,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setIntakeForms(INITIAL_INTAKE_FORMS);
     setClinicalNotes(INITIAL_CLINICAL_NOTES);
     setReviews(INITIAL_REVIEWS);
-    setChatMessages(INITIAL_CHAT_MESSAGES);
     setLandingCms(INITIAL_LANDING_CMS);
     setPatientCms(INITIAL_PATIENT_CMS);
     setPsychologistCms(INITIAL_PSYCHOLOGIST_CMS);
@@ -635,7 +650,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         intakeForms,
         clinicalNotes,
         reviews,
-        chatMessages,
         analytics,
         toast,
         currentUserModel,
@@ -681,7 +695,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         bookAppointment,
         submitIntakeForm,
         submitTestResult,
-        sendChatMessage,
         saveClinicalNotes,
         submitReview,
         approveReview,
@@ -695,6 +708,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deletePackage,
         saveTest,
         updateAppointmentStatus,
+        rescheduleAppointment,
         resetAllToDefault
       }}
     >

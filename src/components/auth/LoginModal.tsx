@@ -35,6 +35,8 @@ export const LoginModal: React.FC = () => {
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [regOccupation, setRegOccupation] = useState('');
+  const [regCity, setRegCity] = useState('');
   const [regRole, setRegRole] = useState<UserRole>('PATIENT');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
@@ -74,12 +76,25 @@ export const LoginModal: React.FC = () => {
     }
   };
 
+  const handleGoogleSso = () => {
+    const patientDemo = users.find(u => u.role === 'PATIENT');
+    if (patientDemo) {
+      showToast('Google SSO Demo', 'Simulasi login Google berhasil. Integrasi asli disiapkan di backend Laravel.', 'success');
+      loginAs('PATIENT', patientDemo.id);
+    }
+  };
+
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
     if (!regName.trim() || !regEmail.trim() || !regPhone.trim()) {
-      setErrorMessage('Harap lengkapi semua kolom pendaftaran.');
+      setErrorMessage('Harap lengkapi nama, email, nomor HP, pekerjaan, dan kota domisili.');
+      return;
+    }
+
+    if (!regOccupation.trim() || !regCity.trim()) {
+      setErrorMessage('General info wajib diisi saat mendaftar.');
       return;
     }
 
@@ -128,8 +143,8 @@ export const LoginModal: React.FC = () => {
                 </h3>
                 <p className="text-xs text-slate-500">
                   {authModalTab === 'LOGIN'
-                    ? 'Akses sesi konsultasi dan rekam medis Anda'
-                    : 'Mulai langkah sehat mental bersama JiwaSehat'}
+                    ? 'Masuk dengan Google untuk mengakses booking'
+                    : 'Daftar dan isi general info sebelum booking'}
                 </p>
               </div>
             </div>
@@ -191,6 +206,19 @@ export const LoginModal: React.FC = () => {
           {/* 1. FORM LOGIN */}
           {authModalTab === 'LOGIN' && (
             <form onSubmit={handleLoginSubmit} className="space-y-4">
+              <button
+                type="button"
+                onClick={handleGoogleSso}
+                className="w-full py-3 bg-white hover:bg-slate-50 text-slate-800 rounded-xl text-xs font-bold transition-all border border-slate-200 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Mail className="w-4 h-4 text-rose-500" />
+                <span>Lanjutkan dengan Google</span>
+              </button>
+
+              <div className="relative py-1 text-center">
+                <span className="bg-white px-3 text-[11px] text-slate-400 font-semibold">atau masuk dengan email</span>
+              </div>
+
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                   Alamat Email
@@ -307,6 +335,35 @@ export const LoginModal: React.FC = () => {
                     onChange={e => setRegPhone(e.target.value)}
                     placeholder="0812-3456-7890"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Pekerjaan
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regOccupation}
+                    onChange={e => setRegOccupation(e.target.value)}
+                    placeholder="Karyawan / Mahasiswa"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                    Domisili
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={regCity}
+                    onChange={e => setRegCity(e.target.value)}
+                    placeholder="Jakarta"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
                   />
                 </div>
               </div>

@@ -107,12 +107,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          <img src={u.avatar} alt={u.name} className="w-9 h-9 rounded-xl object-cover border border-slate-200" />
-                          <div>
-                            <div className="font-bold text-slate-900">{u.name}</div>
-                            <div className="text-[11px] text-slate-500">{u.email}</div>
-                          </div>
+                        <div>
+                          <div className="font-bold text-slate-900">{u.name}</div>
+                          <div className="text-[11px] text-slate-500">{u.email}</div>
                         </div>
                       </td>
                       <td className="py-3 px-4">
@@ -143,7 +140,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                       </td>
                       <td className="py-3 px-4">
                         {psyProfile ? (
-                          <div className="text-[11px] font-mono text-slate-600">
+                          <div className="text-[11px] font-semibold text-slate-600">
                             <div>SIP: {psyProfile.sipNumber}</div>
                             <div>STR: {psyProfile.strNumber}</div>
                           </div>

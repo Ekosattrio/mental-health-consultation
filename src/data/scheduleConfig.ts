@@ -107,11 +107,14 @@ export const DEFAULT_CUSTOM_DATE_OVERRIDES: CustomDateOverride[] = [
   }
 ];
 
-const STORAGE_KEY = 'jiwasehat_v2_practice_schedule_settings';
+export const SCHEDULE_SETTINGS_STORAGE_KEY = 'jiwasehat_v3_practice_schedule_settings';
+export const SCHEDULE_SETTINGS_UPDATED_EVENT = 'jiwasehat:schedule-settings-updated';
+const LEGACY_SCHEDULE_SETTINGS_STORAGE_KEY = 'jiwasehat_v2_practice_schedule_settings';
 
 export const loadScheduleSettings = (): PracticeScheduleSettings => {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(SCHEDULE_SETTINGS_STORAGE_KEY)
+      || localStorage.getItem(LEGACY_SCHEDULE_SETTINGS_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
@@ -132,10 +135,18 @@ export const loadScheduleSettings = (): PracticeScheduleSettings => {
 
 export const saveScheduleSettings = (settings: PracticeScheduleSettings): void => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    localStorage.setItem(SCHEDULE_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+    localStorage.removeItem(LEGACY_SCHEDULE_SETTINGS_STORAGE_KEY);
+    window.dispatchEvent(new Event(SCHEDULE_SETTINGS_UPDATED_EVENT));
   } catch (e) {
     console.error('Failed to save schedule settings', e);
   }
+};
+
+export const resetScheduleSettings = (): void => {
+  localStorage.removeItem(SCHEDULE_SETTINGS_STORAGE_KEY);
+  localStorage.removeItem(LEGACY_SCHEDULE_SETTINGS_STORAGE_KEY);
+  window.dispatchEvent(new Event(SCHEDULE_SETTINGS_UPDATED_EVENT));
 };
 
 /**
@@ -261,6 +272,9 @@ export const computeDynamicSlotsForDate = (
 
   const slots = [];
   let currentMin = startMinutes;
+  const now = new Date();
+  const localToday = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const currentClockMinutes = now.getHours() * 60 + now.getMinutes();
 
   while (currentMin + duration <= endMinutes) {
     const slotEndMin = currentMin + duration;
@@ -276,6 +290,7 @@ export const computeDynamicSlotsForDate = (
     const hasConflict = bookedIntervals.some(
       b => Math.max(currentMin, b.start) < Math.min(slotEndMin, b.end)
     );
+    const isPastSlot = dateString === localToday && currentMin <= currentClockMinutes;
 
     const startTimeFormatted = minutesToTime(currentMin);
     const endTimeFormatted = minutesToTime(slotEndMin);
@@ -288,8 +303,9 @@ export const computeDynamicSlotsForDate = (
       startTime: startTimeFormatted,
       endTime: endTimeFormatted,
       durationMinutes: duration,
-      isAvailable: !hasConflict && remainingQuota > 0,
+      isAvailable: !hasConflict && !isPastSlot && remainingQuota > 0,
       isBooked: hasConflict,
+      isPast: isPastSlot,
       label: periodLabel
     });
 

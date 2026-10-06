@@ -65,9 +65,6 @@ export class AppointmentModel {
   public get hasIntakeForm(): boolean {
     return this._data.hasIntakeForm;
   }
-  public get hasTestResult(): boolean {
-    return this._data.hasTestResult;
-  }
   public get raw(): AppointmentEntity {
     return this._data;
   }

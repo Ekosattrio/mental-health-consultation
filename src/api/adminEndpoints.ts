@@ -1,32 +1,8 @@
 import { ApiClient, ApiResponse, ApiError } from './apiClient';
-import { User, Review, ConsultationPackage, PsychologicalTest, Appointment, UserStatus } from '../types';
+import { Review, ConsultationPackage, Appointment } from '../types';
 
 export class AdminEndpoints {
   public static readonly BASE_URL = '/api/v1/admin';
-
-  /**
-   * PUT /api/v1/admin/users/:userId/status
-   */
-  public static async toggleUserStatus(
-    userId: string,
-    status: UserStatus,
-    allUsers: User[]
-  ): Promise<ApiResponse<User[]>> {
-    return ApiClient.put(
-      `${this.BASE_URL}/users/${userId}/status`,
-      { status },
-      () => {
-        const user = allUsers.find(u => u.id === userId);
-        if (!user) throw new ApiError('User tidak ditemukan', 404);
-
-        return allUsers.map(u =>
-          u.id === userId
-            ? { ...u, status, isVerified: status === 'ACTIVE' ? true : u.isVerified }
-            : u
-        );
-      }
-    );
-  }
 
   /**
    * PUT /api/v1/admin/reviews/:reviewId/moderate
@@ -86,29 +62,6 @@ export class AdminEndpoints {
       `${this.BASE_URL}/packages/${packageId}`,
       () => {
         return allPackages.filter(p => p.id !== packageId);
-      }
-    );
-  }
-
-  /**
-   * POST /api/v1/admin/tests
-   */
-  public static async saveTest(
-    test: PsychologicalTest,
-    allTests: PsychologicalTest[]
-  ): Promise<ApiResponse<PsychologicalTest[]>> {
-    return ApiClient.post(
-      `${this.BASE_URL}/tests`,
-      test,
-      () => {
-        const index = allTests.findIndex(t => t.id === test.id);
-        if (index >= 0) {
-          const updated = [...allTests];
-          updated[index] = test;
-          return updated;
-        } else {
-          return [...allTests, test];
-        }
       }
     );
   }

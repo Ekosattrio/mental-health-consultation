@@ -17,9 +17,6 @@ interface PatientsTabProps {
   psychologistId: string;
   selectedPatientId: string;
   setSelectedPatientId: (id: string) => void;
-  // Backward compatibility prop if passed, but SOAP is removed
-  clinicalNotes?: any;
-  saveClinicalNotes?: any;
 }
 
 export const PatientsTab: React.FC<PatientsTabProps> = ({

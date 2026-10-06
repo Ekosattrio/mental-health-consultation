@@ -2,26 +2,21 @@ import type React from 'react';
 import { BaseController, ToastCallback } from './BaseController';
 import { AdminEndpoints } from '../api/adminEndpoints';
 import {
-  User as UserEntity,
   Review,
   ConsultationPackage,
-  PsychologicalTest,
-  Appointment,
-  UserStatus
+  Appointment
 } from '../types';
 
 export interface AdminStateCallbacks {
-  setUsers: React.Dispatch<React.SetStateAction<UserEntity[]>>;
   setReviews: React.Dispatch<React.SetStateAction<Review[]>>;
   setPackages: React.Dispatch<React.SetStateAction<ConsultationPackage[]>>;
-  setTests: React.Dispatch<React.SetStateAction<PsychologicalTest[]>>;
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
 }
 
 /**
  * AdminController (OOP Controller)
  * Orchestrates administrative governance: user lifecycle management, review moderation,
- * consultation package catalog CRUD, psychological test schemas, and appointment overrides.
+ * consultation package catalog CRUD and appointment operations.
  */
 export class AdminController extends BaseController {
   private callbacks: AdminStateCallbacks;
@@ -29,36 +24,6 @@ export class AdminController extends BaseController {
   constructor(notify: ToastCallback, callbacks: AdminStateCallbacks) {
     super(notify);
     this.callbacks = callbacks;
-  }
-
-  /**
-   * Toggle user account status (ACTIVE, BLOCKED, PENDING_VERIFICATION)
-   */
-  public async toggleUserStatus(
-    userId: string,
-    status: UserStatus,
-    allUsers: UserEntity[]
-  ): Promise<void> {
-    try {
-      const response = await AdminEndpoints.toggleUserStatus(
-        userId,
-        status,
-        allUsers
-      );
-
-      if (!response.success || !response.data) {
-        throw new Error(response.message);
-      }
-
-      this.callbacks.setUsers(response.data);
-      this.notify(
-        'Status Pengguna Diperbarui',
-        `Akun pengguna berhasil diatur ke status ${status}.`,
-        'info'
-      );
-    } catch (err: any) {
-      this.handleError(err, 'Gagal Mengubah Status Pengguna');
-    }
   }
 
   /**
@@ -146,26 +111,6 @@ export class AdminController extends BaseController {
   }
 
   /**
-   * Save psychological test instrument
-   */
-  public async saveTest(
-    test: PsychologicalTest,
-    allTests: PsychologicalTest[]
-  ): Promise<void> {
-    try {
-      const response = await AdminEndpoints.saveTest(test, allTests);
-      if (!response.success || !response.data) {
-        throw new Error(response.message);
-      }
-
-      this.callbacks.setTests(response.data);
-      this.notify('Instrumen Tes Disimpan', `Instrumen tes "${test.title}" berhasil diperbarui.`, 'success');
-    } catch (err: any) {
-      this.handleError(err, 'Gagal Menyimpan Tes');
-    }
-  }
-
-  /**
    * Update appointment status
    */
   public async updateAppointmentStatus(
@@ -193,9 +138,6 @@ export class AdminController extends BaseController {
               ? 'PAID'
               : 'DP_PAID' as Appointment['paymentStatus']
           };
-        }
-        if (status === 'COMPLETED') {
-          return { ...apt, paymentStatus: 'PAID' as Appointment['paymentStatus'] };
         }
         return apt;
       });

@@ -2,6 +2,86 @@
 
 ## 2026-10-06
 
+- Melakukan hardening frontend menyeluruh setelah audit flow:
+  - memisahkan booking walk-in admin dari kewajiban pre-test awal, tetapi tetap menerapkan tanggal konsultasi minimal H+1
+  - mendaftarkan pasien walk-in baru ke state pengguna dan memvalidasi jadwal praktik
+  - menghitung ulang harga, diskon, total, dan DP langsung dari paket aktif
+  - menambahkan validasi identitas pasien, role, ownership resource, dan transisi status appointment
+  - membatasi reschedule pada admin atau pasien pemilik booking berstatus `PENDING`/`CONFIRMED`
+  - mengembalikan reschedule pasien ke `PENDING` agar admin mengonfirmasi ulang
+  - membatasi CMS, paket, jadwal, profil psikolog, sesi lanjutan, dan moderasi sesuai role
+- Mengganti lock utama booking/reschedule/sesi lanjutan dengan Web Locks API lintas-tab dan mempertahankan fallback LocalStorage untuk browser lama.
+- Menyatukan nominal DP pasien dengan `dpAmount` paket dan menambahkan validasi paket untuk harga, durasi, DP, diskon, serta jumlah sesi.
+- Memastikan pre-test selesai disimpan sebelum wizard masuk ke langkah konfirmasi pembayaran.
+- Memperbaiki pengaturan jadwal: validasi jam/kuota, migrasi storage v2 ke v3, sinkronisasi lintas-tab, dan reset konfigurasi.
+- Memperbaiki efek samping pagination laporan yang sebelumnya memakai `useMemo` menjadi `useEffect`.
+- Menambahkan kartu mobile khusus untuk riwayat pasien, reservasi admin, dan riwayat aksi psikolog agar tabel lebar tidak dipaksakan pada ponsel.
+- Mengganti pilihan jam generik pada walk-in dan reschedule pasien/admin dengan slot aktual hasil perhitungan jadwal, hari libur, kuota, overlap, durasi paket, dan waktu berjalan.
+- Menghapus kolom psikolog dari monitoring reservasi dan CSV admin sesuai scope praktik psikolog tunggal.
+- Menjalankan `npx tsc --noEmit` setelah perubahan; hasil 0 error.
+- Mengoreksi aturan tanggal berdasarkan arahan developer: semua booking dan semua reschedule, termasuk walk-in admin, wajib memilih tanggal minimal keesokan hari (H+1).
+- Menetapkan backend final Laravel 12+ REST API dan database MySQL 8+.
+- Membersihkan residu tarif online/offline dari profil psikolog; seluruh harga layanan sekarang hanya berasal dari paket.
+- Mengganti label ringkasan psikolog "Online & Tatap Muka" menjadi "Seluruh sesi tatap muka" dan membuang import ikon video yang tidak lagi dipakai.
+- Menghapus state, model, controller, endpoint, mock, dan indikator tabel catatan SOAP yang sudah tidak masuk scope.
+- Menambahkan fallback terpusat untuk logo, avatar psikolog, dan seluruh preview gambar CMS ketika URL gambar rusak.
+- Memperbarui migrasi LocalStorage ke versi cleanup v5 untuk membuang state SOAP dan field tarif profil lama.
+- Menghapus Architecture Blueprint internal beserta state `viewMode` dan seluruh referensinya.
+- Menghapus legacy test psikolog/DASS dari type, model, controller, endpoint, context, mock data, dan kontrak appointment.
+- Menghapus paket serta logic konsultasi online/telelayanan dari source aktif; scope konsultasi sekarang tatap muka.
+- Menambahkan migrasi LocalStorage satu kali untuk membersihkan state test, telelayanan, dan field appointment legacy.
+- Menambahkan HTTP client siap Laravel Resource/Sanctum serta service CRUD modular untuk auth, user, paket, appointment, jadwal, pre-test, treatment plan, finance, review, CMS, dan notifikasi.
+- Menambahkan lazy loading per halaman role dan debounce penulisan LocalStorage untuk mengurangi beban render awal prototype.
+- Mengubah Paket Berjalan menjadi tabel desktop dan kartu mobile, serta menambahkan aksi discontinue paket dengan alasan dan guard penjadwalan.
+- Menambahkan guard review: hanya appointment `COMPLETED` dan maksimal satu review aktif per appointment.
+- Menambahkan konfirmasi aksi psikolog untuk complete, no-show, cancel, dan discontinue paket.
+- Menghapus mutasi status akun dari portal admin sehingga monitoring user benar-benar read-only.
+- Memperbarui `TODO.md` berdasarkan status implementasi aktual dan memisahkan pekerjaan frontend yang perlu QA dari pekerjaan backend produksi.
+- Menulis ulang `TODO.md` menjadi checklist status aktual yang memisahkan fitur frontend selesai, pekerjaan frontend tersisa, keputusan yang masih dibutuhkan, pekerjaan backend, dan tahap QA/rilis.
+- Mencatat residu frontend yang belum selesai: legacy DASS/test psikolog, telelayanan online di mock/source, Blueprint internal, optimasi performa, QA edge case, dan responsivitas tabel Paket Berjalan.
+- Memperkuat slot locking frontend:
+  - lock sementara per psikolog/tanggal mencegah double submit dalam proses bersamaan
+  - appointment dan schedule disinkronkan antar-tab browser
+  - booking membaca ulang snapshot LocalStorage terbaru sebelum menyimpan
+  - reschedule memvalidasi H+1, durasi asli, jam praktik, hari libur, kuota, dan overlap slot
+  - penjadwalan sesi lanjutan paket memakai lock dan validasi ketersediaan yang sama sebelum disimpan
+  - request booking divalidasi ulang terhadap durasi paket, jam praktik, hari libur, kuota, dan ketersediaan slot di dalam lock
+- Menambahkan pencatatan pelunasan satu arah oleh admin: nominal aktual dimasukkan sekali, status menjadi `PAID`, lalu nominal disembunyikan dari seluruh UI admin.
+- Memisahkan status konsultasi dan pembayaran; psikolog menandai `COMPLETED` tanpa otomatis melunasi transaksi.
+- Menambahkan guard role frontend agar admin hanya dapat mengonfirmasi booking dan mencatat pelunasan, tanpa akses menyelesaikan/membatalkan/menandai no-show sesi.
+- Menyambungkan DP dan pelunasan aktual ke laporan uang masuk, PDF, CSV, dan Excel serta mengganti metrik menjadi rata-rata per transaksi.
+- Mengunci scope laporan sebagai arus kas paket tanpa perhitungan biaya/pengeluaran/laba bersih.
+- Menetapkan WhatsApp sebagai kanal notifikasi utama dan email sebagai fallback/dokumen pada implementasi backend.
+- Menjadikan vault Obsidian `docs/Psikolog/Live Docs` sebagai satu-satunya sumber dokumentasi aktif serta membersihkan hardlink root dan snapshot lama yang tidak dipakai.
+- Memperjelas pengelolaan diskon pada form tambah/edit paket psikolog:
+  - tombol Tambah Diskon ditampilkan saat paket belum memiliki diskon
+  - diskon aktif dapat diubah sebagai persentase atau nominal rupiah
+  - diskon dapat dihapus melalui tombol ikon hapus
+  - form menampilkan pratinjau harga awal, nominal diskon, dan harga akhir
+  - validasi mencegah nilai diskon kosong, persentase di atas 100%, dan nominal di atas harga paket
+- Menambahkan kemampuan admin membantu reschedule jadwal pasien dengan audit pelaku reschedule.
+- Menambahkan receipt administratif di admin untuk Print / Simpan PDF setelah konfirmasi pembayaran, tanpa menu kwitansi terpisah dan tanpa nominal harga.
+- Mengganti CTA kwitansi pasien menjadi Print Receipt / Simpan PDF serta menampilkan audit reschedule bila jadwal pernah diubah.
+- Memastikan source UI utama tidak lagi memuat badge legalitas layanan.
+- Menambahkan fitur potongan harga dari psikolog/pengelola:
+  - potongan diatur dari Manajemen Paket psikolog, bukan memakai kode promo pasien/admin
+  - potongan dihitung sebelum DP dan sisa pelunasan
+  - data appointment menyimpan subtotal, label potongan, nominal potongan, total setelah potongan, DP, dan sisa pelunasan
+  - invoice/kwitansi pasien menampilkan baris potongan
+- Memperbarui form walk-in admin:
+  - field "Psikolog yang Melayani" dihapus dari UI admin
+  - admin memakai psikolog/pengelola utama sebagai default
+  - nominal harga/potongan/DP tidak ditampilkan di admin
+  - pembayaran walk-in mendukung cash, bank transfer, QRIS, EDC, bank, nama pengirim, dan referensi transaksi
+- Memperkuat logic paket multi-sesi:
+  - psikolog hanya bisa menjadwalkan sesi lanjutan setelah sesi terakhir `COMPLETED`
+  - sistem memblokir sesi lanjutan jika paket sudah selesai atau sesi aktif berikutnya sudah ada
+  - tabel Paket Berjalan menampilkan ringkasan pembayaran paket
+- Memperbaiki guard booking H+1 yang sebelumnya masih memakai tanggal hardcoded, serta memperketat deteksi slot bentrok memakai overlap rentang jam.
+- Menonaktifkan seed data DASS/test psikolog legacy dari mock data agar scope aktif fokus ke pre-test profiling.
+- Membersihkan wording UI yang memakai klaim legalitas layanan pada area publik utama.
+- Mencatat isu CSP simulator `script-src 'none'` sebagai isu environment preview, bukan bug Vite app.
+
 - Penyesuaian scope booking-first sesuai arahan terbaru:
   - menghapus jalur UI test psikolog tambahan dari portal pasien; pre-test sekarang diposisikan sebagai profiling awal untuk booking
   - menambahkan consent & privacy pada alur booking dan section informasi consent/privacy di landing page

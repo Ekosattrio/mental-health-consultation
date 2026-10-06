@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Appointment } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import {
@@ -23,6 +23,7 @@ import {
   Eye
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
+import { getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
 
 interface ExportFinancePageProps {
   appointments: Appointment[];
@@ -151,27 +152,24 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
   }, [appointments, filterMode, selectedMonth, selectedYear, startDate, endDate]);
 
   // Reset pagination saat filter data berubah
-  useMemo(() => {
+  useEffect(() => {
     setPdfCurrentPage(1);
     setExcelCurrentPage(1);
   }, [filterMode, selectedMonth, selectedYear, startDate, endDate]);
 
   // Transaksi Terbayar
   const paidTransactions = useMemo(() => {
-    return filteredData.filter(
-      a => a.paymentStatus === 'PAID' || a.paymentStatus === 'DP_PAID'
-    );
+    return filteredData.filter(a => getRecordedCashIn(a) > 0);
   }, [filteredData]);
 
   // Total Uang Masuk
   const totalCashIn = useMemo(() => {
     return paidTransactions.reduce((acc, a) => {
-      if (a.paymentStatus === 'PAID') return acc + (a.totalAmount || 0);
-      return acc + (a.dpAmount ?? 100000);
+      return acc + getRecordedCashIn(a);
     }, 0);
   }, [paidTransactions]);
 
-  const avgPerSession = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
+  const avgPerPayment = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
 
   // Tanggal terbit
   const printDateFormatted = new Date().toLocaleDateString('id-ID', {
@@ -278,12 +276,8 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
       .map((a, idx) => {
         const isPaid = a.paymentStatus === 'PAID';
         const isDpPaid = a.paymentStatus === 'DP_PAID';
-        const nominalMasuk = isPaid
-          ? a.totalAmount
-          : isDpPaid
-          ? (a.dpAmount ?? 100000)
-          : 0;
-        const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+        const nominalMasuk = getRecordedCashIn(a);
+        const skema = getPaymentSchemeLabel(a);
         const status = isPaid ? 'Lunas Terverifikasi' : isDpPaid ? 'DP Diterima' : 'Verifikasi Bukti';
 
         return `
@@ -391,12 +385,8 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
     const rows = filteredData.map((a, idx) => {
       const isPaid = a.paymentStatus === 'PAID';
       const isDpPaid = a.paymentStatus === 'DP_PAID';
-      const nominalMasuk = isPaid
-        ? a.totalAmount
-        : isDpPaid
-        ? (a.dpAmount ?? 100000)
-        : 0;
-      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+      const nominalMasuk = getRecordedCashIn(a);
+      const skema = getPaymentSchemeLabel(a);
       const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Admin Diterima' : 'Verifikasi Bukti';
 
       return [
@@ -701,8 +691,8 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                 </strong>
               </div>
               <div className="flex justify-between text-slate-600">
-                <span>Rata-rata per Sesi:</span>
-                <strong className="text-slate-800">Rp {avgPerSession.toLocaleString('id-ID')}</strong>
+                <span>Rata-rata per Transaksi:</span>
+                <strong className="text-slate-800">Rp {avgPerPayment.toLocaleString('id-ID')}</strong>
               </div>
             </div>
 
@@ -958,12 +948,8 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                               page.items.map((item, index) => {
                                 const isPaid = item.paymentStatus === 'PAID';
                                 const isDpPaid = item.paymentStatus === 'DP_PAID';
-                                const nominalMasuk = isPaid
-                                  ? item.totalAmount
-                                  : isDpPaid
-                                  ? (item.dpAmount ?? 100000)
-                                  : 0;
-                                const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+                                const nominalMasuk = getRecordedCashIn(item);
+                                const skema = getPaymentSchemeLabel(item);
 
                                 return (
                                   <tr key={item.id} className="hover:bg-slate-50/60">
@@ -1154,12 +1140,8 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                       excelPageData.map((item, idx) => {
                         const isPaid = item.paymentStatus === 'PAID';
                         const isDpPaid = item.paymentStatus === 'DP_PAID';
-                        const nominalMasuk = isPaid
-                          ? item.totalAmount
-                          : isDpPaid
-                          ? (item.dpAmount ?? 100000)
-                          : 0;
-                        const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+                        const nominalMasuk = getRecordedCashIn(item);
+                        const skema = getPaymentSchemeLabel(item);
                         const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Diterima' : 'Verifikasi';
 
                         return (

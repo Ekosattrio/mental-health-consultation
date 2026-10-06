@@ -3,22 +3,17 @@ import { BaseController, ToastCallback } from './BaseController';
 import { PsychologistEndpoints } from '../api/psychologistEndpoints';
 import {
   ScheduleSlot,
-  ClinicalNote,
-  PsychologistProfile,
-  Appointment
+  PsychologistProfile
 } from '../types';
 
 export interface PsychologistStateCallbacks {
   setSchedules: React.Dispatch<React.SetStateAction<ScheduleSlot[]>>;
-  setClinicalNotes: React.Dispatch<React.SetStateAction<Record<string, ClinicalNote>>>;
-  setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
   setPsychologists: React.Dispatch<React.SetStateAction<PsychologistProfile[]>>;
 }
 
 /**
  * PsychologistController (OOP Controller)
- * Orchestrates psychologist operations: schedule management, SOAP clinical notes documentation,
- * and professional practice profile updates.
+ * Orchestrates psychologist operations for schedule and professional profile management.
  */
 export class PsychologistController extends BaseController {
   private callbacks: PsychologistStateCallbacks;
@@ -111,57 +106,6 @@ export class PsychologistController extends BaseController {
       this.notify('Slot Dihapus', 'Slot jadwal telah dihapus dari kalender praktik.', 'info');
     } catch (err: any) {
       this.handleError(err, 'Gagal Menghapus Slot');
-    }
-  }
-
-  /**
-   * Save SOAP clinical notes for a patient session
-   */
-  public async saveClinicalNotes(
-    appointmentId: string,
-    notes: Omit<ClinicalNote, 'id' | 'createdAt' | 'updatedAt'>,
-    existingNotes: Record<string, ClinicalNote>
-  ): Promise<ClinicalNote | null> {
-    try {
-      const response = await PsychologistEndpoints.saveClinicalNotes(
-        appointmentId,
-        notes,
-        existingNotes
-      );
-
-      if (!response.success || !response.data) {
-        throw new Error(response.message);
-      }
-
-      const savedNote = response.data;
-      this.callbacks.setClinicalNotes(prev => ({
-        ...prev,
-        [appointmentId]: savedNote
-      }));
-
-      // Link note to appointment and mark complete
-      this.callbacks.setAppointments(prev =>
-        prev.map(a =>
-          a.id === appointmentId
-            ? { ...a, status: 'COMPLETED', clinicalNotesId: savedNote.id }
-            : a
-        )
-      );
-
-      this.notify(
-        'Catatan Klinis (SOAP) Tersimpan',
-        `Catatan sesi rekam medis telah tersimpan permanen.${
-          savedNote.requiresPsychiatristReferral
-            ? ' Ditandai untuk rujukan psikiater!'
-            : ''
-        }`,
-        'success'
-      );
-
-      return savedNote;
-    } catch (err: any) {
-      this.handleError(err, 'Gagal Menyimpan Catatan Klinis');
-      return null;
     }
   }
 

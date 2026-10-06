@@ -14,6 +14,7 @@ import {
   Trash2,
   User as UserIcon
 } from 'lucide-react';
+import { ImageWithFallback } from '../../common/ImageWithFallback';
 
 interface ProfileTabProps {
   profile: PsychologistProfile | undefined;
@@ -56,8 +57,6 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     profile?.practicePolicy ||
     'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
   );
-  const [profileFeeOnline, setProfileFeeOnline] = useState(profile?.consultationFeeOnline || 250000);
-  const [profileFeeOffline, setProfileFeeOffline] = useState(profile?.consultationFeeOffline || 350000);
   const [profileSavedMsg, setProfileSavedMsg] = useState(false);
 
   useEffect(() => {
@@ -81,8 +80,6 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       setProfileLanguages(profile.languages.join(', '));
       setProfileClinicAddress(profile.clinicAddress);
       setProfilePracticePolicy(profile.practicePolicy || '');
-      setProfileFeeOnline(profile.consultationFeeOnline);
-      setProfileFeeOffline(profile.consultationFeeOffline);
     }
   }, [profile, currentUser]);
 
@@ -133,9 +130,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       therapyApproaches: profileTherapyApproaches.split(',').map(s => s.trim()).filter(Boolean),
       languages: profileLanguages.split(',').map(s => s.trim()).filter(Boolean),
       clinicAddress: profileClinicAddress,
-      practicePolicy: profilePracticePolicy,
-      consultationFeeOnline: Number(profileFeeOnline),
-      consultationFeeOffline: Number(profileFeeOffline)
+      practicePolicy: profilePracticePolicy
     }, psychologistId);
     setProfileSavedMsg(true);
     setTimeout(() => setProfileSavedMsg(false), 2500);
@@ -152,7 +147,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
             <h3 className="text-lg font-bold text-slate-900">Kelola Profil & Kredensial Praktik Klinis</h3>
           </div>
           <p className="text-xs text-slate-500">
-            Kelola legalitas STR/SIPP, almamater pendidikan, modalitas terapi, serta tarif sesi konsultasi yang tampil di landing page publik.
+            Kelola legalitas STR/SIPP, almamater pendidikan, modalitas terapi, dan informasi praktik yang tampil di landing page publik.
           </p>
         </div>
         {profileSavedMsg && (
@@ -177,10 +172,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
               <div className="relative group shrink-0">
                 <div className="w-24 h-24 rounded-3xl bg-teal-50 border-2 border-teal-200/80 text-teal-700 flex items-center justify-center overflow-hidden shadow-sm">
                   {avatarUrl ? (
-                    <img
+                    <ImageWithFallback
                       src={avatarUrl}
                       alt="Foto Wajah Psikolog"
                       className="w-full h-full object-cover"
+                      fallback={<UserIcon className="w-10 h-10 text-teal-600/70" />}
                     />
                   ) : (
                     <UserIcon className="w-10 h-10 text-teal-600/70" />
@@ -225,16 +221,16 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
             </div>
           </div>
 
-          {/* Section 1: Legalitas & Kredensial Resmi */}
+          {/* Section 1: Data Praktik & Kredensial */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
               <ShieldCheck className="w-4 h-4 text-sky-600" />
-              <h4 className="text-sm font-bold text-slate-900">1. Legalitas & Izin Praktik Resmi</h4>
+              <h4 className="text-sm font-bold text-slate-900">1. Data Praktik & Kredensial</h4>
             </div>
 
             <div className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold text-slate-700 mb-1">Gelar & Spesialisasi Resmi</label>
+                <label className="block font-bold text-slate-700 mb-1">Gelar & Spesialisasi</label>
                 <input
                   type="text"
                   required
@@ -326,7 +322,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
                   />
                 </div>
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">Total Jam Klinis Berlisensi</label>
+                  <label className="block font-bold text-slate-700 mb-1">Total Jam Praktik Klinis</label>
                   <input
                     type="number"
                     min="100"
@@ -476,10 +472,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
             <div className="flex items-start gap-4">
               <div className="w-16 h-16 rounded-2xl bg-teal-50 border-2 border-teal-300 text-teal-700 flex items-center justify-center shadow-xs shrink-0 overflow-hidden">
                 {avatarUrl ? (
-                  <img
+                  <ImageWithFallback
                     src={avatarUrl}
                     alt="Foto Profil"
                     className="w-full h-full object-cover"
+                    fallback={<Stethoscope className="w-8 h-8 text-teal-600" />}
                   />
                 ) : (
                   <Stethoscope className="w-8 h-8 text-teal-600" />

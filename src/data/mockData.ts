@@ -2,12 +2,9 @@ import {
   User,
   PsychologistProfile,
   ConsultationPackage,
-  PsychologicalTest,
   ScheduleSlot,
   Appointment,
-  TestResult,
   IntakeForm,
-  ClinicalNote,
   Review,
   LandingPageCmsConfig,
   PatientPageCmsConfig,
@@ -279,8 +276,6 @@ export const INITIAL_PSYCHOLOGISTS: PsychologistProfile[] = [
     therapyApproaches: ['Cognitive Behavioral Therapy (CBT)', 'Acceptance & Commitment (ACT)', 'Mindfulness-Based Stress Reduction', 'Solution-Focused Brief Therapy (SFBT)'],
     rating: 4.9,
     reviewCount: 168,
-    consultationFeeOnline: 250000,
-    consultationFeeOffline: 375000,
     languages: ['Bahasa Indonesia', 'English'],
     clinicAddress: 'Praktik Mandiri JiwaSehat, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
     isAvailableToday: true,
@@ -312,25 +307,6 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari tarif dasar. Surat laporan hasil pemeriksaan psikologis biaya terpisah Rp 200.000.',
     isActive: true,
     iconName: 'Users'
-  },
-  {
-    id: 'pkg-konseling-telelayanan',
-    name: 'Konsultasi Telelayanan (Online)',
-    category: 'KONSELING',
-    type: 'ONLINE_TELE',
-    durationMinutes: 60,
-    price: 750000,
-    badge: 'Paling Fleksibel',
-    description: 'Sesi telekonseling psikologis interaktif secara daring (video call terenkripsi) dari kenyamanan kediaman Anda.',
-    benefits: [
-      'Konsultasi video call terenkripsi 60 menit',
-      'Akses fleksibel dari mana saja tanpa mobilitas',
-      'Evaluasi psikologis & rekomendasi koping mandiri',
-      'Rangkuman poin penting sesi via sistem'
-    ],
-    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari tarif dasar.',
-    isActive: true,
-    iconName: 'Video'
   },
   {
     id: 'pkg-konseling-anak-remaja',
@@ -416,15 +392,15 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     type: 'BUNDLING_ASSESSMENT',
     durationMinutes: 180,
     price: 1500000,
-    badge: 'Termasuk Laporan Resmi',
-    description: 'Pemeriksaan psikologis menyeluruh baterai tes komprehensif tatap muka 2-4 jam pengerjaan alat tes include laporan tertulis resmi bertanda tangan SIP.',
+    badge: 'Termasuk Laporan',
+    description: 'Pemeriksaan psikologis menyeluruh baterai tes komprehensif tatap muka 2-4 jam pengerjaan alat tes include laporan tertulis bertanda tangan SIP.',
     benefits: [
       'Sesi tatap muka 2-4 jam pengerjaan baterai tes komprehensif',
       'Asesmen intelegensi, kepribadian, & proyeksi klinis',
-      'Termasuk penyusunan laporan tertulis resmi bertanda tangan SIP',
+      'Termasuk penyusunan laporan tertulis bertanda tangan SIP',
       'Sesi pembahasan hasil (feedback session) mendalam'
     ],
-    notes: 'Sesi tatap muka 2-4 jam pengerjaan alat tes include laporan tertulis resmi.',
+    notes: 'Sesi tatap muka 2-4 jam pengerjaan alat tes include laporan tertulis.',
     isActive: true,
     iconName: 'ClipboardCheck'
   },
@@ -609,327 +585,6 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     benefits: ['Baterai tes lengkap', 'Laporan resmi'],
     isActive: false,
     iconName: 'FileCheck'
-  }
-];
-
-// FULL 21-ITEM DASS-21 INSTRUMENT
-export const INITIAL_TESTS: PsychologicalTest[] = [
-  {
-    id: 'test-dass21',
-    code: 'DASS-21',
-    title: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    shortDescription: 'Asesmen klinis baku 21 butir untuk mengukur intensitas gejala depresi, kecemasan, dan tingkat stres yang dirasakan selama 1 pekan terakhir.',
-    instruction: 'Pilihlah salah satu opsi respon (0 sampai 3) yang paling menggambarkan kondisi yang Anda rasakan selama satu pekan terakhir. Jawaban Anda bersifat rahasia dan membantu diagnosis klinis.',
-    estimatedMinutes: 5,
-    questionCount: 21,
-    subscales: ['Depresi', 'Kecemasan', 'Stres'],
-    scoringFormula: 'Total Skor = Jumlah bobot respons (0=Tidak Pernah, 1=Kadang-kadang, 2=Cukup Sering, 3=Hampir Selalu). Nilai dikelompokkan ke kategori Normal, Ringan, Sedang, Berat, Sangat Berat.',
-    questions: [
-      // 1. Stress
-      {
-        id: 1,
-        text: 'Saya merasa sulit untuk menenangkan diri dan merasa sangat tegang.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 2. Anxiety
-      {
-        id: 2,
-        text: 'Saya menyadari mulut saya terasa kering tanpa ada alasan fisik atau dehidrasi.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 3. Depression
-      {
-        id: 3,
-        text: 'Saya tidak dapat merasakan perasaan positif atau antusiasme sama sekali.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 4. Anxiety
-      {
-        id: 4,
-        text: 'Saya mengalami kesulitan bernapas (napas cepat atau sesak) saat tidak sedang beraktivitas fisik berat.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 5. Depression
-      {
-        id: 5,
-        text: 'Saya merasa sulit berinisiatif untuk melakukan aktivitas harian dan merasa kehilangan daya penggerak.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 6. Stress
-      {
-        id: 6,
-        text: 'Saya cenderung bereaksi berlebihan terhadap situasi atau gangguan-gangguan kecil.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 7. Anxiety
-      {
-        id: 7,
-        text: 'Saya mengalami gemetar pada tangan atau bagian tubuh lainnya.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 8. Stress
-      {
-        id: 8,
-        text: 'Saya merasa menggunakan banyak energi mental dan merasa sangat gelisah.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 9. Anxiety
-      {
-        id: 9,
-        text: 'Saya merasa cemas tentang situasi di mana saya mungkin panik dan mempermalukan diri sendiri.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 10. Depression
-      {
-        id: 10,
-        text: 'Saya merasa bahwa saya tidak memiliki masa depan yang cerah untuk dinantikan.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 11. Stress
-      {
-        id: 11,
-        text: 'Saya merasa mudah tersinggung atau lekas marah oleh hal-hal sepele.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 12. Stress
-      {
-        id: 12,
-        text: 'Saya merasa sulit untuk rileks atau bersantai bahkan di waktu senggang.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 13. Depression
-      {
-        id: 13,
-        text: 'Saya merasa sedih, murung, dan kehilangan keceriaan.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 14. Stress
-      {
-        id: 14,
-        text: 'Saya tidak toleran terhadap hal apa pun yang menghalangi atau memperlambat pekerjaan saya.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 15. Anxiety
-      {
-        id: 15,
-        text: 'Saya merasa seolah-olah saya hampir panik tanpa ada pemicu bahaya nyata.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 16. Depression
-      {
-        id: 16,
-        text: 'Saya tidak mampu merasakan antusiasme terhadap apa pun yang biasanya saya senangi.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 17. Depression
-      {
-        id: 17,
-        text: 'Saya merasa bahwa saya tidak berharga atau tidak berguna sebagai seorang individu.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 18. Stress
-      {
-        id: 18,
-        text: 'Saya merasa sangat peka dan mudah merasa tersentuh atau tersinggung emosi.',
-        subscale: 'Stres',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 19. Anxiety
-      {
-        id: 19,
-        text: 'Saya menyadari detak jantung saya berdetak kencang tanpa adanya aktivitas fisik.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 20. Anxiety
-      {
-        id: 20,
-        text: 'Saya merasa takut tanpa alasan yang jelas atau merasa ada sesuatu yang buruk akan terjadi.',
-        subscale: 'Kecemasan',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      },
-      // 21. Depression
-      {
-        id: 21,
-        text: 'Saya merasa bahwa hidup ini tidak berarti dan sia-sia.',
-        subscale: 'Depresi',
-        options: [
-          { label: 'Tidak pernah (0)', score: 0 },
-          { label: 'Kadang-kadang (1)', score: 1 },
-          { label: 'Cukup sering (2)', score: 2 },
-          { label: 'Hampir selalu (3)', score: 3 }
-        ]
-      }
-    ]
-  },
-  {
-    id: 'test-phq9',
-    code: 'PHQ-9',
-    title: 'Patient Health Questionnaire-9 (PHQ-9)',
-    shortDescription: 'Instrumen baku skrining depresi klinis berdasarkan kriteria DSM-5 untuk mengevaluasi derajat mood depresif.',
-    instruction: 'Selama 2 minggu terakhir, seberapa sering Anda terganggu oleh keluhan-keluhan berikut?',
-    estimatedMinutes: 4,
-    questionCount: 4,
-    scoringFormula: 'Skor 0-4: Minimal, 5-9: Ringan, 10-14: Sedang, 15-19: Sedang-Berat, 20-27: Berat.',
-    questions: [
-      {
-        id: 1,
-        text: 'Kurang berminat atau bergairah dalam melakukan hal-hal yang biasanya Anda sukai.',
-        options: [
-          { label: 'Sama sekali tidak (0)', score: 0 },
-          { label: 'Beberapa hari (1)', score: 1 },
-          { label: 'Lebih dari separuh waktu (2)', score: 2 },
-          { label: 'Hampir setiap hari (3)', score: 3 }
-        ]
-      },
-      {
-        id: 2,
-        text: 'Merasa sedih, murung, tertekan, atau putus asa.',
-        options: [
-          { label: 'Sama sekali tidak (0)', score: 0 },
-          { label: 'Beberapa hari (1)', score: 1 },
-          { label: 'Lebih dari separuh waktu (2)', score: 2 },
-          { label: 'Hampir setiap hari (3)', score: 3 }
-        ]
-      },
-      {
-        id: 3,
-        text: 'Sulit tidur atau tidur terlalu lama, terbangun di tengah malam tanpa sebab jelas.',
-        options: [
-          { label: 'Sama sekali tidak (0)', score: 0 },
-          { label: 'Beberapa hari (1)', score: 1 },
-          { label: 'Lebih dari separuh waktu (2)', score: 2 },
-          { label: 'Hampir setiap hari (3)', score: 3 }
-        ]
-      },
-      {
-        id: 4,
-        text: 'Merasa lelah atau tidak bertenaga meskipun tidak bekerja berat.',
-        options: [
-          { label: 'Sama sekali tidak (0)', score: 0 },
-          { label: 'Beberapa hari (1)', score: 1 },
-          { label: 'Lebih dari separuh waktu (2)', score: 2 },
-          { label: 'Hampir setiap hari (3)', score: 3 }
-        ]
-      }
-    ]
   }
 ];
 
@@ -1361,371 +1016,6 @@ export const INITIAL_INTAKE_FORMS: Record<string, IntakeForm> = {
   }
 };
 
-// PRE-POPULATED TEST RESULTS (DASS-21) FOR 3 PATIENTS
-export const INITIAL_TEST_RESULTS: TestResult[] = [
-  // Budi Santoso
-  {
-    id: 'res-1',
-    patientId: 'user-pat-1',
-    patientName: 'Budi Santoso',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-12 14:40',
-    totalScore: 28, // scale calibrated to 21 items
-    subscaleScores: {
-      depression: 7,
-      anxiety: 11,
-      stress: 10
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Tingkat kecemasan berada pada derajat Sedang-Tinggi (Skor 11) dan stres Sedang (Skor 10). Terdapat manifestasi psikosomatis seperti ketegangan otot dan sensasi dada terhimpit.',
-    clinicalRecommendation: 'Disarankan konseling intensif Cognitive Behavioral Therapy (CBT) fokus restrukturisasi kognitif (thought records) dan teknik relaksasi diafragma pernapasan.'
-  },
-  // Siti Amanda
-  {
-    id: 'res-2',
-    patientId: 'user-pat-2',
-    patientName: 'Siti Amanda',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-02 10:00',
-    totalScore: 19,
-    subscaleScores: {
-      depression: 4,
-      anxiety: 8,
-      stress: 7
-    },
-    severityLevel: 'RINGAN',
-    interpretation: 'Indikasi kecemasan ringan dan stres ringan terkait sleep-onset anxiety (kecemasan akan ketidakmampuan untuk tertidur). Gejala depresi dalam batas normal.',
-    clinicalRecommendation: 'Pendekatan CBT for Insomnia (CBT-I), stimulus control, dan pembatasan screen-time 1 jam sebelum jam tidur ideal.'
-  },
-  // Dimas Pratama
-  {
-    id: 'res-3',
-    patientId: 'user-pat-3',
-    patientName: 'Dimas Pratama',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-08 17:15',
-    totalScore: 32,
-    subscaleScores: {
-      depression: 14,
-      anxiety: 8,
-      stress: 10
-    },
-    severityLevel: 'BERAT',
-    interpretation: 'Subskala Depresi menunjukkan skor Sedang-Berat (14) dengan anhedonia, penurunan energi, dan perasaan putus asa terhadap penyelesaian studi.',
-    clinicalRecommendation: 'Pendekatan Behavioral Activation (aktivasi perilaku bertahap), penetapan target mikro (micro-goals), dan dukungan keluarga suportif.'
-  },
-  // Rina Kartika
-  {
-    id: 'res-4',
-    patientId: 'user-pat-4',
-    patientName: 'Rina Kartika',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-16 11:30',
-    totalScore: 24,
-    subscaleScores: {
-      depression: 6,
-      anxiety: 10,
-      stress: 8
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Kecemasan interpersonal derajat Sedang dengan respon kewaspadaan berlebih (hypervigilance) pada dinamika kantor.',
-    clinicalRecommendation: 'EMDR / Trauma-informed CBT untuk desensitisasi respon cemas terhadap figur otoritas.'
-  },
-  // Taufik Hidayat
-  {
-    id: 'res-5',
-    patientId: 'user-pat-5',
-    patientName: 'Taufik Hidayat',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-22 14:45',
-    totalScore: 34,
-    subscaleScores: {
-      depression: 9,
-      anxiety: 15,
-      stress: 10
-    },
-    severityLevel: 'BERAT',
-    interpretation: 'Tingkat kecemasan Berat (Skor 15) dengan gejala psikosomatis tremor, takikardia, dan penghindaran sosial menyeluruh.',
-    clinicalRecommendation: 'Graded Exposure Therapy (paparan sosial bertahap), latihan biofeedback pernapasan, dan restrukturisasi pikiran katastrofik.'
-  },
-  // Anindya Putri
-  {
-    id: 'res-6',
-    patientId: 'user-pat-6',
-    patientName: 'Anindya Putri',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-30 11:00',
-    totalScore: 26,
-    subscaleScores: {
-      depression: 11,
-      anxiety: 7,
-      stress: 8
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Indikasi depresi postpartum derajat Sedang berkaitan dengan keletihan fisik kumulatif dan rasa bersalah.',
-    clinicalRecommendation: 'Interpersonal Psychotherapy (IPT) fokus penyesuaian peran baru, aktivasi support network keluarga, dan jadwal istirahat terjaga.'
-  },
-  // Bagas Wicaksono
-  {
-    id: 'res-7',
-    patientId: 'user-pat-7',
-    patientName: 'Bagas Wicaksono',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-06 09:45',
-    totalScore: 42,
-    subscaleScores: {
-      depression: 15,
-      anxiety: 14,
-      stress: 13
-    },
-    severityLevel: 'SANGAT_BERAT',
-    interpretation: 'Distres psikologis Ekstrem / Sangat Berat pada ketiga dimensi (Depresi 15, Ansietas 14, Stres 13). Disertai tanda kelelahan fisik menyeluruh.',
-    clinicalRecommendation: 'Kolaborasi intensif psikolog klinis & psikiater, krisis intervensi penstabilan stres, dan rehat kerja medis darurat.'
-  },
-  // Hendro Wijaya
-  {
-    id: 'res-9',
-    patientId: 'user-pat-9',
-    patientName: 'Hendro Wijaya',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-06-03 10:45',
-    totalScore: 31,
-    subscaleScores: {
-      depression: 9,
-      anxiety: 10,
-      stress: 12
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Tingkat stres tinggi dengan kecemasan sedang akibat akumulasi beban kerja teknis berkepanjangan.',
-    clinicalRecommendation: 'Pendekatan restrukturisasi kognitif beban kerja, sleep hygiene untuk insomnia, dan work-life boundaries.'
-  },
-  // Maya Kartini
-  {
-    id: 'res-10',
-    patientId: 'user-pat-10',
-    patientName: 'Maya Kartini',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-06-12 14:30',
-    totalScore: 23,
-    subscaleScores: {
-      depression: 5,
-      anxiety: 11,
-      stress: 7
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Skor kecemasan menonjol (11, Sedang) dipicu oleh imposter syndrome dan takut evaluasi negatif.',
-    clinicalRecommendation: 'CBT untuk core beliefs ketidakmampuan diri, afirmasi pencapaian, dan exposure therapy presentasi.'
-  },
-  // Reza Fahrezi
-  {
-    id: 'res-11',
-    patientId: 'user-pat-11',
-    patientName: 'Reza Fahrezi',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-06-28 09:15',
-    totalScore: 27,
-    subscaleScores: {
-      depression: 6,
-      anxiety: 10,
-      stress: 11
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Stres sedang dan ansietas sedang dengan somatisasi ketegangan otot bahu dan leher.',
-    clinicalRecommendation: 'Progressive Muscle Relaxation (PMR), somatic grounding, dan time boxing tugas audit berisiko tinggi.'
-  },
-  // Nadya Stephanie
-  {
-    id: 'res-12',
-    patientId: 'user-pat-12',
-    patientName: 'Nadya Stephanie',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-07-15 16:40',
-    totalScore: 25,
-    subscaleScores: {
-      depression: 5,
-      anxiety: 11,
-      stress: 9
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Kecemasan perfeksionistik klinis dengan over-checking behavior dan ketakutan malapraktik.',
-    clinicalRecommendation: 'Acceptance and Commitment Therapy (ACT) untuk toleransi ketidakpastian dan belas kasih diri medis.'
-  },
-  // Farhan Pratama
-  {
-    id: 'res-13',
-    patientId: 'user-pat-13',
-    patientName: 'Farhan Pratama',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-07-26 12:00',
-    totalScore: 30,
-    subscaleScores: {
-      depression: 10,
-      anxiety: 12,
-      stress: 8
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Kombinasi depresi ringan-sedang dan ansietas sedang terkait paparan media sosial terus menerus.',
-    clinicalRecommendation: 'Protokol pembatasan media sosial bertahap, restrukturisasi kognitif validasi diri internal.'
-  },
-  // Dewi Lestari
-  {
-    id: 'res-14',
-    patientId: 'user-pat-14',
-    patientName: 'Dewi Lestari',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-01 13:30',
-    totalScore: 20,
-    subscaleScores: {
-      depression: 7,
-      anxiety: 6,
-      stress: 7
-    },
-    severityLevel: 'RINGAN',
-    interpretation: 'Gejala distres ringan transisi kehidupan (krisis paruh baya & anak mandiri). Fungsi keseharian masih baik.',
-    clinicalRecommendation: 'Eksplorasi nilai hidup bermakna (Logotherapy), penguatan komunikasi relasi suami-istri.'
-  },
-  // Aditya Nugroho
-  {
-    id: 'res-15',
-    patientId: 'user-pat-15',
-    patientName: 'Aditya Nugroho',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-14 15:50',
-    totalScore: 29,
-    subscaleScores: {
-      depression: 7,
-      anxiety: 12,
-      stress: 10
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Kecemasan finansial memicu dispepsia/GERD fungsional psikogenik. Tingkat kecemasan pada skala sedang-tinggi.',
-    clinicalRecommendation: 'Latihan pernapasan diafragma saat stres puncak, pemisahan waktu memikirkan solusi bisnis dari jam istirahat.'
-  },
-  // Tiara Maharani
-  {
-    id: 'res-16',
-    patientId: 'user-pat-16',
-    patientName: 'Tiara Maharani',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-20 18:20',
-    totalScore: 26,
-    subscaleScores: {
-      depression: 6,
-      anxiety: 9,
-      stress: 11
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Stres tingkat sedang terkait beban jam kerja advokat. Disertai kelelahan fisik dan migrain periodik.',
-    clinicalRecommendation: 'Latihan asertivitas batas jam kerja, relaksasi biofeedback sederhana, dan micro-breaks.'
-  },
-  // Yoga Prasetyo
-  {
-    id: 'res-17',
-    patientId: 'user-pat-17',
-    patientName: 'Yoga Prasetyo',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-08-28 10:35',
-    totalScore: 28,
-    subscaleScores: {
-      depression: 11,
-      anxiety: 9,
-      stress: 8
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Indikasi depresi sedang akibat isolasi sosial kronis selama bekerja jarak jauh (remote work).',
-    clinicalRecommendation: 'Behavioral activation dengan bergabung ke komunitas minat offline, pendampingan interaksi sosial bertahap.'
-  },
-  // Melati Kusuma
-  {
-    id: 'res-18',
-    patientId: 'user-pat-18',
-    patientName: 'Melati Kusuma',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-05 14:20',
-    totalScore: 33,
-    subscaleScores: {
-      depression: 13,
-      anxiety: 10,
-      stress: 10
-    },
-    severityLevel: 'BERAT',
-    interpretation: 'Skor depresi mendekati batas berat (13) terkait kebuntuan progres riset pascasarjana dan hilangnya self-efficacy.',
-    clinicalRecommendation: 'Intervensi kognitif untuk mendobrak pola avoidance, penjadwalan bimbingan bertahap dengan dosen.'
-  },
-  // Fajar Ramadhan
-  {
-    id: 'res-19',
-    patientId: 'user-pat-19',
-    patientName: 'Fajar Ramadhan',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-12 11:20',
-    totalScore: 35,
-    subscaleScores: {
-      depression: 11,
-      anxiety: 11,
-      stress: 13
-    },
-    severityLevel: 'BERAT',
-    interpretation: 'Tingkat stres berat (13) dan kelelahan empati (compassion fatigue) tinggi pasca eksekusi restrukturisasi organisasi.',
-    clinicalRecommendation: 'Debriefing psikologis profesional, melepaskan rasa tanggung jawab emosional yang berlebihan, cuti pemulihan.'
-  },
-  // Gita Savitri
-  {
-    id: 'res-20',
-    patientId: 'user-pat-20',
-    patientName: 'Gita Savitri',
-    testId: 'test-dass21',
-    testCode: 'DASS-21',
-    testTitle: 'Skala Depresi, Kecemasan & Stres (DASS-21)',
-    completedAt: '2026-09-15 17:05',
-    totalScore: 24,
-    subscaleScores: {
-      depression: 6,
-      anxiety: 10,
-      stress: 8
-    },
-    severityLevel: 'SEDANG',
-    interpretation: 'Kecemasan eksistensial dan overthinking berulang derajat sedang dengan kesulitan mempertahankan fokus kerja.',
-    clinicalRecommendation: 'Mindfulness grounding 5-4-3-2-1, pembatasan konsumsi konten pembanding, dan reframing arah karir masa depan.'
-  }
-];
-
 export const INITIAL_SCHEDULES: ScheduleSlot[] = [
   // dr. Sarah Jenkins (user-psy-1)
   { id: 'slot-1', psychologistId: 'user-psy-1', date: '2026-09-16', startTime: '09:00', endTime: '10:00', isAvailable: true, isBooked: false },
@@ -1765,9 +1055,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
-    createdAt: '2026-09-14 11:20',
-    clinicalNotesId: 'note-1'
+    createdAt: '2026-09-14 11:20'
   },
   // 2. Completed Consultation in past (Siti Amanda & dr. Sarah Jenkins)
   {
@@ -1789,9 +1077,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-02 09:15',
-    clinicalNotesId: 'note-past-1',
     reviewId: 'rev-1'
   },
   // 3. Pending Offline Appointment (Budi Santoso & dr. Sarah Jenkins)
@@ -1814,7 +1100,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-15 16:30'
   },
   // 4. Completed Consultation in past (Dimas Pratama & dr. Sarah Jenkins)
@@ -1837,9 +1122,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
-    createdAt: '2026-09-08 18:00',
-    clinicalNotesId: 'note-past-2'
+    createdAt: '2026-09-08 18:00'
   },
   // 5. Completed Offline Appointment (dr. Sarah Jenkins)
   {
@@ -1861,9 +1144,7 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
-    createdAt: '2026-09-01 14:00',
-    clinicalNotesId: 'note-past-3'
+    createdAt: '2026-09-01 14:00'
   },
   // 6. Completed Consultation (dr. Sarah Jenkins)
   {
@@ -1885,7 +1166,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-09 11:30'
   },
   // 7. Completed Assessment Bundling (dr. Sarah Jenkins)
@@ -1908,7 +1188,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-03 16:45',
     reviewId: 'rev-top-1'
   },
@@ -1932,7 +1211,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Teratai Lt. 1',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-05 10:20',
     reviewId: 'rev-eval-1'
   },
@@ -1956,7 +1234,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Lily Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-10 09:10'
   },
 
@@ -1983,7 +1260,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2025-11-07 14:00'
   },
   {
@@ -2005,7 +1281,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2025-11-15 09:30'
   },
   {
@@ -2027,7 +1302,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2025-11-22 16:15'
   },
   // Desember 2025
@@ -2050,7 +1324,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Teratai Lt. 1',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2025-12-05 11:20'
   },
   {
@@ -2072,7 +1345,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2025-12-12 10:45'
   },
   {
@@ -2094,7 +1366,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2025-12-19 13:00'
   },
 
@@ -2121,7 +1392,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-06-05 08:30'
   },
   {
@@ -2143,7 +1413,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-06-12 11:20'
   },
   {
@@ -2165,7 +1434,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-06-19 14:00'
   },
   {
@@ -2187,7 +1455,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lily Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-06-24 16:45'
   },
 
@@ -2211,7 +1478,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-07-03 10:15'
   },
   {
@@ -2233,7 +1499,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-07-10 13:40'
   },
   {
@@ -2255,7 +1520,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Teratai Lt. 1',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-07-17 15:30'
   },
   {
@@ -2277,7 +1541,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-07-21 09:10'
   },
 
@@ -2301,7 +1564,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-08-01 11:00'
   },
   {
@@ -2323,7 +1585,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-08-08 14:20'
   },
   {
@@ -2345,7 +1606,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-08-15 16:30'
   },
   {
@@ -2367,7 +1627,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lily Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-08-19 12:00'
   },
   {
@@ -2389,7 +1648,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-08-25 09:45'
   },
 
@@ -2413,7 +1671,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-15 10:00'
   },
   {
@@ -2435,7 +1692,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-16 11:30'
   },
   {
@@ -2457,7 +1713,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-17 09:15'
   },
   {
@@ -2479,7 +1734,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Teratai Lt. 1',
     hasIntakeForm: true,
-    hasTestResult: false,
     createdAt: '2026-09-15 14:00'
   },
 
@@ -2503,7 +1757,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lavender Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-29 10:20'
   },
   {
@@ -2525,7 +1778,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 375000,
     meetingLocation: 'Klinik Ruang Magnolia Lt. 3',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-09-30 14:15'
   },
   {
@@ -2547,7 +1799,6 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 490000,
     meetingLocation: 'Klinik Ruang Cempaka Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-10-01 09:30'
   },
   {
@@ -2569,59 +1820,9 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     totalAmount: 250000,
     meetingLocation: 'Klinik Ruang Lily Lt. 2',
     hasIntakeForm: true,
-    hasTestResult: true,
     createdAt: '2026-10-01 11:00'
   }
 ];
-
-// CLINICAL NOTES (SOAP FORMAT) PRE-POPULATED
-export const INITIAL_CLINICAL_NOTES: Record<string, ClinicalNote> = {
-  'note-1': {
-    id: 'note-1',
-    appointmentId: 'apt-active-1',
-    patientId: 'user-pat-1',
-    psychologistId: 'user-psy-1',
-    sessionDate: '2026-09-16',
-    subjective: 'Klien (31 thn, Lead Software Engineer) mengeluhkan sensasi sesak dada dan ketegangan otot leher setiap pagi hari menjelang jam kerja. Merasa cemas berlebihan akan penilaian direksi dan performa sprint.',
-    objective: 'Respons sesi kooperatif, artikulatif. Klien menyadari pola pikir catastrophizing (overthinking). Hasil tes DASS-21 kecemasan skala sedang (skor 11). Tidak ada riwayat penggunaan zat atau gejala psikotik.',
-    assessment: 'Diagnosis kerja: F41.1 Generalized Anxiety Disorder (derajat sedang) yang dieksaserbasi oleh stres beban kerja berlebih (workplace burnout).',
-    plan: '1. Psikoedukasi fisiologis respons cemas (fight-or-flight).\n2. Latihan teknik pernapasan diafragma 4-7-8 untuk grounding.\n3. Thought record journaling untuk menangkap pikiran otomatis negatif.\n4. Rencana sesi lanjutan 1 minggu ke depan.',
-    prognosis: 'Baik',
-    requiresPsychiatristReferral: false,
-    createdAt: '2026-09-16 11:25',
-    updatedAt: '2026-09-16 11:25'
-  },
-  'note-past-1': {
-    id: 'note-past-1',
-    appointmentId: 'apt-past-1',
-    patientId: 'user-pat-2',
-    psychologistId: 'user-psy-1',
-    sessionDate: '2026-09-05',
-    subjective: 'Klien (26 thn, UI/UX Designer) mengeluhkan kesulitan memulai tidur (sleep-onset insomnia) berdurasi >2 jam selama 2 bulan. Mengalami racing thoughts dan overthinking masa depan.',
-    objective: 'Afek cemas ringan, kontak mata baik pada sesi tatap muka. Klien tampak lelah secara fisik. Skor DASS-21 kecemasan 8 (ringan).',
-    assessment: 'G47.0 Insomnia Non-organik sekunder terhadap kebiasaan nocturnal overthinking dan higienitas tidur yang terganggu.',
-    plan: '1. Intervensi Sleep Hygiene & Stimulus Control (kasur hanya untuk tidur).\n2. Pembatasan layar gadget (screen time) 60 menit sebelum waktu tidur.\n3. Teknik progressive muscle relaxation (PMR).',
-    prognosis: 'Baik',
-    requiresPsychiatristReferral: false,
-    createdAt: '2026-09-05 15:35',
-    updatedAt: '2026-09-05 15:35'
-  },
-  'note-past-2': {
-    id: 'note-past-2',
-    appointmentId: 'apt-past-2',
-    patientId: 'user-pat-3',
-    psychologistId: 'user-psy-1',
-    sessionDate: '2026-09-10',
-    subjective: 'Klien (23 thn, Mahasiswa Akhir) merasa kehilangan motivasi untuk menyelesaikan tugas akhir skripsi. Menghabiskan sebagian besar waktu mengurung diri di kamar kos.',
-    objective: 'Afek datar, respons lambat namun kooperatif. Skor DASS-21 depresi 14 (sedang-berat).',
-    assessment: 'F32.0 Episode Depresif Ringan-Sedang dipicu oleh kebuntuan akademis dan distres penundaan (prokrastinasi kronis).',
-    plan: '1. Behavioral Activation: Jadwalkan aktivitas non-akademis yang menyenangkan 1 jam per hari.\n2. Pemecahan tugas skripsi menjadi unit mikro 15 menit.\n3. Evaluasi sesi 2 minggu lagi.',
-    prognosis: 'Perlu Pemantauan',
-    requiresPsychiatristReferral: false,
-    createdAt: '2026-09-10 17:15',
-    updatedAt: '2026-09-10 17:15'
-  }
-};
 
 export const INITIAL_REVIEWS: Review[] = [
   {
@@ -2865,7 +2066,7 @@ export const INITIAL_REVIEWS: Review[] = [
     psychologistId: 'user-psy-1',
     psychologistName: 'dr. Sarah Jenkins, M.Psi., Psikolog',
     rating: 4,
-    comment: 'Pemeriksaan asesmen DASS-21 sangat akurat menggambarkan kecemasan kerja saya. Sesi berlangsung tepat waktu dan solutif.',
+    comment: 'Pre-test awal membantu psikolog memahami kecemasan kerja saya. Sesi berlangsung tepat waktu dan solutif.',
     isApproved: false, // Pending moderation
     createdAt: '2026-08-06'
   },

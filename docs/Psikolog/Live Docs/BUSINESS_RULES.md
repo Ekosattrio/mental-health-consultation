@@ -10,14 +10,16 @@
 - Data booking tersimpan dalam database.
 - Admin/pengelola dapat melihat data booking.
 - Sistem mencegah penggunaan slot yang tidak tersedia.
+- Selama mode frontend/LocalStorage, proses booking dan reschedule memakai Web Locks API dengan fallback lock LocalStorage per psikolog dan tanggal, membaca ulang appointment terbaru, serta memvalidasi overlap, kuota, hari libur, jam praktik, dan durasi sebelum menyimpan.
 - Psikolog/pengelola dapat memilih hari libur; booking tidak boleh tersedia pada hari libur tersebut.
 - Psikolog/pengelola dapat membatasi jumlah pertemuan dalam satu hari.
 - Psikolog/pengelola dapat membuat dan mengubah jam kerja.
 - Psikolog/pengelola mengelola kebijakan no-show, keterlambatan, pembatalan, dan penghentian paket berjalan.
 - Pasien tidak boleh booking untuk hari yang sama. Minimal booking adalah keesokan hari.
 - Pasien tidak boleh reschedule langsung untuk hari yang sama. Minimal reschedule adalah keesokan hari.
-- Admin dapat melayani pasien yang datang langsung dan membuatkan booking untuk pasien tersebut.
+- Admin dapat melayani pendaftaran pasien yang datang langsung melalui jalur walk-in, tetapi tanggal konsultasi tetap wajib minimal keesokan hari (H+1). Walk-in admin dapat mendaftarkan pasien baru tanpa pre-test awal dan tetap mematuhi jam praktik, kuota, durasi paket, hari libur, serta overlap.
 - Admin hanya memverifikasi pembayaran dan mengonfirmasi booking; admin tidak membatalkan, menghapus, atau menandai selesai konsultasi. Status konsultasi selesai ditandai manual oleh psikolog/pengelola setelah sesi benar-benar selesai.
+- Admin dapat membantu reschedule jadwal pasien, tetapi setiap perubahan wajib mencatat siapa yang melakukan reschedule, role pelaku, waktu perubahan, dan alasan/catatan.
 - Pasien dapat mengajukan reschedule ke admin melalui form jika tidak memahami cara reschedule mandiri.
 - Perubahan jadwal harus memperbarui database.
 - Slot yang sudah ter-booking tidak boleh tersedia untuk booking lain.
@@ -39,12 +41,9 @@
 ## Locking Slot Booking
 
 - Saat pasien mengirim booking, sistem perlu mencegah slot yang sama diambil pengguna lain.
-- Mekanisme final belum dipilih.
-- Kandidat mekanisme:
-  - temporary hold dengan expiry saat pasien mengisi pembayaran
-  - database transaction dengan unique constraint pada slot aktif
-  - status booking `PENDING` langsung mengunci slot sampai expired/dibatalkan
-- Keputusan ini perlu dibuat saat desain backend/database.
+- Frontend memakai Web Locks API lintas-tab dengan fallback lock LocalStorage untuk mengurangi double submit pada prototype.
+- Booking berstatus `PENDING`, `CONFIRMED`, atau `IN_PROGRESS` ikut mengunci rentang waktu dari perhitungan slot.
+- Backend produksi wajib memakai database transaction, row lock/constraint overlap, dan idempotency key; lock frontend bukan jaminan produksi.
 
 ## Psikolog
 
@@ -80,38 +79,51 @@
 - Pengguna wajib mengunggah bukti pembayaran transfer.
 - Pengguna wajib mencantumkan nama pemilik rekening pengirim transfer (`transferSenderName`).
 - Pengguna dapat mencantumkan nomor referensi/kode transaksi pembayaran.
+- Potongan harga hanya diatur oleh psikolog/pengelola dari manajemen paket.
+- Pasien tidak mengetik kode promo apa pun; pasien hanya melihat potongan aktif bila psikolog mengaktifkannya pada paket.
+- Admin tidak mengatur atau melihat harga paket, potongan, DP yang ditagihkan, maupun sisa tagihan. Admin hanya melihat status pembayaran, bukti/metode pembayaran, nama pengirim, dan nomor referensi untuk verifikasi.
+- Untuk pelunasan, admin memasukkan nominal uang yang benar-benar diterima tanpa ditunjukkan nominal target. Setelah disimpan, nilai pelunasan tidak dapat dibaca kembali pada tabel/detail/receipt admin.
+- Nominal pelunasan tetap disimpan untuk perhitungan laporan uang masuk psikolog dan audit backend.
+- Potongan dihitung dari harga paket (`subtotalAmount`) sebelum total tagihan dan DP dihitung.
+- Potongan dapat berupa nominal tetap atau persentase.
+- Diskon melekat pada paket layanan dan dapat ditambahkan, diubah, atau dihapus hanya oleh psikolog/pengelola melalui form Manajemen Paket.
+- Perubahan atau penghapusan diskon baru berlaku setelah perubahan paket disimpan. Booking yang sudah dibuat tetap memakai snapshot nominal saat transaksi agar riwayat pembayaran tidak berubah.
 - Bukti pembayaran tersimpan dalam sistem.
 - Admin dapat melihat bukti pembayaran, nama pengirim transfer, metode/channel bayar, dan nomor referensi.
 - Admin dapat melakukan verifikasi pembayaran.
 - Status pembayaran dapat diperbarui berdasarkan hasil verifikasi.
+- Status konsultasi `COMPLETED` tidak otomatis membuat pembayaran `PAID`; pelunasan harus dicatat admin sebagai transaksi terpisah.
 - Riwayat pembayaran disimpan dalam database.
-- **Skema Pembayaran Resmi**: Wajib **DP Flat Rp 100.000** sebagai biaya administrasi penguncian slot jadwal, dan sisa biaya paket dilunasi saat pasien hadir di klinik.
+- **Skema Pembayaran**: Nominal DP dikonfigurasi psikolog/pengelola pada setiap paket. DP tidak boleh negatif atau melebihi total setelah diskon; jika total setelah diskon lebih kecil, DP otomatis dibatasi sebesar total tersebut. Sisa biaya paket dilunasi saat pasien hadir di klinik.
 - Status pembayaran mendukung:
   - `PENDING` (belum bayar)
   - `DP_PENDING_VERIFICATION` (bukti transfer DP diunggah, menunggu verifikasi admin)
-  - `DP_PAID` (DP Rp 100.000 telah diverifikasi admin)
+  - `DP_PAID` (DP sesuai paket telah diverifikasi admin)
   - `PAID` (lunas, sisa tagihan telah diselesaikan di klinik)
   - `REFUNDED` (pengembalian dana jika diperlukan)
 
 ## Invoice / Kwitansi
 
 - Sistem perlu menghasilkan invoice/kwitansi pembayaran untuk setiap booking.
-- Minimal informasi invoice: kode invoice, kode booking, nama pasien, paket, tanggal sesi, total biaya paket, DP Rp 100.000, sisa pelunasan, metode pembayaran, channel pembayaran, nama pengirim, nomor referensi, status pembayaran, dan bukti pembayaran.
+- Minimal informasi invoice: kode invoice, kode booking, nama pasien, paket, tanggal sesi, harga paket sebelum potongan, nama potongan dari psikolog/pengelola, nominal potongan, total setelah potongan, DP, sisa pelunasan, metode pembayaran, channel pembayaran, nama pengirim, nomor referensi, status pembayaran, dan bukti pembayaran.
 - Invoice pasien dapat dilihat dari riwayat booking.
+- Receipt admin bukan menu kwitansi terpisah; setelah DP/konfirmasi pembayaran admin dapat memilih Print / Simpan PDF atau screenshot dari modal receipt administratif.
+- Karena admin tidak boleh melihat harga, receipt admin hanya menampilkan data administratif: booking, pasien, paket, jadwal, status pembayaran, metode/channel, nama pengirim/kasir, nomor referensi, bukti pembayaran, dan audit reschedule.
 - Backend produksi wajib menyimpan invoice sebagai data terstruktur agar bisa dicetak ulang dan diaudit.
 
 ## Reschedule Jadwal Konsultasi
 
 - Pasien dapat mengajukan perubahan jadwal (reschedule) secara mandiri melalui menu Jadwal & Riwayat di portal pasien.
-- **Batas Waktu Pengajuan**: Pengajuan reschedule wajib dilakukan minimal **H-1 (24 jam sebelum jadwal sesi lama dimulai)**. Sistem memblokir pemilihan tanggal hari-H atau masa lalu.
-- **Perlakuan Pembayaran**: Pembayaran uang muka administrasi (DP Flat Rp 100.000) yang sudah tercatat otomatis dialihkan 100% ke jadwal pengganti tanpa potongan biaya administrasi.
+- **Tanggal Pengganti**: Tanggal baru hasil reschedule wajib minimal keesokan hari (H+1). Sistem memblokir tanggal hari ini dan masa lalu.
+- **Perlakuan Pembayaran**: DP sesuai paket yang sudah tercatat otomatis dialihkan 100% ke jadwal pengganti tanpa biaya administrasi tambahan.
 - **Pemilihan Jadwal Baru**: Pasien memilih tanggal baru dan slot waktu yang tersedia dari jadwal operasional aktif psikolog.
 - **Pencatatan Alasan**: Pasien wajib memilih alasan reschedule (Kondisi Kesehatan, Pekerjaan/Dinas Mendadak, Keperluan Keluarga, Transportasi, atau Lainnya) serta catatan opsional untuk dokter.
-- **Pembaruan Sistem**: Jadwal pada kalender psikolog dan admin langsung diperbarui, dan status janji temu ditandai sebagai jadwal ter-reschedule.
+- **Pembaruan Sistem**: Jadwal pada kalender psikolog dan admin langsung diperbarui. Reschedule mandiri pasien mengembalikan status ke `PENDING` untuk konfirmasi ulang admin; bantuan reschedule oleh admin mempertahankan status booking sebelumnya.
+- **Audit Pelaku**: Reschedule dari pasien/admin/psikolog wajib tersimpan di appointment sebagai `rescheduledAt`, `rescheduledByName`, `rescheduledByRole`, dan `rescheduleReason`; data ini tampil di detail jadwal dan receipt.
 
 ## Paket Layanan & Konsultasi Berkelanjutan (Rawat Jalan)
 
-- Terdapat 15 paket resmi: 5 Konseling (Offline, Telelayanan, Anak/Remaja, Dewasa, Pasangan/Keluarga), 9 Asesmen (Dasar, Lengkap include laporan resmi SIP, Tes IQ, Kepribadian Standar/Lengkap, Asesmen Anak/Remaja Standar/Lengkap, Asesmen Dewasa Standar/Lengkap), dan 1 Psikoterapi Intensif 4 Sesi.
+- Katalog paket bersifat dinamis dan hanya memuat layanan tatap muka aktif dalam kategori Konseling, Asesmen, atau Psikoterapi. Tidak ada paket telelayanan online pada scope aktif.
 - Mendukung dua jenis konsultasi: Sesi Tunggal (*Single Session*) dan Konsultasi Berkelanjutan (*Continuous Care* / Rawat Jalan bertahap).
 - Pada paket rawat jalan, sistem mendukung pencatatan nomor sesi ke-N (misal sesi 1 dari 4 sesi) dan catatan rekomendasi rencana perawatan.
 - Psikolog dapat menambah, mengedit, dan mengaktifkan/menonaktifkan paket secara dinamis.
@@ -123,21 +135,28 @@
 - Saat pasien membeli/memesan paket berkelanjutan, sistem membuat rencana terapi dan appointment sesi pertama (`Sesi 1 dari N`).
 - Sesi ke-2 dan seterusnya dijadwalkan bertahap oleh psikolog setelah sesi sebelumnya selesai atau sesuai kesepakatan klinis. Ini mencegah kalender terkunci terlalu jauh, mengurangi risiko data berat, dan lebih aman untuk perubahan rencana terapi.
 - Psikolog/pengelola adalah pihak yang menandai sesi `COMPLETED` setelah pertemuan selesai. Setelah itu psikolog dapat membuat jadwal sesi berikutnya.
+- Sistem tidak boleh membuat sesi lanjutan jika sesi terakhir belum `COMPLETED`, paket sudah selesai, atau sudah ada sesi berikutnya yang masih aktif.
 - Psikolog/pengelola juga menjadi pihak yang menandai `NO_SHOW`, `CANCELLED`, atau `DISCONTINUED` pada paket berjalan jika pasien tidak hadir, terlambat melewati batas kebijakan, atau paket dihentikan.
 - Admin tidak boleh melakukan cancel/no-show/discontinue; admin hanya konfirmasi pembayaran/booking.
 - Backend wajib menyimpan `treatment_plan_id`, `continuous_session_number`, dan `continuous_session_total` pada appointment agar progres seperti `Sesi 3 dari 10` selalu bisa dilacak.
 - Backend tidak boleh menghitung pendapatan paket berkali-kali untuk setiap sesi lanjutan. Pembayaran paket dicatat pada invoice/treatment plan, sedangkan appointment lanjutan hanya mencatat jadwal pertemuan.
+- Halaman **Paket Berjalan** wajib menampilkan ringkasan pembayaran paket: total setelah potongan, nominal potongan bila ada, DP, sisa pelunasan, dan status pembayaran.
 - Untuk mencegah double click atau request ganda saat menjadwalkan sesi berikutnya, endpoint backend perlu mendukung idempotency key.
 - Untuk mencegah bentrok jadwal, pembuatan sesi lanjutan wajib berjalan dalam database transaction dengan validasi overlap slot aktif.
 
 ## Notifikasi WhatsApp / Email
 
+- WhatsApp adalah kanal utama untuk notifikasi operasional yang sensitif waktu.
+- Email bersifat opsional sebagai fallback serta pengiriman receipt/dokumen jika alamat email tersedia.
 - Pengiriman WhatsApp/email dilakukan oleh backend produksi melalui provider resmi.
 - Trigger minimum: booking pending, pembayaran dikonfirmasi, jadwal sesi, perubahan jadwal/reschedule, sesi dibatalkan oleh psikolog, dan reminder jadwal harian.
 - Reminder ke psikolog pada hari-H memuat nama pasien, jam mulai-selesai, paket/sesi ke berapa, ringkasan keluhan/profil dari pre-test, dan tautan ke detail pasien di web.
 - Semua notifikasi perlu dicatat di `notification_logs` agar bisa diaudit dan retry saat gagal.
 
 ## Laporan dan Export Data
+
+- Scope laporan frontend adalah arus kas/uang masuk murni dari pembayaran paket. Sistem tidak menghitung biaya operasional, pengeluaran, atau laba bersih.
+- Uang masuk dihitung dari DP terverifikasi ditambah nominal pelunasan aktual yang dicatat admin. Appointment sesi lanjutan paket multi-sesi tidak menambah pendapatan baru.
 
 - **Fleksibilitas Filter**: Laporan keuangan kas nyata dapat difilter berdasarkan:
   - Pilihan Bulan dan Tahun spesifik

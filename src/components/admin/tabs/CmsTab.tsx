@@ -29,6 +29,7 @@ import {
   Image as ImageIcon,
   QrCode
 } from 'lucide-react';
+import { ImageWithFallback } from '../../common/ImageWithFallback';
 
 interface CmsTabProps {
   cmsConfig: LandingPageCmsConfig;
@@ -490,7 +491,12 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                     <div className="flex items-center gap-3 pt-1">
                       <div className="w-12 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                         {cmsForm.logoUrl ? (
-                          <img src={cmsForm.logoUrl} alt="Logo Preview" className="w-full h-full object-cover" />
+                          <ImageWithFallback
+                            src={cmsForm.logoUrl}
+                            alt="Logo Preview"
+                            className="w-full h-full object-cover"
+                            fallback={<HeartHandshake className="w-8 h-8 text-teal-600" />}
+                          />
                         ) : (
                           <HeartHandshake className="w-6 h-6 text-teal-600" />
                         )}
@@ -538,7 +544,12 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                     <div className="flex items-center gap-3 pt-1">
                       <div className="w-20 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                         {cmsForm.heroImageUrl ? (
-                          <img src={cmsForm.heroImageUrl} alt="Hero Banner Preview" className="w-full h-full object-cover" />
+                          <ImageWithFallback
+                            src={cmsForm.heroImageUrl}
+                            alt="Hero Banner Preview"
+                            className="w-full h-full object-cover"
+                            fallback={<ImageIcon className="w-8 h-8 text-slate-400" />}
+                          />
                         ) : (
                           <span className="text-[10px] text-slate-400">Belum ada</span>
                         )}
@@ -586,7 +597,12 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                     <div className="flex items-center gap-3 pt-1">
                       <div className="w-20 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                         {cmsForm.aboutImageUrl ? (
-                          <img src={cmsForm.aboutImageUrl} alt="Clinic Preview" className="w-full h-full object-cover" />
+                          <ImageWithFallback
+                            src={cmsForm.aboutImageUrl}
+                            alt="Clinic Preview"
+                            className="w-full h-full object-cover"
+                            fallback={<Building2 className="w-8 h-8 text-slate-400" />}
+                          />
                         ) : (
                           <span className="text-[10px] text-slate-400">Belum ada</span>
                         )}
@@ -634,7 +650,12 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                     <div className="flex items-center gap-3 pt-1">
                       <div className="w-12 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                         {cmsForm.qrisImageUrl ? (
-                          <img src={cmsForm.qrisImageUrl} alt="QRIS Preview" className="w-full h-full object-contain p-1" />
+                          <ImageWithFallback
+                            src={cmsForm.qrisImageUrl}
+                            alt="QRIS Preview"
+                            className="w-full h-full object-contain p-1"
+                            fallback={<QrCode className="w-8 h-8 text-slate-400" />}
+                          />
                         ) : (
                           <QrCode className="w-6 h-6 text-slate-400" />
                         )}

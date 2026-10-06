@@ -1,6 +1,6 @@
 # JiwaSehat - Platform Konsultasi Psikologi
 
-JiwaSehat adalah aplikasi frontend React untuk simulasi platform konsultasi psikologi. Aplikasi ini memiliki tampilan publik, dashboard pasien, dashboard psikolog, dashboard admin, dan halaman blueprint arsitektur.
+JiwaSehat adalah aplikasi frontend React untuk platform booking konsultasi psikologi tatap muka. Aplikasi memiliki landing page, dashboard pasien, dashboard psikolog/pengelola, dan dashboard admin operasional.
 
 ## Stack
 
@@ -10,10 +10,11 @@ JiwaSehat adalah aplikasi frontend React untuk simulasi platform konsultasi psik
 - Tailwind CSS
 - LocalStorage sebagai persistence sementara
 - Mock data di `src/data/mockData.ts`
+- HTTP service layer siap untuk Laravel 12+ REST API dan MySQL 8+
 
 ## Struktur Dokumentasi
 
-Dokumentasi proyek ada di folder `docs/`:
+Dokumentasi proyek dikelola melalui vault Obsidian di `docs/Psikolog`. Dokumen utama berada di `docs/Psikolog/Live Docs/`:
 
 - `PROJECT_CONTEXT.md` - konteks produk dan ruang lingkup
 - `ARCHITECTURE.md` - struktur teknis dan alur aplikasi

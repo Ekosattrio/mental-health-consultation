@@ -46,9 +46,9 @@ Untuk sesi ini, AI juga dilarang menjalankan:
 - Ikuti struktur dan pola kode yang sudah ada.
 - Jangan melakukan refactor besar tanpa permintaan eksplisit.
 - Hindari perubahan di luar scope task.
-- Catat keputusan penting di `docs/DECISIONS.md`.
-- Catat isu yang ditemukan di `docs/KNOWN_ISSUES.md`.
-- Perbarui `docs/SESSION_HANDOFF.md` saat ada progres penting yang perlu dilanjutkan.
+- Catat keputusan penting di `docs/Psikolog/Live Docs/DECISIONS.md`.
+- Catat isu yang ditemukan di `docs/Psikolog/Live Docs/KNOWN_ISSUES.md`.
+- Perbarui `docs/Psikolog/Live Docs/SESSION_HANDOFF.md` saat ada progres penting yang perlu dilanjutkan.
 
 ## Project Saat Ini
 

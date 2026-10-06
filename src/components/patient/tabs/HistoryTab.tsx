@@ -218,7 +218,76 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
       {/* TABEL JADWAL & RIWAYAT */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100">
+          {paginatedAppointments.length === 0 ? (
+            <div className="py-12 px-4 text-center text-slate-400 text-xs italic">
+              Belum ada data janji temu konsultasi yang cocok dengan pencarian atau filter.
+            </div>
+          ) : paginatedAppointments.map(apt => (
+            <button
+              key={apt.id}
+              type="button"
+              onClick={() => setSelectedDetailApt(apt)}
+              className="w-full p-4 text-left bg-white active:bg-slate-50 space-y-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <span className="inline-flex font-bold font-mono text-slate-900 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 text-[11px]">
+                    {apt.bookingCode}
+                  </span>
+                  <div className="font-bold text-slate-900 mt-2 line-clamp-2">{apt.packageName}</div>
+                </div>
+                <Eye className="w-4 h-4 text-teal-700 shrink-0 mt-1" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div>
+                  <span className="block text-slate-400 font-bold uppercase">Jadwal</span>
+                  <span className="block text-slate-800 font-semibold mt-0.5">{apt.date}</span>
+                  <span className="block text-slate-500">{apt.startTime} - {apt.endTime} WIB</span>
+                </div>
+                <div className="min-w-0">
+                  <span className="block text-slate-400 font-bold uppercase">Psikolog</span>
+                  <span className="block text-slate-800 font-semibold mt-0.5 line-clamp-2">{apt.psychologistName}</span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                  apt.status === 'CONFIRMED'
+                    ? 'bg-emerald-100 text-emerald-900'
+                    : apt.status === 'COMPLETED'
+                    ? 'bg-purple-100 text-purple-900'
+                    : apt.status === 'CANCELLED'
+                    ? 'bg-rose-100 text-rose-900'
+                    : apt.status === 'NO_SHOW'
+                    ? 'bg-orange-100 text-orange-900'
+                    : 'bg-amber-100 text-amber-900'
+                }`}>
+                  {apt.status === 'CONFIRMED' ? 'Terkonfirmasi' : apt.status === 'COMPLETED' ? 'Selesai' : apt.status === 'CANCELLED' ? 'Dibatalkan' : apt.status === 'NO_SHOW' ? 'Tidak Hadir' : 'Menunggu'}
+                </span>
+                <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                  apt.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-800' : 'bg-teal-100 text-teal-900'
+                }`}>
+                  {apt.paymentStatus === 'PAID'
+                    ? 'Lunas'
+                    : apt.paymentStatus === 'DP_PAID'
+                    ? 'DP Terverifikasi'
+                    : apt.paymentStatus === 'DP_PENDING_VERIFICATION'
+                    ? 'DP Dicek Admin'
+                    : 'Menunggu'}
+                </span>
+                {apt.continuousSessionTotal && apt.continuousSessionTotal > 1 && (
+                  <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-black">
+                    Sesi {apt.continuousSessionNumber || 1}/{apt.continuousSessionTotal}
+                  </span>
+                )}
+              </div>
+            </button>
+          ))}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/70 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -492,15 +561,38 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
               <div className="flex justify-between py-1">
                 <span className="text-slate-500 font-bold uppercase text-[10px]">Total Biaya Paket</span>
                 <strong className="text-slate-900">
-                  Rp {selectedDetailApt.totalAmount.toLocaleString('id-ID')}
+                  Rp {(selectedDetailApt.subtotalAmount ?? selectedDetailApt.totalAmount).toLocaleString('id-ID')}
                 </strong>
               </div>
+              {!!selectedDetailApt.discountAmount && selectedDetailApt.discountAmount > 0 && (
+                <>
+                  <div className="flex justify-between py-1 text-emerald-800">
+                    <span className="font-bold uppercase text-[10px]">{selectedDetailApt.discountLabel || 'Potongan Pengelola'}</span>
+                    <strong>- Rp {selectedDetailApt.discountAmount.toLocaleString('id-ID')}</strong>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-slate-500 font-bold uppercase text-[10px]">Total Setelah Potongan</span>
+                    <strong className="text-slate-900">
+                      Rp {selectedDetailApt.totalAmount.toLocaleString('id-ID')}
+                    </strong>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between py-1 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200 text-emerald-900">
                 <span className="font-bold">DP Biaya Administrasi:</span>
                 <strong className="font-black">
                   Rp {(selectedDetailApt.dpAmount ?? 100000).toLocaleString('id-ID')} (Terbayar)
                 </strong>
               </div>
+              {selectedDetailApt.rescheduledAt && (
+                <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-950">
+                  <span className="block text-[10px] font-black uppercase text-sky-700 mb-0.5">Riwayat Reschedule</span>
+                  <p className="font-bold">
+                    Diubah oleh {selectedDetailApt.rescheduledByName || '-'} ({selectedDetailApt.rescheduledByRole || '-'}) pada {selectedDetailApt.rescheduledAt}
+                  </p>
+                  <p className="text-sky-800">{selectedDetailApt.rescheduleReason || 'Tanpa catatan tambahan.'}</p>
+                </div>
+              )}
             </div>
 
             <div className="pt-2 border-t border-slate-100">
@@ -513,7 +605,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
               >
                 <Receipt className="w-4 h-4" />
-                <span>Lihat Invoice / Kwitansi Pembayaran</span>
+                <span>Print Receipt / Simpan PDF</span>
               </button>
             </div>
 
@@ -742,7 +834,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
           <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between print:hidden">
               <div>
-                <h3 className="text-base font-black text-slate-900">Invoice / Kwitansi Pembayaran</h3>
+                <h3 className="text-base font-black text-slate-900">Receipt Pembayaran</h3>
                 <p className="text-xs text-slate-500">Nomor referensi: INV-{receiptApt.bookingCode}</p>
               </div>
               <button
@@ -759,7 +851,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
               <div className="flex items-start justify-between border-b border-slate-200 pb-4">
                 <div>
                   <h4 className="text-lg font-black text-slate-900">JiwaSehat</h4>
-                  <p className="text-slate-500">Kwitansi pembayaran reservasi konsultasi psikologi.</p>
+                  <p className="text-slate-500">Bisa screenshot halaman ini atau klik Print / Simpan PDF.</p>
                 </div>
                 <div className="text-right">
                   <span className="block font-black text-slate-900">INV-{receiptApt.bookingCode}</span>
@@ -787,7 +879,20 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 </div>
                 <div className="grid grid-cols-3 border-t border-slate-100">
                   <div className="p-3 col-span-2 font-bold text-slate-800">{receiptApt.packageName}</div>
-                  <div className="p-3 text-right font-bold">Rp {receiptApt.totalAmount.toLocaleString('id-ID')}</div>
+                  <div className="p-3 text-right font-bold">Rp {(receiptApt.subtotalAmount ?? receiptApt.totalAmount).toLocaleString('id-ID')}</div>
+                </div>
+                {!!receiptApt.discountAmount && receiptApt.discountAmount > 0 && (
+                  <div className="grid grid-cols-3 border-t border-slate-100 bg-emerald-50/60">
+                    <div className="p-3 col-span-2 font-bold text-emerald-900">
+                      {receiptApt.discountLabel || 'Potongan Pengelola'}
+                      <span className="block text-[10px] font-semibold text-emerald-700">Kebijakan harga dari psikolog/pengelola</span>
+                    </div>
+                    <div className="p-3 text-right font-black text-emerald-900">- Rp {receiptApt.discountAmount.toLocaleString('id-ID')}</div>
+                  </div>
+                )}
+                <div className="grid grid-cols-3 border-t border-slate-100">
+                  <div className="p-3 col-span-2 font-bold text-slate-800">Total Setelah Potongan</div>
+                  <div className="p-3 text-right font-black text-slate-900">Rp {receiptApt.totalAmount.toLocaleString('id-ID')}</div>
                 </div>
                 <div className="grid grid-cols-3 border-t border-slate-100 bg-emerald-50/70">
                   <div className="p-3 col-span-2 font-bold text-emerald-900">DP Administrasi Terbayar</div>
@@ -819,6 +924,16 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   </div>
                 </div>
               </div>
+
+              {receiptApt.rescheduledAt && (
+                <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950">
+                  <span className="text-[10px] font-black uppercase text-sky-700">Audit Reschedule</span>
+                  <p className="font-bold">
+                    Diubah oleh {receiptApt.rescheduledByName || '-'} ({receiptApt.rescheduledByRole || '-'}) pada {receiptApt.rescheduledAt}
+                  </p>
+                  <p className="text-sky-800">{receiptApt.rescheduleReason || 'Tanpa catatan tambahan.'}</p>
+                </div>
+              )}
             </div>
 
             <div className="px-5 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2 print:hidden">
@@ -835,7 +950,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 cursor-pointer flex items-center gap-1.5"
               >
                 <Printer className="w-3.5 h-3.5" />
-                Cetak
+                Print / Simpan PDF
               </button>
             </div>
           </div>
@@ -850,6 +965,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
         isOpen={!!rescheduleModalApt}
         onClose={() => setRescheduleModalApt(null)}
         appointment={rescheduleModalApt}
+        appointments={appointments}
         onConfirmReschedule={rescheduleAppointment}
       />
     </div>

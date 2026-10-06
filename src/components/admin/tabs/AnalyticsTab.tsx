@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Appointment, User, PsychologistProfile, Review, AnalyticsSummary } from '../../../types';
 import { ExportFinanceModal } from './ExportFinanceModal';
 import { Tooltip } from '../../common/Tooltip';
+import { getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
 import {
   DollarSign,
   TrendingUp,
@@ -90,7 +91,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
 
   // Financial Calculations
   const paidTransactions = filteredAppointments.filter(
-    a => a.paymentStatus === 'PAID' || a.paymentStatus === 'DP_PAID'
+    a => getRecordedCashIn(a) > 0
   );
 
   const pendingVerificationTransactions = filteredAppointments.filter(
@@ -98,15 +99,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   );
 
   const totalCashIn = paidTransactions.reduce((acc, a) => {
-    if (a.paymentStatus === 'PAID') return acc + (a.totalAmount || 0);
-    return acc + (a.dpAmount || 100000);
+    return acc + getRecordedCashIn(a);
   }, 0);
 
   const potentialPendingCash = pendingVerificationTransactions.reduce((acc, a) => {
     return acc + (a.dpAmount || 100000);
   }, 0);
 
-  const avgPerSession = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
+  const avgPerPayment = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
 
   // Export CSV Handler
   const handleExportCsv = () => {
@@ -114,12 +114,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
     const rows = filteredAppointments.map(a => {
       const isPaid = a.paymentStatus === 'PAID';
       const isDpPaid = a.paymentStatus === 'DP_PAID';
-      const nominalMasuk = isPaid
-        ? a.totalAmount
-        : isDpPaid
-        ? (a.dpAmount || 100000)
-        : 0;
-      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Administrasi (Rp 100.000)' : 'Menunggu DP (Rp 100.000)';
+      const nominalMasuk = getRecordedCashIn(a);
+      const skema = getPaymentSchemeLabel(a);
       const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Rp 100rb Diterima' : 'Verifikasi DP';
 
       return [
@@ -278,19 +274,19 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </span>
         </div>
 
-        {/* Rata-rata per Sesi */}
+        {/* Rata-rata per transaksi pembayaran */}
         <div className="p-4 bg-gradient-to-br from-sky-50/60 to-white rounded-2xl border border-sky-200/80 shadow-2xs h-full min-h-[125px] flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-sky-800 uppercase tracking-wider block">
-                Rata-rata Masuk per Sesi
+                Rata-rata per Transaksi
               </span>
               <div className="w-7 h-7 rounded-lg bg-sky-600 text-white flex items-center justify-center font-bold text-xs">
                 <TrendingUp className="w-4 h-4" />
               </div>
             </div>
             <div className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight">
-              Rp {avgPerSession.toLocaleString('id-ID')}
+              Rp {avgPerPayment.toLocaleString('id-ID')}
             </div>
           </div>
           <span className="text-[11px] font-semibold text-slate-500 mt-2 block">
@@ -376,11 +372,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 paginatedAppointments.map(apt => {
                   const isPaid = apt.paymentStatus === 'PAID';
                   const isDpPaid = apt.paymentStatus === 'DP_PAID';
-                  const nominalMasuk = isPaid
-                    ? apt.totalAmount
-                    : isDpPaid
-                    ? (apt.dpAmount || 100000)
-                    : 0;
+                  const nominalMasuk = getRecordedCashIn(apt);
 
                   return (
                     <tr key={apt.id} className="hover:bg-slate-50/70 transition-colors">
@@ -398,7 +390,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                       </td>
 
                       <td className="py-2.5 px-4 whitespace-nowrap font-medium text-slate-600">
-                        {isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Administrasi (Rp 100.000)' : 'Menunggu DP (Rp 100.000)'}
+                        {getPaymentSchemeLabel(apt)}
                       </td>
 
                       <td className="py-2.5 px-4 font-black text-slate-900 whitespace-nowrap text-xs">

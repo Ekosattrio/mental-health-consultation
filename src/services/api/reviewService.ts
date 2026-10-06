@@ -27,6 +27,20 @@ export const reviewService = {
     return apiClient.get<Review[]>('/reviews', params);
   },
 
+  async getById(reviewId: string): Promise<ApiResponse<Review>> {
+    return apiClient.get<Review>(`/reviews/${reviewId}`);
+  },
+
+  async getForAdmin(params?: {
+    status?: 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL';
+    rating?: number;
+    search?: string;
+    page?: number;
+    per_page?: number;
+  }): Promise<ApiResponse<Review[]>> {
+    return apiClient.get<Review[]>('/admin/reviews', params);
+  },
+
   /**
    * Pasien mengirim ulasan setelah sesi konsultasi COMPLETED
    * Endpoint Laravel: POST /api/v1/reviews
@@ -40,6 +54,6 @@ export const reviewService = {
    * Endpoint Laravel: PATCH /api/v1/reviews/{id}/moderate
    */
   async moderateReview(reviewId: string, payload: ModerateReviewPayload): Promise<ApiResponse<Review>> {
-    return apiClient.patch<Review>(`/reviews/${reviewId}/moderate`, payload);
+    return apiClient.patch<Review>(`/admin/reviews/${reviewId}/moderate`, payload);
   }
 };

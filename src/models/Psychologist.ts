@@ -64,14 +64,6 @@ export class Psychologist extends User {
     return this._profile.reviewCount;
   }
 
-  public get consultationFeeOnline(): number {
-    return this._profile.consultationFeeOnline;
-  }
-
-  public get consultationFeeOffline(): number {
-    return this._profile.consultationFeeOffline;
-  }
-
   public get languages(): string[] {
     return this._profile.languages;
   }
@@ -82,15 +74,6 @@ export class Psychologist extends User {
 
   public get isAvailableToday(): boolean {
     return this._profile.isAvailableToday;
-  }
-
-  // Formatting helpers
-  public getFormattedOnlineFee(): string {
-    return `Rp ${this._profile.consultationFeeOnline.toLocaleString('id-ID')}`;
-  }
-
-  public getFormattedOfflineFee(): string {
-    return `Rp ${this._profile.consultationFeeOffline.toLocaleString('id-ID')}`;
   }
 
   // Schedule filtering methods
@@ -139,8 +122,6 @@ export class Psychologist extends User {
       therapyApproaches: ['CBT'],
       rating: 5.0,
       reviewCount: 0,
-      consultationFeeOnline: 200000,
-      consultationFeeOffline: 300000,
       languages: ['Bahasa Indonesia'],
       clinicAddress: 'JiwaSehat Clinic Center',
       isAvailableToday: true

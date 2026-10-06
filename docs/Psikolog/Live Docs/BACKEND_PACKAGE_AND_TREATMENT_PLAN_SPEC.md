@@ -1,13 +1,13 @@
 # Spesifikasi Backend: Manajemen Paket & Konsultasi Berkelanjutan (Rawat Jalan)
 
-Dokumen ini disusun sebagai panduan teknis bagi **Backend Developer** untuk mengimplementasikan fitur **Manajemen Paket Layanan Dinamis** dan **Konsultasi Berkelanjutan (*Continuous Care* / Rawat Jalan)** pada backend **Laravel 12++**.
+Dokumen ini disusun sebagai panduan teknis bagi **Backend Developer** untuk mengimplementasikan fitur **Manajemen Paket Layanan Dinamis** dan **Konsultasi Berkelanjutan (*Continuous Care* / Rawat Jalan)** pada backend **Laravel 12+**.
 
 ---
 
 ## 1. Latar Belakang & Kebutuhan Klien
 
 1. **Paket Layanan Dinamis**:
-   - Klinik memiliki 15 paket resmi yang terbagi ke dalam 3 kategori: **Konseling**, **Asesmen**, dan **Psikoterapi**.
+   - Klinik memiliki katalog paket dinamis yang terbagi ke dalam 3 kategori: **Konseling**, **Asesmen**, dan **Psikoterapi**. Hanya layanan tatap muka aktif yang dikirim ke pasien.
    - Paket harus dinamis di database (bisa ditambah, diubah tarif/deskripsi/fasilitas, dan diaktifkan/dinonaktifkan oleh psikolog).
    - Pada Landing Page publik, nominal harga disembunyikan untuk pengunjung yang belum sign in.
    - Pasien wajib melengkapi data diri (`is_profile_complete`) sebelum diizinkan memilih paket konsultasi.
@@ -17,10 +17,10 @@ Dokumen ini disusun sebagai panduan teknis bagi **Backend Developer** untuk meng
    - Pasien tidak hanya memesan satu sesi tunggal, melainkan dapat berada dalam satu program rencana perawatan (*treatment plan*).
    - Sistem wajib mencatat nomor sesi ke-N (contoh: Sesi 1 dari 4, Sesi 2 dari 4) dan melacak progres terapi pasien hingga tuntas.
 
-3. **Skema Pembayaran DP Flat Administrasi**:
-   - Setiap pemesanan jadwal reservasi wajib membayar **DP Flat Rp 100.000** sebagai biaya administrasi penguncian slot.
+3. **Skema Pembayaran DP per Paket**:
+   - Psikolog/pengelola menentukan nominal DP pada setiap paket. Backend menghitung ulang DP dari paket aktif dan tidak menerima nominal final dari payload pasien/admin.
    - Pasien wajib mengunggah bukti transfer dan mencantumkan nama pemilik rekening pengirim (`transfer_sender_name`).
-   - Sisa biaya paket (`harga paket - Rp 100.000`) dilunasi saat pasien hadir di klinik.
+   - Sisa biaya paket (`total setelah diskon - DP`) dilunasi saat pasien hadir di klinik.
 
 ---
 
@@ -37,6 +37,10 @@ Schema::create('consultation_packages', function (Blueprint $table) {
     $table->enum('session_type', ['SINGLE_SESSION', 'CONTINUOUS_CARE'])->default('SINGLE_SESSION');
     $table->integer('duration_minutes')->default(60); // 60, 75, 90, 180 menit
     $table->decimal('price', 12, 2); // Nominal harga paket
+    $table->decimal('dp_amount', 12, 2)->default(100000.00); // Nilai default yang dapat diubah psikolog
+    $table->enum('discount_type', ['NONE', 'PERCENT', 'FIXED'])->default('NONE');
+    $table->decimal('discount_value', 12, 2)->default(0);
+    $table->string('discount_label', 150)->nullable();
     $table->text('description');
     $table->json('benefits')->nullable(); // Array string fasilitas
     $table->text('continuous_care_note')->nullable(); // Catatan panduan rawat jalan berkelanjutan
@@ -75,9 +79,15 @@ Menghubungkan reservasi ke paket dan treatment plan.
 Schema::table('appointments', function (Blueprint $table) {
     $table->foreignUuid('treatment_plan_id')->nullable()->constrained('treatment_plans')->nullOnDelete();
     $table->integer('continuous_session_number')->nullable(); // Menandai sesi ke-N (misal: 1, 2, 3, 4)
-    $table->decimal('dp_amount', 12, 2)->default(100000.00); // DP Flat Rp 100.000
+    $table->decimal('dp_amount', 12, 2)->default(0.00); // Snapshot DP paket saat booking
     $table->decimal('remaining_amount', 12, 2)->default(0.00); // Sisa pelunasan di klinik
     $table->string('transfer_sender_name', 150)->nullable(); // Nama rekening pengirim transfer
+    $table->decimal('final_payment_amount', 12, 2)->nullable(); // Pelunasan aktual, tersembunyi dari response admin
+    $table->enum('final_payment_method', ['CASH', 'BANK_TRANSFER', 'QRIS', 'EDC', 'OTHER'])->nullable();
+    $table->string('final_payment_channel_detail', 150)->nullable();
+    $table->string('final_payment_reference', 150)->nullable();
+    $table->timestamp('final_payment_recorded_at')->nullable();
+    $table->foreignId('final_payment_recorded_by')->nullable()->constrained('users')->nullOnDelete();
 });
 ```
 
@@ -100,7 +110,9 @@ Schema::table('appointments', function (Blueprint $table) {
    - Appointment hanya merepresentasikan satu pertemuan aktual.
 3. Pembayaran paket tidak boleh dihitung berulang di setiap sesi lanjutan.
    - Invoice/pembayaran melekat ke treatment plan atau appointment pertama.
-   - Appointment sesi lanjutan berfokus pada jadwal, status hadir/selesai, dan catatan klinis.
+   - Appointment sesi lanjutan berfokus pada jadwal dan status hadir/selesai.
+   - Laporan owner menghitung uang masuk paket dari DP terverifikasi ditambah pelunasan aktual, tanpa komponen biaya operasional atau laba bersih.
+   - Admin memasukkan nominal pelunasan tanpa melihat harga paket maupun target sisa tagihan. Setelah submit, resource/serializer admin tidak boleh mengembalikan nominal tersebut.
 4. Psikolog menutup sesi secara manual.
    - Endpoint complete hanya boleh diakses psikolog/pengelola.
    - Setelah sesi `COMPLETED`, backend memperbarui `completed_sessions` pada treatment plan.
@@ -194,7 +206,7 @@ Schema::table('appointments', function (Blueprint $table) {
   "patient_id": 15,
   "package_id": "pkg-therapy-intensive-4",
   "title": "Program Terapi Kognitif Perilaku (CBT) Depresi Sedang",
-  "clinical_objective": "Mereduksi skor depresi DASS-21 dari 22 ke bawah 10 dan mengatasi distorsi kognitif.",
+  "clinical_objective": "Mendukung tujuan konseling yang disepakati psikolog dan pasien.",
   "total_planned_sessions": 4
 }
 ```
@@ -211,18 +223,37 @@ Schema::table('appointments', function (Blueprint $table) {
 }
 ```
 
+### 4.3. Pencatatan Pelunasan oleh Admin
+
+- **Method**: `POST /api/v1/admin/appointments/{id}/final-payment`
+- **Headers**: `Authorization: Bearer <token_admin>`
+- **Payload**:
+```json
+{
+  "amount": 150000,
+  "method": "BANK_TRANSFER",
+  "channel_detail": "BCA",
+  "reference": "TRX-20261006-001"
+}
+```
+- Hanya appointment berstatus pembayaran `DP_PAID` yang dapat menerima pelunasan.
+- Simpan nominal untuk audit dan laporan psikolog/owner, lalu ubah status pembayaran menjadi `PAID`.
+- Response admin hanya mengembalikan status keberhasilan, waktu pencatatan, dan identitas pencatat. Jangan mengembalikan `price`, `remaining_amount`, atau `final_payment_amount`.
+- Status konsultasi tidak berubah otomatis menjadi `COMPLETED`; penyelesaian sesi tetap aksi psikolog.
+
 ---
 
 ## 5. Validasi Bisnis Utama di Backend (FormRequest)
 
 1. **Validasi Profil Lengkap**:
    - Sebelum membuat janji temu (`AppointmentStoreRequest`), pastikan `Auth::user()->is_profile_complete === true`. Jika `false`, tolak dengan HTTP 422: `"Lengkapi data diri pasien sebelum memilih paket konsultasi."`.
-2. **Validasi DP Flat Rp 100.000**:
-   - `dp_amount` wajib bernilai `100000.00`.
+2. **Validasi DP Berdasarkan Paket**:
+   - `subtotal_amount`, `discount_amount`, `total_amount`, dan `dp_amount` wajib dihitung ulang server dari paket aktif dalam transaction.
+   - `dp_amount` tidak boleh negatif atau melebihi `total_amount` setelah diskon. Nominal dari request client harus diabaikan.
    - `transfer_sender_name` wajib diisi (`required|string|max:150`).
    - `payment_proof` wajib berkas gambar/PDF (`required|file|mimes:jpeg,png,jpg,pdf|max:5120`).
 3. **Validasi Anti Double Booking & Jadwal H+1**:
-   - Tanggal booking wajib `date|after:today`.
+   - Semua booking, termasuk endpoint walk-in admin, wajib memakai validasi `date|after:today` atau aturan ekuivalen minimal H+1.
    - Tanggal booking tidak boleh jatuh pada hari libur psikolog (`psychologist_holidays`).
    - Slot waktu tidak boleh bertabrakan dengan appointment lain yang berstatus `CONFIRMED` atau `PENDING` aktif.
 4. **Validasi Sesi Lanjutan**:
@@ -230,6 +261,11 @@ Schema::table('appointments', function (Blueprint $table) {
    - `next_session_number` tidak boleh melebihi `total_planned_sessions`.
    - Hanya psikolog/pengelola yang boleh menjadwalkan sesi lanjutan dan menandai sesi selesai.
    - Endpoint wajib menolak request jika ada appointment aktif yang overlap pada psikolog, tanggal, dan rentang waktu yang sama.
+5. **Validasi Pelunasan Admin**:
+   - `amount` wajib numerik dan lebih besar dari nol.
+   - Appointment wajib berstatus pembayaran `DP_PAID` dan belum memiliki pelunasan.
+   - Gunakan transaction agar double submit tidak membuat dua transaksi pelunasan.
+   - Policy/resource admin wajib menyembunyikan harga paket, target sisa tagihan, dan nominal pelunasan setelah pencatatan.
 
 ---
 

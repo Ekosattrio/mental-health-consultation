@@ -26,7 +26,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Sesi Ditangani</span>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">{myAppointments.length} Sesi</div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Online & Tatap Muka</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Seluruh sesi tatap muka</p>
         </div>
         <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Slot Waktu Aktif</span>

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { PsychologistProfile } from '../../types';
+import { ImageWithFallback } from '../common/ImageWithFallback';
 import {
   ShieldCheck,
   Calendar,
@@ -20,7 +21,6 @@ import {
   ChevronDown,
   Stethoscope,
   Lock,
-  Video,
   HeartHandshake,
   ClipboardCheck,
   Users
@@ -164,10 +164,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl bg-teal-50 border-2 border-teal-200/90 shadow-md shrink-0 overflow-hidden relative group">
                     {soloPsychologist?.avatarUrl || soloUser?.avatar ? (
-                      <img
+                      <ImageWithFallback
                         src={soloPsychologist?.avatarUrl || soloUser?.avatar}
                         alt={soloUser?.name || 'dr. Sarah Jenkins, M.Psi.'}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        fallback={<Stethoscope className="w-9 h-9 m-auto text-teal-700" />}
                       />
                     ) : (
                       <div className="w-full h-full bg-teal-600 text-white flex items-center justify-center">
@@ -283,10 +284,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               <div className="space-y-4">
                 <div className="w-20 h-20 rounded-3xl bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center shadow-inner overflow-hidden">
                   {soloPsychologist?.avatarUrl || soloUser?.avatar ? (
-                    <img
+                    <ImageWithFallback
                       src={soloPsychologist?.avatarUrl || soloUser?.avatar}
                       alt={soloUser?.name || 'Psikolog'}
                       className="w-full h-full object-cover"
+                      fallback={<Stethoscope className="w-10 h-10" />}
                     />
                   ) : (
                     <Stethoscope className="w-10 h-10" />
@@ -495,7 +497,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
                   {displayedPackages.map(pkg => {
-                    const isPopular = pkg.badge === 'Paling Populer' || pkg.badge === 'Rekomendasi Klinis' || pkg.badge === 'Termasuk Laporan Resmi';
+                    const isPopular = pkg.badge === 'Paling Populer' || pkg.badge === 'Rekomendasi Klinis' || pkg.badge === 'Termasuk Laporan';
                     return (
                       <div
                         key={pkg.id}
@@ -515,7 +517,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                           {/* Header Package */}
                           <div className="flex items-start gap-3 mb-4">
                             <div className="p-3 bg-teal-50 text-teal-700 rounded-2xl border border-teal-100 shrink-0">
-                              {pkg.category === 'KONSELING' && (pkg.type === 'ONLINE_TELE' ? <Video className="w-5 h-5" /> : <Users className="w-5 h-5" />)}
+                              {pkg.category === 'KONSELING' && <Users className="w-5 h-5" />}
                               {pkg.category === 'ASESMEN' && <ClipboardCheck className="w-5 h-5" />}
                               {pkg.category === 'PSIKOTERAPI' && <Sparkles className="w-5 h-5" />}
                               {!pkg.category && <ClipboardCheck className="w-5 h-5" />}
@@ -566,7 +568,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                                 </span>
                               </div>
                               <p className="text-[11px] text-slate-600 leading-snug">
-                                Tarif resmi dan kuota jadwal sesi dapat diakses setelah Anda masuk akun & melengkapi data diri pasien.
+                                Tarif dan kuota jadwal sesi dapat diakses setelah Anda masuk akun & melengkapi data diri pasien.
                               </p>
                               {pkg.notes && (
                                 <p className="text-[10px] text-slate-500 italic mt-0.5">
@@ -625,7 +627,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-5 space-y-6">
             <div>
-              <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Lokasi Praktik Resmi</span>
+              <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Lokasi Praktik</span>
               <h2 className="text-3xl font-extrabold text-slate-900 mt-1">{landingCms.clinicName}</h2>
               <p className="text-sm text-slate-600 mt-2 leading-relaxed">
                 Dirancang khusus dengan konsep interior peredam suara, pencahayaan alami yang menenangkan, serta fasilitas ruang tunggu privat untuk menjamin rasa nyaman dan privasi penuh pasien tatap muka.
@@ -665,7 +667,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-900 uppercase">Kontak Resmi & Janji Temu</h4>
+                  <h4 className="text-xs font-bold text-slate-900 uppercase">Kontak & Janji Temu</h4>
                   <p className="text-xs text-slate-600 mt-0.5">
                     WhatsApp: <strong>{landingCms.clinicWhatsapp}</strong>
                   </p>
@@ -1000,10 +1002,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               <div className="flex items-center gap-3">
                 <div className="w-16 h-16 rounded-2xl bg-teal-50 border-2 border-teal-200 text-teal-700 flex items-center justify-center shrink-0 overflow-hidden">
                   {soloPsychologist?.avatarUrl || soloUser?.avatar ? (
-                    <img
+                    <ImageWithFallback
                       src={soloPsychologist?.avatarUrl || soloUser?.avatar}
                       alt={soloUser?.name || 'Psikolog'}
                       className="w-full h-full object-cover"
+                      fallback={<Stethoscope className="w-8 h-8" />}
                     />
                   ) : (
                     <Stethoscope className="w-8 h-8" />
@@ -1075,7 +1078,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               <p className="text-xs text-slate-500 mt-1">Dokumen lengkap akan dipetakan ke halaman kebijakan backend/CMS saat produksi.</p>
             </div>
             <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
-              <p><strong>Persetujuan layanan:</strong> pasien memahami bahwa sesi konsultasi dilakukan oleh psikolog/pengelola berizin sesuai jadwal yang dikonfirmasi.</p>
+              <p><strong>Persetujuan layanan:</strong> pasien memahami bahwa sesi konsultasi dilakukan oleh psikolog/pengelola sesuai jadwal yang dikonfirmasi.</p>
               <p><strong>Penggunaan data:</strong> data diri, pre-test, pembayaran, dan riwayat sesi digunakan untuk administrasi, persiapan sesi, dan pelaporan internal pemilik praktik.</p>
               <p><strong>Batas pre-test:</strong> pre-test adalah profiling awal, bukan diagnosis otomatis atau pengganti konsultasi profesional.</p>
               <p><strong>Kerahasiaan:</strong> data klinis tidak ditampilkan ke publik dan hanya dapat diakses role yang berwenang.</p>

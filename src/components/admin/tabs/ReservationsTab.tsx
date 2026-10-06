@@ -10,25 +10,38 @@ import {
   CheckCircle2,
   UserPlus,
   CreditCard,
+  Printer,
   Sparkles,
   User,
-  Calendar,
+  CalendarClock,
   AlertCircle,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
+import { computeDynamicSlotsForDate, loadScheduleSettings } from '../../../data/scheduleConfig';
 
 interface ReservationsTabProps {
   appointments: Appointment[];
   updateAppointmentStatus: (id: string, status: any) => void;
 }
 
+const getLocalDateString = (date: Date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const getTomorrowDateValue = () => {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return getLocalDateString(date);
+};
+
 export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   appointments,
   updateAppointmentStatus
 }) => {
-  const { users, packages, bookAppointment, showToast } = useApp();
+  const { users, packages, bookAppointment, rescheduleAppointment, recordFinalPayment, showToast } = useApp();
 
   const [resSearchQuery, setResSearchQuery] = useState('');
   const [resStatusFilter, setResStatusFilter] = useState('ALL');
@@ -49,14 +62,11 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientPhone, setNewPatientPhone] = useState('');
   const [newPatientEmail, setNewPatientEmail] = useState('');
-  const [selectedPsychologistId, setSelectedPsychologistId] = useState<string>(
-    users.find(u => u.role === 'PSYCHOLOGIST')?.id || 'user-psy-1'
-  );
   const [selectedPackageId, setSelectedPackageId] = useState<string>(
     packages[0]?.id || ''
   );
   const [walkInDate, setWalkInDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
+    getTomorrowDateValue()
   );
   const [walkInTime, setWalkInTime] = useState<string>('10:00 - 11:00');
   const [walkInPaymentType, setWalkInPaymentType] = useState<'PAID' | 'DP_PAID'>('PAID');
@@ -65,10 +75,151 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const [walkInTransferSender, setWalkInTransferSender] = useState('');
   const [walkInPaymentReference, setWalkInPaymentReference] = useState('');
   const [isSubmittingWalkIn, setIsSubmittingWalkIn] = useState(false);
+  const [receiptApt, setReceiptApt] = useState<Appointment | null>(null);
+  const [rescheduleApt, setRescheduleApt] = useState<Appointment | null>(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('10:00 - 11:00');
+  const [rescheduleReason, setRescheduleReason] = useState('');
+  const [isSubmittingReschedule, setIsSubmittingReschedule] = useState(false);
+  const [settlementApt, setSettlementApt] = useState<Appointment | null>(null);
+  const [settlementAmount, setSettlementAmount] = useState('');
+  const [settlementMethod, setSettlementMethod] = useState<NonNullable<Appointment['finalPaymentMethod']>>('CASH');
+  const [settlementChannel, setSettlementChannel] = useState('');
+  const [settlementReference, setSettlementReference] = useState('');
 
-  const psychologistUsers = useMemo(() => {
-    return users.filter(u => u.role === 'PSYCHOLOGIST');
-  }, [users]);
+  const defaultPsychologistId = users.find(u => u.role === 'PSYCHOLOGIST' && u.status === 'ACTIVE')?.id || '';
+
+  useEffect(() => {
+    const firstActivePackage = packages.find(pkg => pkg.isActive);
+    if (firstActivePackage && !packages.some(pkg => pkg.id === selectedPackageId && pkg.isActive)) {
+      setSelectedPackageId(firstActivePackage.id);
+    }
+  }, [packages, selectedPackageId]);
+
+  const getTomorrowDate = () => {
+    return getTomorrowDateValue();
+  };
+
+  const selectedWalkInPackage = packages.find(pkg => pkg.id === selectedPackageId && pkg.isActive);
+  const walkInTimeOptions = useMemo(() => {
+    if (!walkInDate || !defaultPsychologistId || !selectedWalkInPackage) return [];
+    const availability = computeDynamicSlotsForDate(
+      walkInDate,
+      loadScheduleSettings(),
+      appointments,
+      defaultPsychologistId,
+      selectedWalkInPackage.durationMinutes
+    );
+    return availability.slots
+      .filter(slot => slot.isAvailable)
+      .map(slot => `${slot.startTime} - ${slot.endTime}`);
+  }, [appointments, defaultPsychologistId, selectedWalkInPackage, walkInDate]);
+
+  useEffect(() => {
+    if (!walkInTimeOptions.includes(walkInTime)) {
+      setWalkInTime(walkInTimeOptions[0] || '');
+    }
+  }, [walkInTime, walkInTimeOptions]);
+
+  const rescheduleTimeOptions = useMemo(() => {
+    if (!rescheduleApt || !rescheduleDate) return [];
+    const toMinutes = (time: string) => {
+      const [hour, minute] = time.split(':').map(Number);
+      return hour * 60 + minute;
+    };
+    const duration = Math.max(toMinutes(rescheduleApt.endTime) - toMinutes(rescheduleApt.startTime), 30);
+    const availability = computeDynamicSlotsForDate(
+      rescheduleDate,
+      loadScheduleSettings(),
+      appointments.filter(item => item.id !== rescheduleApt.id),
+      rescheduleApt.psychologistId,
+      duration
+    );
+    return availability.slots
+      .filter(slot => slot.isAvailable)
+      .map(slot => `${slot.startTime} - ${slot.endTime}`);
+  }, [appointments, rescheduleApt, rescheduleDate]);
+
+  useEffect(() => {
+    if (rescheduleApt && !rescheduleTimeOptions.includes(rescheduleTime)) {
+      setRescheduleTime(rescheduleTimeOptions[0] || '');
+    }
+  }, [rescheduleApt, rescheduleTime, rescheduleTimeOptions]);
+
+  const openRescheduleModal = (apt: Appointment) => {
+    setRescheduleApt(apt);
+    setRescheduleDate(getTomorrowDate());
+    setRescheduleTime(`${apt.startTime} - ${apt.endTime}`);
+    setRescheduleReason('');
+  };
+
+  const handleConfirmPayment = (apt: Appointment) => {
+    updateAppointmentStatus(apt.id, 'CONFIRMED');
+    setReceiptApt({
+      ...apt,
+      status: 'CONFIRMED',
+      paymentStatus: apt.paymentStatus === 'PAID' ? 'PAID' : 'DP_PAID'
+    });
+  };
+
+  const openSettlementModal = (apt: Appointment) => {
+    setSettlementApt(apt);
+    setSettlementAmount('');
+    setSettlementMethod('CASH');
+    setSettlementChannel('');
+    setSettlementReference('');
+  };
+
+  const handleRecordSettlement = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!settlementApt) return;
+
+    const success = recordFinalPayment(settlementApt.id, {
+      amount: Number(settlementAmount),
+      method: settlementMethod,
+      channelDetail: settlementChannel,
+      reference: settlementReference
+    });
+
+    if (success) {
+      setSettlementApt(null);
+      setSettlementAmount('');
+      setSettlementChannel('');
+      setSettlementReference('');
+    }
+  };
+
+  const handleSubmitReschedule = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!rescheduleApt) return;
+
+    if (!rescheduleTime) {
+      showToast('Slot Tidak Tersedia', 'Tidak ada jam praktik yang tersedia pada tanggal baru.', 'warning');
+      return;
+    }
+
+    const times = rescheduleTime.split(' - ');
+    const startTime = times[0]?.trim() || rescheduleApt.startTime;
+    const endTime = times[1]?.trim() || rescheduleApt.endTime;
+
+    setIsSubmittingReschedule(true);
+    try {
+      const success = await rescheduleAppointment(
+        rescheduleApt.id,
+        rescheduleDate,
+        startTime,
+        endTime,
+        rescheduleReason.trim() || 'Dibantu reschedule oleh admin'
+      );
+
+      if (success) {
+        setRescheduleApt(null);
+        setRescheduleReason('');
+      }
+    } finally {
+      setIsSubmittingReschedule(false);
+    }
+  };
 
   const existingPatients = useMemo(() => {
     return users.filter(u => u.role === 'PATIENT');
@@ -80,26 +231,23 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
       const matchesSearch =
         !q ||
         apt.bookingCode.toLowerCase().includes(q) ||
-        apt.patientName.toLowerCase().includes(q) ||
-        apt.psychologistName.toLowerCase().includes(q);
+        apt.patientName.toLowerCase().includes(q);
       const matchesStatus = resStatusFilter === 'ALL' || apt.status === resStatusFilter;
       return matchesSearch && matchesStatus;
     });
   }, [appointments, resSearchQuery, resStatusFilter]);
 
   const handleExportCsv = () => {
-    const headers = ['Kode Booking', 'Pasien', 'Psikolog', 'Paket', 'Tanggal', 'Jam', 'Tipe', 'Status', 'Pembayaran', 'Total (Rp)'];
+    const headers = ['Kode Booking', 'Pasien', 'Paket', 'Tanggal', 'Jam', 'Tipe', 'Status', 'Pembayaran'];
     const rows = filteredAppointments.map(a => [
       `"${a.bookingCode}"`,
       `"${a.patientName.replace(/"/g, '""')}"`,
-      `"${a.psychologistName.replace(/"/g, '""')}"`,
       `"${a.packageName.replace(/"/g, '""')}"`,
       `"${a.date}"`,
       `"${a.startTime} - ${a.endTime}"`,
       `"${a.packageType}"`,
       `"${a.status}"`,
-      `"${a.paymentStatus}"`,
-      a.totalAmount || 0
+      `"${a.paymentStatus}"`
     ].join(','));
 
     const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
@@ -117,6 +265,11 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
     setIsSubmittingWalkIn(true);
 
     try {
+      if (!walkInTime || !selectedWalkInPackage) {
+        showToast('Jadwal Tidak Tersedia', 'Tidak ada jam praktik tersisa untuk tanggal atau paket yang dipilih.', 'warning');
+        return;
+      }
+
       let patientId = selectedPatientId;
       let patientName = '';
       let patientEmail = '';
@@ -141,7 +294,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
         patientEmail = newPatientEmail.trim() || `${newPatientName.toLowerCase().replace(/\s+/g, '')}@walkin.jiwasehat.id`;
       }
 
-      const targetPkg = packages.find(p => p.id === selectedPackageId) || packages[0];
+      const targetPkg = selectedWalkInPackage;
       const times = walkInTime.split(' - ');
       const startTime = times[0]?.trim() || '10:00';
       const endTime = times[1]?.trim() || '11:00';
@@ -177,14 +330,14 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
         patientId,
         patientName,
         patientEmail,
-        psychologistId: selectedPsychologistId,
+        patientPhone: patientMode === 'NEW' ? newPatientPhone.trim() : undefined,
+        psychologistId: defaultPsychologistId,
         packageId: targetPkg.id,
         date: walkInDate,
         slotId: `slot-walkin-${Date.now()}`,
         paymentMethod,
         startTime,
         endTime,
-        dpAmount: targetPkg.dpAmount || 100000,
         transferSenderName,
         paymentChannelDetail,
         paymentReference: walkInPaymentReference.trim(),
@@ -194,6 +347,11 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
       if (res.success && res.appointment) {
         // Otomatis verifikasi dan konfirmasi booking walk-in oleh admin
         updateAppointmentStatus(res.appointment.id, 'CONFIRMED');
+        setReceiptApt({
+          ...res.appointment,
+          status: 'CONFIRMED',
+          paymentStatus: walkInPaymentType
+        });
         showToast(
           'Booking Walk-In Berhasil',
           `Jadwal untuk ${patientName} berhasil dibuat dengan kode #${res.appointment.bookingCode}.`,
@@ -222,14 +380,12 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
     return filteredAppointments.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredAppointments, startIndex, itemsPerPage]);
 
-  const activeSelectedPackage = packages.find(p => p.id === selectedPackageId) || packages[0];
-
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-3">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Booking, Verifikasi DP, dan Bantuan Reschedule</h3>
+            <h3 className="text-base font-bold text-slate-900">Booking, Verifikasi Pembayaran, dan Bantuan Reschedule</h3>
             <p className="text-xs text-slate-500">
               Admin memantau booking, memverifikasi pembayaran, dan mengonfirmasi reservasi. Status selesai konsultasi ditandai oleh psikolog.
             </p>
@@ -246,8 +402,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
           <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200/90 text-xs text-amber-900 flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <div>
-              <strong className="block mb-0.5">Verifikasi DP Pasien (Rp 100.000)</strong>
-              Booking baru berstatus <em>Pending</em> wajib diverifikasi setelah bukti transfer DP administrasi valid.
+              <strong className="block mb-0.5">Verifikasi Pembayaran Pasien</strong>
+              Booking baru berstatus <em>Pending</em> wajib diverifikasi setelah bukti pembayaran administrasi valid.
             </div>
           </div>
           <div className="p-3.5 rounded-2xl bg-purple-50 border border-purple-200/90 text-xs text-purple-900 flex items-start gap-2.5">
@@ -313,13 +469,88 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100 border-y border-slate-200">
+          {paginatedAppointments.length === 0 ? (
+            <div className="py-10 px-4 text-center text-xs text-slate-400">
+              Tidak ditemukan reservasi yang cocok dengan kriteria filter.
+            </div>
+          ) : paginatedAppointments.map(apt => (
+            <article key={apt.id} className="p-4 space-y-3 bg-white">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-black text-slate-900 truncate">{apt.patientName}</div>
+                  <div className="text-[11px] font-mono text-slate-500 mt-0.5">{apt.bookingCode}</div>
+                </div>
+                <span className={`px-2 py-1 rounded text-[10px] font-bold shrink-0 ${
+                  apt.status === 'CONFIRMED'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : apt.status === 'COMPLETED'
+                    ? 'bg-slate-200 text-slate-800'
+                    : apt.status === 'PENDING'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}>
+                  {apt.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="min-w-0">
+                  <span className="block text-slate-400 font-bold uppercase">Paket</span>
+                  <span className="block text-slate-800 font-semibold mt-0.5 line-clamp-2">{apt.packageName}</span>
+                </div>
+                <div>
+                  <span className="block text-slate-400 font-bold uppercase">Jadwal</span>
+                  <span className="block text-slate-800 font-semibold mt-0.5">{apt.date}</span>
+                  <span className="block text-slate-500">{apt.startTime} - {apt.endTime}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                  apt.paymentStatus === 'PAID'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : apt.paymentStatus === 'DP_PAID'
+                    ? 'bg-sky-100 text-sky-800'
+                    : apt.paymentStatus === 'DP_PENDING_VERIFICATION'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-slate-100 text-slate-700'
+                }`}>
+                  {apt.paymentStatus}
+                </span>
+                <div className="flex items-center gap-2">
+                  {apt.status === 'PENDING' && (
+                    <button type="button" onClick={() => handleConfirmPayment(apt)} className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center" aria-label="Konfirmasi reservasi">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  {(apt.status === 'PENDING' || apt.status === 'CONFIRMED') && (
+                    <button type="button" onClick={() => openRescheduleModal(apt)} className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center" aria-label="Reschedule jadwal pasien">
+                      <CalendarClock className="w-4 h-4" />
+                    </button>
+                  )}
+                  {apt.paymentStatus === 'DP_PAID' && (
+                    <button type="button" onClick={() => openSettlementModal(apt)} className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center" aria-label="Catat pelunasan">
+                      <CreditCard className="w-4 h-4" />
+                    </button>
+                  )}
+                  {(apt.status === 'CONFIRMED' || apt.paymentStatus === 'DP_PAID' || apt.paymentStatus === 'PAID') && (
+                    <button type="button" onClick={() => setReceiptApt(apt)} className="w-9 h-9 rounded-xl bg-slate-50 text-slate-700 border border-slate-200 flex items-center justify-center" aria-label="Print receipt">
+                      <Printer className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full min-w-[760px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-y border-slate-200">
               <tr>
                 <th className="py-3 px-4">Kode</th>
                 <th className="py-3 px-4">Pasien</th>
-                <th className="py-3 px-4">Psikolog</th>
                 <th className="py-3 px-4">Paket</th>
                 <th className="py-3 px-4">Waktu</th>
                 <th className="py-3 px-4">Status</th>
@@ -330,7 +561,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
             <tbody className="divide-y divide-slate-100">
               {paginatedAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
                     Tidak ditemukan reservasi yang cocok dengan kriteria filter.
                   </td>
                 </tr>
@@ -339,7 +570,6 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                   <tr key={apt.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3 px-4 font-bold text-slate-900">{apt.bookingCode}</td>
                     <td className="py-3 px-4 font-semibold text-slate-800">{apt.patientName}</td>
-                    <td className="py-3 px-4 text-slate-700">{apt.psychologistName.split(',')[0]}</td>
                     <td className="py-3 px-4">
                       <div className="font-semibold text-slate-900">{apt.packageName}</div>
                       {apt.continuousSessionTotal && apt.continuousSessionTotal > 1 && (
@@ -347,9 +577,6 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                           Sesi {apt.continuousSessionNumber || 1}/{apt.continuousSessionTotal}
                         </div>
                       )}
-                      <div className="text-[10px] text-emerald-700 font-bold">
-                        Rp {apt.totalAmount.toLocaleString('id-ID')}
-                      </div>
                     </td>
                     <td className="py-3 px-4 text-slate-600">
                       {apt.date} {apt.startTime}
@@ -383,9 +610,6 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                       >
                         {apt.paymentStatus}
                       </span>
-                      <div className="text-[10px] text-slate-500 mt-1">
-                        DP Admin Rp {(apt.dpAmount || 100000).toLocaleString('id-ID')}
-                      </div>
                       {apt.transferSenderName && (
                         <div className="text-[10px] text-emerald-800 font-bold mt-0.5">
                           Pengirim: {apt.transferSenderName}
@@ -405,10 +629,10 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                     <td className="py-3 px-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         {apt.status === 'PENDING' && (
-                          <Tooltip content="Verifikasi DP & Konfirmasi Booking" position="top">
+                          <Tooltip content="Verifikasi Pembayaran & Konfirmasi Booking" position="top">
                             <button
                               type="button"
-                              onClick={() => updateAppointmentStatus(apt.id, 'CONFIRMED')}
+                              onClick={() => handleConfirmPayment(apt)}
                               className="w-8 h-8 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                               aria-label="Konfirmasi Reservasi"
                             >
@@ -416,10 +640,44 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                             </button>
                           </Tooltip>
                         )}
-                        {apt.status !== 'PENDING' && (
-                          <span className="text-[10px] font-bold text-slate-400">
-                            Tidak ada aksi
-                          </span>
+                        {(apt.status === 'PENDING' || apt.status === 'CONFIRMED') && (
+                          <Tooltip content="Bantu Reschedule Jadwal Pasien" position="top">
+                            <button
+                              type="button"
+                              onClick={() => openRescheduleModal(apt)}
+                              className="w-8 h-8 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                              aria-label="Reschedule Jadwal Pasien"
+                            >
+                              <CalendarClock className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        )}
+                        {apt.paymentStatus === 'DP_PAID' && (
+                          <Tooltip content="Catat Pelunasan yang Diterima" position="top">
+                            <button
+                              type="button"
+                              onClick={() => openSettlementModal(apt)}
+                              className="w-8 h-8 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                              aria-label="Catat pelunasan"
+                            >
+                              <CreditCard className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        )}
+                        {(apt.status === 'CONFIRMED' || apt.paymentStatus === 'DP_PAID' || apt.paymentStatus === 'PAID') && (
+                          <Tooltip content="Print Receipt / Simpan PDF" position="top">
+                            <button
+                              type="button"
+                              onClick={() => setReceiptApt(apt)}
+                              className="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
+                              aria-label="Print Receipt"
+                            >
+                              <Printer className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        )}
+                        {apt.status !== 'PENDING' && apt.status !== 'CONFIRMED' && apt.paymentStatus !== 'DP_PAID' && apt.paymentStatus !== 'PAID' && (
+                          <span className="text-[10px] font-bold text-slate-400">Tidak ada aksi</span>
                         )}
                       </div>
                     </td>
@@ -604,23 +862,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                 </div>
               )}
 
-              {/* Pilihan Psikolog & Paket */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 block">Psikolog yang Melayani *</label>
-                  <select
-                    value={selectedPsychologistId}
-                    onChange={e => setSelectedPsychologistId(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
-                  >
-                    {psychologistUsers.map(psy => (
-                      <option key={psy.id} value={psy.id}>
-                        {psy.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
+              {/* Pilihan Paket */}
+              <div className="grid grid-cols-1 gap-3">
                 <div className="space-y-1.5">
                   <label className="text-[11px] font-bold text-slate-700 block">Pilihan Paket Layanan *</label>
                   <select
@@ -628,40 +871,23 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                     onChange={e => setSelectedPackageId(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
                   >
-                    {packages.map(pkg => (
+                    {packages.filter(pkg => pkg.isActive).map(pkg => (
                       <option key={pkg.id} value={pkg.id}>
-                        {pkg.name} ({pkg.durationMinutes} mnt) - Rp {pkg.price.toLocaleString('id-ID')}
+                        {pkg.name} ({pkg.durationMinutes} mnt)
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
 
-              {/* Rincian Tarif & DP Paket */}
-              {activeSelectedPackage && (
-                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
-                  <div>
-                    <span className="text-slate-500 block">Tarif Total Paket:</span>
-                    <strong className="text-slate-900 font-mono text-sm">
-                      Rp {activeSelectedPackage.price.toLocaleString('id-ID')}
-                    </strong>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-slate-500 block">Ketentuan DP Administrasi:</span>
-                    <strong className="text-purple-700 font-mono text-sm">
-                      Rp {(activeSelectedPackage.dpAmount || 100000).toLocaleString('id-ID')}
-                    </strong>
-                  </div>
-                </div>
-              )}
-
               {/* Tanggal & Waktu Sesi */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold text-slate-700 block">Tanggal Sesi Konsultasi *</label>
+                  <label className="text-[11px] font-bold text-slate-700 block">Tanggal Sesi Konsultasi (Minimal H+1) *</label>
                   <input
                     type="date"
                     required
+                    min={getTomorrowDateValue()}
                     value={walkInDate}
                     onChange={e => setWalkInDate(e.target.value)}
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
@@ -675,12 +901,9 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                     onChange={e => setWalkInTime(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
                   >
-                    <option value="09:00 - 10:00">09:00 - 10:00 WIB (Pagi)</option>
-                    <option value="10:30 - 11:30">10:30 - 11:30 WIB (Pagi)</option>
-                    <option value="13:00 - 14:00">13:00 - 14:00 WIB (Siang)</option>
-                    <option value="14:30 - 15:30">14:30 - 15:30 WIB (Siang)</option>
-                    <option value="16:00 - 17:00">16:00 - 17:00 WIB (Sore)</option>
-                    <option value="19:00 - 20:00">19:00 - 20:00 WIB (Malam)</option>
+                    {walkInTimeOptions.map(timeRange => (
+                      <option key={timeRange} value={timeRange}>{timeRange} WIB</option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -688,7 +911,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
               {/* Metode Pembayaran di Tempat */}
               <div className="space-y-2">
                 <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-                  Nominal Pembayaran Pasien di Meja Resepsionis
+                  Status Pembayaran Pasien di Meja Resepsionis
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
@@ -705,7 +928,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                       <span>Lunas di Tempat</span>
                     </div>
                     <span className="text-[11px] font-normal text-slate-500 block">
-                      Kasir Klinik / EDC / Tunai Penuh
+                      Pasien dinyatakan lunas sesuai arahan psikolog/pengelola.
                     </span>
                   </button>
 
@@ -723,7 +946,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                       <span>Bayar DP Administrasi</span>
                     </div>
                     <span className="text-[11px] font-normal text-slate-500 block">
-                      DP Rp 100.000 (Pelunasan nanti)
+                      Pasien membayar DP administrasi sesuai arahan psikolog/pengelola.
                     </span>
                   </button>
                 </div>
@@ -824,6 +1047,359 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {settlementApt && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 text-purple-700 flex items-center justify-center">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Catat Pelunasan</h3>
+                  <p className="text-xs text-slate-500">Masukkan uang yang benar-benar diterima kasir.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSettlementApt(null)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                aria-label="Tutup pencatatan pelunasan"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordSettlement} className="p-5 space-y-4 text-xs">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Kode Booking</span>
+                  <strong className="text-slate-900">{settlementApt.bookingCode}</strong>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Pasien</span>
+                  <strong className="text-slate-900 text-right">{settlementApt.patientName}</strong>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Status</span>
+                  <strong className="text-sky-700">DP sudah dikonfirmasi</strong>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Nominal Pelunasan Diterima (Rp) *</label>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="1000"
+                  value={settlementAmount}
+                  onChange={event => setSettlementAmount(event.target.value)}
+                  placeholder="Masukkan nominal yang diterima"
+                  autoComplete="off"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-bold text-slate-900 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1.5">Metode Pelunasan</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'CASH', label: 'Cash' },
+                    { id: 'BANK_TRANSFER', label: 'Bank' },
+                    { id: 'QRIS', label: 'QRIS' },
+                    { id: 'EDC', label: 'EDC' }
+                  ].map(method => (
+                    <button
+                      key={method.id}
+                      type="button"
+                      onClick={() => setSettlementMethod(method.id as NonNullable<Appointment['finalPaymentMethod']>)}
+                      className={`min-h-10 rounded-xl border text-[11px] font-bold transition-colors cursor-pointer ${
+                        settlementMethod === method.id
+                          ? 'bg-purple-600 border-purple-600 text-white'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {method.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {settlementMethod !== 'CASH' && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Bank / Channel</label>
+                    <input
+                      type="text"
+                      value={settlementChannel}
+                      onChange={event => setSettlementChannel(event.target.value)}
+                      placeholder="Contoh: BCA / QRIS"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">Referensi (Opsional)</label>
+                    <input
+                      type="text"
+                      value={settlementReference}
+                      onChange={event => setSettlementReference(event.target.value)}
+                      placeholder="Kode transaksi"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 flex items-start gap-2 text-amber-950">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-amber-700" />
+                <p className="text-[11px] leading-relaxed">
+                  Setelah disimpan, nominal masuk ke laporan psikolog dan tidak dapat dibaca kembali dari portal admin.
+                </p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSettlementApt(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-xs active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  Simpan Pelunasan
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {rescheduleApt && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
+            <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center">
+                  <CalendarClock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Bantu Reschedule Pasien</h3>
+                  <p className="text-xs text-slate-500">
+                    Perubahan jadwal akan tercatat atas nama admin yang sedang login.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRescheduleApt(null)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                aria-label="Tutup reschedule"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitReschedule} className="p-5 space-y-4 text-xs">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Pasien</span>
+                  <strong className="text-slate-900 text-right">{rescheduleApt.patientName}</strong>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Jadwal Lama</span>
+                  <strong className="text-slate-900 text-right">
+                    {rescheduleApt.date} ({rescheduleApt.startTime} - {rescheduleApt.endTime} WIB)
+                  </strong>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] font-black uppercase text-slate-400">Paket</span>
+                  <strong className="text-slate-900 text-right">{rescheduleApt.packageName}</strong>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Tanggal Baru (Minimal H+1)</label>
+                  <input
+                    type="date"
+                    required
+                    min={getTomorrowDate()}
+                    value={rescheduleDate}
+                    onChange={e => setRescheduleDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Jam Baru</label>
+                  <select
+                    value={rescheduleTime}
+                    onChange={e => setRescheduleTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                  >
+                    {rescheduleTimeOptions.length === 0 ? (
+                      <option value="">Tidak ada slot tersedia</option>
+                    ) : rescheduleTimeOptions.map(timeRange => (
+                      <option key={timeRange} value={timeRange}>{timeRange} WIB</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">Catatan Alasan Reschedule</label>
+                <textarea
+                  rows={3}
+                  value={rescheduleReason}
+                  onChange={e => setRescheduleReason(e.target.value)}
+                  placeholder="Contoh: pasien meminta bantuan admin karena tidak bisa akses portal."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-medium focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRescheduleApt(null)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReschedule}
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-xs active:scale-95 disabled:opacity-50"
+                >
+                  <CalendarClock className="w-4 h-4" />
+                  <span>{isSubmittingReschedule ? 'Menyimpan...' : 'Simpan Reschedule'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {receiptApt && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between print:hidden">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Receipt Pembayaran</h3>
+                <p className="text-xs text-slate-500">Untuk screenshot atau print sebagai PDF.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReceiptApt(null)}
+                className="w-9 h-9 rounded-2xl border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center cursor-pointer"
+                aria-label="Tutup receipt"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5 text-xs">
+              <div className="flex items-start justify-between border-b border-slate-200 pb-4">
+                <div>
+                  <h4 className="text-lg font-black text-slate-900">JiwaSehat</h4>
+                  <p className="text-slate-500">Bukti administrasi pembayaran dan konfirmasi jadwal.</p>
+                </div>
+                <div className="text-right">
+                  <span className="block font-black text-slate-900">RCPT-{receiptApt.bookingCode}</span>
+                  <span className="text-slate-500">{receiptApt.createdAt}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-black uppercase">Pasien</span>
+                  <p className="font-bold text-slate-900">{receiptApt.patientName}</p>
+                  <p className="text-slate-500">{receiptApt.patientEmail}</p>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[10px] text-slate-400 font-black uppercase">Jadwal</span>
+                  <p className="font-bold text-slate-900">{receiptApt.date}</p>
+                  <p className="text-slate-500">{receiptApt.startTime} - {receiptApt.endTime} WIB</p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="grid grid-cols-2 bg-slate-50 text-[10px] font-black uppercase text-slate-500">
+                  <div className="p-3">Rincian</div>
+                  <div className="p-3 text-right">Data</div>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-100">
+                  <div className="p-3 font-bold text-slate-600">Paket</div>
+                  <div className="p-3 text-right font-bold text-slate-900">{receiptApt.packageName}</div>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-100">
+                  <div className="p-3 font-bold text-slate-600">Status Pembayaran</div>
+                  <div className="p-3 text-right font-bold text-slate-900">{receiptApt.paymentStatus}</div>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-100">
+                  <div className="p-3 font-bold text-slate-600">Metode</div>
+                  <div className="p-3 text-right font-bold text-slate-900">{receiptApt.paymentMethod || 'MANUAL'}</div>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-100">
+                  <div className="p-3 font-bold text-slate-600">Channel</div>
+                  <div className="p-3 text-right font-bold text-slate-900">{receiptApt.paymentChannelDetail || '-'}</div>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-100">
+                  <div className="p-3 font-bold text-slate-600">Pengirim / Kasir</div>
+                  <div className="p-3 text-right font-bold text-slate-900">{receiptApt.transferSenderName || '-'}</div>
+                </div>
+                <div className="grid grid-cols-2 border-t border-slate-100">
+                  <div className="p-3 font-bold text-slate-600">Referensi</div>
+                  <div className="p-3 text-right font-bold text-slate-900">{receiptApt.paymentReference || '-'}</div>
+                </div>
+                {receiptApt.finalPaymentRecordedAt && (
+                  <div className="grid grid-cols-2 border-t border-slate-100">
+                    <div className="p-3 font-bold text-slate-600">Pelunasan</div>
+                    <div className="p-3 text-right font-bold text-emerald-700">
+                      Tercatat {receiptApt.finalPaymentRecordedAt}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {receiptApt.rescheduledAt && (
+                <div className="p-3 rounded-2xl bg-sky-50 border border-sky-200 text-sky-950">
+                  <span className="text-[10px] font-black uppercase text-sky-700">Audit Reschedule</span>
+                  <p className="font-bold">
+                    Diubah oleh {receiptApt.rescheduledByName || '-'} ({receiptApt.rescheduledByRole || '-'}) pada {receiptApt.rescheduledAt}
+                  </p>
+                  <p className="text-sky-800">{receiptApt.rescheduleReason || 'Tanpa catatan tambahan.'}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2 print:hidden">
+              <button
+                type="button"
+                onClick={() => setReceiptApt(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+              >
+                Tutup
+              </button>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-800 cursor-pointer flex items-center gap-1.5"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Print / Simpan PDF
+              </button>
+            </div>
           </div>
         </div>,
         document.body

@@ -1,147 +1,246 @@
-/**
- * HTTP Client Base untuk JiwaSehat API
- * Siap terintegrasi langsung dengan Laravel 12++ (Sanctum Authentication, CSRF Protection, dan RESTful Standards).
- */
+export interface PaginationMeta {
+  current_page?: number;
+  last_page?: number;
+  per_page?: number;
+  total?: number;
+  from?: number | null;
+  to?: number | null;
+}
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T> {
   success: boolean;
   message?: string;
   data: T;
-  meta?: {
-    current_page?: number;
-    last_page?: number;
-    per_page?: number;
-    total?: number;
-  };
+  meta?: PaginationMeta;
 }
+
+export const mapApiResponse = <T, U>(
+  response: ApiResponse<T>,
+  mapper: (data: T) => U
+): ApiResponse<U> => ({
+  ...response,
+  data: mapper(response.data)
+});
 
 export interface ApiErrorResponse {
   message: string;
   errors?: Record<string, string[]>;
-  status?: number;
+  status: number;
 }
 
+export class HttpError extends Error {
+  public readonly status: number;
+  public readonly errors?: Record<string, string[]>;
+
+  constructor(payload: ApiErrorResponse) {
+    super(payload.message);
+    this.name = 'HttpError';
+    this.status = payload.status;
+    this.errors = payload.errors;
+  }
+}
+
+type RequestBody = unknown;
+
 class ApiClient {
-  private baseUrl: string;
+  private readonly baseUrl: string;
+  private readonly timeoutMs: number;
 
   constructor() {
-    // Ambil base URL dari environment variable Vite jika ada, default ke Laravel API endpoint
-    this.baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api/v1';
+    this.baseUrl = String(import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
+    this.timeoutMs = Number(import.meta.env.VITE_API_TIMEOUT_MS || 15000);
   }
 
   private getAuthToken(): string | null {
     try {
-      return localStorage.getItem('auth_token') || localStorage.getItem('token');
+      return localStorage.getItem('auth_token');
     } catch {
       return null;
     }
   }
 
-  private getHeaders(customHeaders: HeadersInit = {}): HeadersInit {
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      'X-Requested-With': 'XMLHttpRequest', // Memberi tahu Laravel bahwa ini permintaan AJAX/SPA
-      ...((customHeaders as Record<string, string>) || {})
-    };
+  private buildUrl(endpoint: string, params?: object): string {
+    const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    const url = `${this.baseUrl}${normalizedEndpoint}`;
+    if (!params) return url;
+
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        query.set(key, String(value));
+      }
+    });
+
+    const queryString = query.toString();
+    return queryString ? `${url}?${queryString}` : url;
+  }
+
+  private buildHeaders(body?: RequestBody, customHeaders: HeadersInit = {}): Headers {
+    const headers = new Headers(customHeaders);
+    headers.set('Accept', 'application/json');
+    headers.set('X-Requested-With', 'XMLHttpRequest');
+
+    if (body !== undefined && !(body instanceof FormData)) {
+      headers.set('Content-Type', 'application/json');
+    }
 
     const token = this.getAuthToken();
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
+    if (token) headers.set('Authorization', `Bearer ${token}`);
 
     return headers;
   }
 
-  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
-    const isJson = response.headers.get('content-type')?.includes('application/json');
-    const data = isJson ? await response.json() : await response.text();
+  private normalizeResponse<T>(payload: unknown): ApiResponse<T> {
+    if (
+      payload &&
+      typeof payload === 'object' &&
+      'success' in payload &&
+      'data' in payload
+    ) {
+      return payload as ApiResponse<T>;
+    }
+
+    if (payload && typeof payload === 'object' && 'data' in payload) {
+      const resource = payload as {
+        data: T;
+        message?: string;
+        meta?: PaginationMeta;
+      };
+      return {
+        success: true,
+        message: resource.message,
+        data: resource.data,
+        meta: resource.meta
+      };
+    }
+
+    return { success: true, data: payload as T };
+  }
+
+  private async parseResponse<T>(response: Response): Promise<ApiResponse<T>> {
+    if (response.status === 204) {
+      return { success: true, data: null as T };
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    const payload = contentType.includes('application/json')
+      ? await response.json()
+      : await response.text();
 
     if (!response.ok) {
-      const error: ApiErrorResponse = {
-        message: (data && data.message) || response.statusText || 'Terjadi kesalahan pada server',
-        errors: data && data.errors,
+      const errorPayload = payload && typeof payload === 'object'
+        ? payload as { message?: string; errors?: Record<string, string[]> }
+        : {};
+      throw new HttpError({
+        message: errorPayload.message || String(payload || response.statusText || 'Permintaan gagal'),
+        errors: errorPayload.errors,
         status: response.status
-      };
-      throw error;
-    }
-
-    // Normalisasi struktur return agar konsisten dengan standar Resource API Laravel 12
-    if (data && typeof data === 'object' && 'data' in data) {
-      return data as ApiResponse<T>;
-    }
-
-    return {
-      success: true,
-      data: data as T
-    };
-  }
-
-  public async get<T>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
-    let url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-
-    if (params) {
-      const queryParams = new URLSearchParams();
-      Object.entries(params).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
-          queryParams.append(key, String(value));
-        }
       });
-      const queryString = queryParams.toString();
-      if (queryString) {
-        url += (url.includes('?') ? '&' : '?') + queryString;
-      }
     }
 
-    const response = await fetch(url, {
+    return this.normalizeResponse<T>(payload);
+  }
+
+  private async request<T>(
+    method: string,
+    endpoint: string,
+    options: {
+      params?: object;
+      body?: RequestBody;
+      headers?: HeadersInit;
+      signal?: AbortSignal;
+    } = {}
+  ): Promise<ApiResponse<T>> {
+    const timeoutController = new AbortController();
+    const timeoutId = window.setTimeout(() => timeoutController.abort(), this.timeoutMs);
+    const abortFromCaller = () => timeoutController.abort();
+    if (options.signal?.aborted) timeoutController.abort();
+    options.signal?.addEventListener('abort', abortFromCaller, { once: true });
+
+    try {
+      const response = await fetch(this.buildUrl(endpoint, options.params), {
+        method,
+        credentials: 'include',
+        headers: this.buildHeaders(options.body, options.headers),
+        body: options.body !== undefined
+          ? options.body instanceof FormData
+            ? options.body
+            : JSON.stringify(options.body)
+          : undefined,
+        signal: timeoutController.signal
+      });
+      return await this.parseResponse<T>(response);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        if (options.signal?.aborted) {
+          throw new HttpError({
+            message: 'Permintaan dibatalkan.',
+            status: 499
+          });
+        }
+        throw new HttpError({
+          message: 'Permintaan terlalu lama. Silakan coba kembali.',
+          status: 408
+        });
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeoutId);
+      options.signal?.removeEventListener('abort', abortFromCaller);
+    }
+  }
+
+  public async initCsrf(): Promise<void> {
+    const apiMarker = '/api/v1';
+    const markerIndex = this.baseUrl.indexOf(apiMarker);
+    const origin = markerIndex >= 0 ? this.baseUrl.slice(0, markerIndex) : '';
+    const response = await fetch(`${origin}/sanctum/csrf-cookie`, {
       method: 'GET',
-      headers: this.getHeaders()
+      credentials: 'include',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
-
-    return this.handleResponse<T>(response);
+    if (!response.ok) {
+      throw new HttpError({
+        message: 'Gagal menyiapkan sesi autentikasi.',
+        status: response.status
+      });
+    }
   }
 
-  public async post<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: this.getHeaders(),
-      body: body ? JSON.stringify(body) : undefined
-    });
-
-    return this.handleResponse<T>(response);
+  public get<T>(endpoint: string, params?: object, signal?: AbortSignal) {
+    return this.request<T>('GET', endpoint, { params, signal });
   }
 
-  public async put<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: this.getHeaders(),
-      body: body ? JSON.stringify(body) : undefined
-    });
-
-    return this.handleResponse<T>(response);
+  public post<T>(endpoint: string, body?: RequestBody, signal?: AbortSignal) {
+    return this.request<T>('POST', endpoint, { body, signal });
   }
 
-  public async patch<T>(endpoint: string, body?: any): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: this.getHeaders(),
-      body: body ? JSON.stringify(body) : undefined
-    });
-
-    return this.handleResponse<T>(response);
+  public put<T>(endpoint: string, body?: RequestBody, signal?: AbortSignal) {
+    return this.request<T>('PUT', endpoint, { body, signal });
   }
 
-  public async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    const url = `${this.baseUrl}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
-    const response = await fetch(url, {
-      method: 'DELETE',
-      headers: this.getHeaders()
-    });
+  public patch<T>(endpoint: string, body?: RequestBody, signal?: AbortSignal) {
+    return this.request<T>('PATCH', endpoint, { body, signal });
+  }
 
-    return this.handleResponse<T>(response);
+  public delete<T>(endpoint: string, signal?: AbortSignal) {
+    return this.request<T>('DELETE', endpoint, { signal });
+  }
+
+  public upload<T>(endpoint: string, formData: FormData, method: 'POST' | 'PUT' = 'POST') {
+    return this.request<T>(method, endpoint, { body: formData });
+  }
+
+  public async download(endpoint: string, params?: object): Promise<Blob> {
+    const response = await fetch(this.buildUrl(endpoint, params), {
+      method: 'GET',
+      credentials: 'include',
+      headers: this.buildHeaders()
+    });
+    if (!response.ok) {
+      await this.parseResponse<never>(response);
+    }
+    return response.blob();
   }
 }
 

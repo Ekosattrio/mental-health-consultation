@@ -34,7 +34,7 @@ Membangun sistem yang mendukung:
 - admin membantu pasien mengajukan reschedule jika pasien tidak paham alurnya
 - admin memverifikasi pembayaran dan mengubah status booking
 - psikolog/pengelola mengatur hari libur, jam kerja, dan batas jumlah pertemuan harian
-- psikolog/pengelola melihat analytics keuntungan/keuangan
+- psikolog/pengelola melihat analytics arus kas dan uang masuk dari paket
 - psikolog/pengelola mengelola CMS
 - sistem membuat laporan dan export data ke PDF/Excel
 
@@ -45,7 +45,7 @@ Membangun sistem yang mendukung:
 - Pasien wajib melengkapi data diri (`isProfileComplete`) sebelum diizinkan memilih paket konsultasi.
 - Pasien wajib mengisi formulir keluhan pre-test sebelum reservasi jadwal.
 - Booking tidak bisa dilakukan untuk hari yang sama (minimal H+1).
-- Reschedule tidak bisa dilakukan untuk hari yang sama (minimal H-1 / 24 jam sebelum sesi).
+- Tanggal baru reschedule tidak bisa hari yang sama; minimal keesokan hari (H+1).
 - Slot yang sudah digunakan harus mengurangi ketersediaan slot secara dinamis.
 - Sistem harus mencegah double booking pada slot yang tidak tersedia.
 - Psikolog dapat menentukan hari libur yang otomatis menutup booking.
@@ -61,10 +61,12 @@ Membangun sistem yang mendukung:
 
 - Pasien wajib mengunggah bukti pembayaran transfer.
 - Pasien wajib mencantumkan nama pemilik rekening pengirim (`transferSenderName`).
-- Admin melihat dan memverifikasi bukti transfer dan nama pengirim.
-- Skema pembayaran resmi: **Wajib DP Flat Rp 100.000** sebagai biaya administrasi penguncian jadwal, dan sisa biaya paket dilunasi saat hadir di klinik tatap muka.
+- Admin melihat dan memverifikasi bukti transfer dan nama pengirim tanpa melihat nominal harga/tagihan.
+- Skema pembayaran resmi: nominal DP ditentukan psikolog/pengelola per paket dan tidak boleh melebihi total setelah diskon; sisa biaya paket dilunasi saat hadir di klinik tatap muka.
+- Admin mencatat nominal pelunasan yang benar-benar diterima tanpa melihat harga paket atau nominal tagihan yang seharusnya. Setelah disimpan, nominal pelunasan tidak dapat dibaca kembali dari portal admin dan hanya masuk ke laporan uang masuk psikolog.
+- Status sesi `COMPLETED` dan status pembayaran `PAID` adalah dua proses terpisah: psikolog menyelesaikan sesi, admin mencatat pelunasan.
 - Riwayat pembayaran dan mutasi kas tersimpan di sistem.
-- Sistem membutuhkan invoice/kwitansi yang memuat DP Rp 100.000, sisa pelunasan, metode bayar, channel bank/QRIS/cash, nama pengirim, nomor referensi, dan bukti pembayaran.
+- Sistem membutuhkan invoice/kwitansi yang memuat DP sesuai paket, sisa pelunasan, metode bayar, channel bank/QRIS/cash, nama pengirim, nomor referensi, dan bukti pembayaran.
 
 ### Paket Multi-Sesi
 
@@ -75,7 +77,8 @@ Membangun sistem yang mendukung:
 
 ### Notifikasi
 
-- Notifikasi WhatsApp/email adalah tanggung jawab backend produksi.
+- WhatsApp menjadi kanal utama notifikasi operasional. Email bersifat opsional sebagai fallback dan pengiriman dokumen/receipt bila dibutuhkan.
+- Pengiriman notifikasi adalah tanggung jawab backend produksi.
 - Event yang perlu didukung: booking pending, pembayaran dikonfirmasi, jadwal sesi, reschedule, dan reminder jadwal harian psikolog.
 - Reminder ke psikolog perlu berisi nama pasien, jam mulai-selesai, keluhan/profil ringkas dari pre-test, dan tautan ke halaman detail di web.
 
@@ -87,7 +90,7 @@ Membangun sistem yang mendukung:
 
 ### Landing Page & Footer
 
-- Landing page menampilkan informasi 15 paket resmi, profil kredensial psikolog, dan biografi.
+- Landing page menampilkan paket tatap muka aktif yang dikelola psikolog, profil kredensial psikolog, dan biografi.
 - **Penyembunyian Tarif Awal**: Nominal harga paket disembunyikan untuk pengunjung yang belum sign in akun.
 - Section pengalaman konseling dibuat carousel sekitar 10 item, bisa bergerak otomatis dan manual.
 - **Kondisional Footer**: Komponen Footer hanya ditampilkan pada Landing Page (`GUEST`), dan disembunyikan sepenuhnya saat user masuk ke akun dashboard mana pun.
@@ -96,9 +99,9 @@ Membangun sistem yang mendukung:
 
 - Panduan alur konseling dan FAQ interaktif.
 - Verifikasi kelengkapan profil data diri sebelum memilih paket konsultasi.
-- Pemesanan jadwal konsultasi dengan formulir keluhan pre-test dan upload DP Flat Rp 100.000.
+- Pemesanan jadwal konsultasi dengan formulir keluhan pre-test dan upload bukti DP sesuai paket.
 - Jadwal & Riwayat Konsultasi berformat Data Table rapi dengan modal detail janji temu.
-- Pengajuan reschedule mandiri minimal H-1 dengan validasi slot.
+- Pengajuan reschedule mandiri dengan tanggal pengganti minimal H+1 dan validasi slot.
 - Pemberian review ulasan setelah sesi konsultasi selesai.
 
 ### Dashboard Psikolog / Pengelola
@@ -108,7 +111,7 @@ Membangun sistem yang mendukung:
 - Mengelola jadwal mingguan, hari libur praktik, jam kerja, dan kuota tanggal tertentu.
 - Melihat laporan keuangan uang masuk / arus kas dan ekspor dokumen kop dinas resmi (PDF & Excel).
 - Mengelola CMS landing page dan kop surat resmi.
-- Rekam medis pasien terstandarisasi (`PatientDetailModal`).
+- Detail pasien terstandarisasi (`PatientDetailModal`) untuk profil, pre-test, dan riwayat sesi tanpa SOAP.
 - Halaman khusus Paket Berjalan untuk memantau rencana terapi/paket multi-sesi.
 - Export data klinis pasien untuk owner/psikolog dengan perlindungan role.
 - Tidak ada ruang chat konsultasi online di web.
@@ -117,7 +120,7 @@ Membangun sistem yang mendukung:
 
 - Memantau akun pengguna secara strictly **Read-Only Monitoring** (tanpa wewenang edit/blokir akun user).
 - Melayani pembuatan walk-in booking bagi pasien yang hadir langsung ke klinik.
-- Verifikasi bukti transfer DP Flat Rp 100.000 dan nama pengirim transfer.
+- Verifikasi bukti transfer DP sesuai paket dan nama pengirim transfer tanpa menampilkan nominal kepada admin.
 - Mengubah status booking dari `PENDING` ke `CONFIRMED`; status `COMPLETED` ditandai oleh psikolog/pengelola setelah sesi selesai.
 - Moderasi ulasan pasien dengan antarmuka card metrik skor terpadu.
 
@@ -132,20 +135,15 @@ Project saat ini berupa frontend React/Vite dengan data lokal:
 - domain model berada di `src/models`
 - controller facade berada di `src/controllers`
 
-Belum ada backend dan database nyata yang terhubung. Frontend prototype sudah mulai disesuaikan dengan requirement terbaru, tetapi implementasi produksi masih perlu backend untuk authorization, booking lock, upload pembayaran, Google SSO, laporan, dan penyimpanan data sensitif.
+Belum ada backend dan database nyata yang terhubung. Fitur dan flow utama frontend prototype sudah disesuaikan dengan requirement terbaru, sedangkan implementasi produksi masih memerlukan backend untuk authorization, booking lock, upload pembayaran, Google SSO, laporan, dan penyimpanan data sensitif.
 
-## Arah Teknis
+## Arah Teknis Final
 
-Laravel bisa digunakan bersama React.
-
-Arah yang disarankan:
-
-- Laravel sebagai backend API.
-- React/Vite tetap sebagai frontend.
-- Laravel menangani database, auth Google SSO, authorization, upload bukti pembayaran, laporan PDF/Excel, validasi booking, dan anti double booking.
-- React mengonsumsi API dari Laravel.
-
-Alternatif lain adalah Laravel + Inertia React, tetapi untuk kondisi project saat ini Laravel API + React frontend lebih mudah dilakukan secara bertahap.
+- Laravel 12+ digunakan sebagai REST API terpisah.
+- MySQL 8+ digunakan sebagai database produksi.
+- React/Vite tetap menjadi SPA frontend dan mengonsumsi API Laravel.
+- Laravel menangani auth Google SSO, authorization, upload bukti pembayaran, laporan PDF/Excel, validasi booking, transaction/row lock, dan audit log.
+- Service integrasi frontend tersedia di `src/services/api/`; runtime masih memakai mock/LocalStorage sampai backend tersedia.
 
 ## Prinsip Produk
 

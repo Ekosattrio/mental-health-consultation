@@ -34,14 +34,13 @@ import {
   Users
 } from 'lucide-react';
 import { Tooltip } from '../common/Tooltip';
+import { ImageWithFallback } from '../common/ImageWithFallback';
 
 export const Navbar: React.FC = () => {
   const {
     currentRole,
     currentUser,
     currentPsychologistProfile,
-    viewMode,
-    setViewMode,
     openAuthModal,
     logout,
     isSidebarCollapsed,
@@ -121,10 +120,10 @@ export const Navbar: React.FC = () => {
     { id: 'finance', label: 'Keuangan & Uang Masuk', icon: BarChart3 },
     { id: 'schedule', label: 'Jadwal & Hari Praktik', icon: Calendar },
     { id: 'packages', label: 'Manajemen Paket', icon: Layers, badge: packages.length },
-    { id: 'treatmentPlans', label: 'Paket Berjalan', icon: ClipboardList, badge: appointments.filter(a => a.psychologistId === (currentUser?.id || 'user-psy-1') && (a.continuousSessionTotal || 1) > 1).length },
+    { id: 'treatmentPlans', label: 'Paket Berjalan', icon: ClipboardList, badge: appointments.filter(a => a.psychologistId === (currentUser?.role === 'PSYCHOLOGIST' ? currentUser.id : '') && (a.continuousSessionTotal || 1) > 1).length },
     { id: 'patients', label: 'Data Pasien & Pre-Test', icon: FileText },
     { id: 'cms', label: 'CMS Konten', icon: LayoutTemplate },
-    { id: 'history', label: 'Riwayat Sesi', icon: History, badge: appointments.filter(a => a.psychologistId === (currentUser?.id || 'user-psy-1')).length }
+    { id: 'history', label: 'Riwayat Sesi', icon: History, badge: appointments.filter(a => a.psychologistId === (currentUser?.role === 'PSYCHOLOGIST' ? currentUser.id : '')).length }
   ];
 
   const patientNavTabs = [
@@ -145,15 +144,17 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className={`flex items-center justify-between gap-4 transition-all duration-300 ${isScrolled ? 'h-14' : 'h-16'}`}>
           {/* Logo & Platform Title */}
-          <div
-            className="flex items-center gap-3 cursor-pointer select-none group"
-            onClick={() => setViewMode('PLATFORM')}
-          >
+          <div className="flex items-center gap-3 select-none group">
             {landingCms?.logoUrl ? (
-              <img
+              <ImageWithFallback
                 src={landingCms.logoUrl}
                 alt="JiwaSehat"
                 className="w-10 h-10 rounded-2xl object-cover border border-teal-100 shadow-xs group-hover:scale-105 transition-transform"
+                fallback={(
+                  <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-sm">
+                    <HeartHandshake className="w-6 h-6" />
+                  </div>
+                )}
               />
             ) : (
               <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-sm shadow-teal-500/30 group-hover:scale-105 transition-transform">
@@ -164,9 +165,6 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xl font-extrabold text-slate-900 tracking-tight group-hover:text-teal-700 transition-colors">
                   JiwaSehat
-                </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 bg-teal-50 text-teal-700 border border-teal-200 rounded">
-                  Berlisensi Resmi
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
@@ -203,10 +201,11 @@ export const Navbar: React.FC = () => {
                         : 'bg-purple-50 text-purple-700 border-purple-200'
                     }`}>
                       {currentRole === 'PSYCHOLOGIST' && (currentPsychologistProfile?.avatarUrl || currentUser?.avatar) ? (
-                        <img
+                        <ImageWithFallback
                           src={currentPsychologistProfile?.avatarUrl || currentUser?.avatar}
                           alt={currentUser?.name || 'Psikolog'}
                           className="w-full h-full object-cover"
+                          fallback={<Stethoscope className="w-4 h-4" />}
                         />
                       ) : currentRole === 'PATIENT' ? (
                         <UserIcon className="w-4 h-4" />
@@ -245,10 +244,11 @@ export const Navbar: React.FC = () => {
                           : 'bg-purple-100/70 text-purple-800 border-purple-200'
                       }`}>
                         {currentRole === 'PSYCHOLOGIST' && (currentPsychologistProfile?.avatarUrl || currentUser?.avatar) ? (
-                          <img
+                          <ImageWithFallback
                             src={currentPsychologistProfile?.avatarUrl || currentUser?.avatar}
                             alt={currentUser?.name || 'Psikolog'}
                             className="w-full h-full object-cover"
+                            fallback={<Stethoscope className="w-5 h-5" />}
                           />
                         ) : currentRole === 'PATIENT' ? (
                           <UserIcon className="w-5 h-5" />
@@ -478,10 +478,11 @@ export const Navbar: React.FC = () => {
                     : 'bg-purple-50 text-purple-700 border-purple-200'
                 }`}>
                   {currentRole === 'PSYCHOLOGIST' && (currentPsychologistProfile?.avatarUrl || currentUser?.avatar) ? (
-                    <img
+                    <ImageWithFallback
                       src={currentPsychologistProfile?.avatarUrl || currentUser?.avatar}
                       alt={currentUser?.name || 'Psikolog'}
                       className="w-full h-full object-cover"
+                      fallback={<Stethoscope className="w-6 h-6" />}
                     />
                   ) : currentRole === 'PATIENT' ? (
                     <UserIcon className="w-6 h-6" />

@@ -51,7 +51,7 @@ export const PatientDashboard: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
-  const patientId = currentUser?.id || 'user-pat-1';
+  const patientId = currentUser?.role === 'PATIENT' ? currentUser.id : '';
   const existingIntake = currentPatientModel
     ? currentPatientModel.getIntakeForm(intakeForms)
     : intakeForms[patientId];

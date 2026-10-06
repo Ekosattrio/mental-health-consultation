@@ -12,21 +12,29 @@ export interface RegisterPayload {
   password: string;
   password_confirmation: string;
   phone?: string;
-  role?: 'PATIENT' | 'PSYCHOLOGIST' | 'ADMIN';
 }
 
 export interface AuthResponseData {
   user: User;
-  token: string;
-  token_type: string;
+  token?: string;
+  token_type?: string;
 }
 
+const prepareSanctum = async (): Promise<void> => {
+  if (String(import.meta.env.VITE_SANCTUM_CSRF || 'false') === 'true') {
+    await apiClient.initCsrf();
+  }
+};
+
 export const authService = {
+  prepareSanctum,
+
   /**
    * Login pengguna menggunakan kredensial email & password
    * Endpoint Laravel: POST /api/v1/auth/login
    */
   async login(credentials: LoginCredentials): Promise<ApiResponse<AuthResponseData>> {
+    await prepareSanctum();
     const response = await apiClient.post<AuthResponseData>('/auth/login', credentials);
     if (response.data?.token) {
       localStorage.setItem('auth_token', response.data.token);
@@ -39,6 +47,7 @@ export const authService = {
    * Endpoint Laravel: POST /api/v1/auth/register
    */
   async register(payload: RegisterPayload): Promise<ApiResponse<AuthResponseData>> {
+    await prepareSanctum();
     const response = await apiClient.post<AuthResponseData>('/auth/register', payload);
     if (response.data?.token) {
       localStorage.setItem('auth_token', response.data.token);
@@ -60,6 +69,15 @@ export const authService = {
    */
   async updateProfile(payload: Partial<User>): Promise<ApiResponse<User>> {
     return apiClient.put<User>('/auth/profile', payload);
+  },
+
+  getGoogleRedirectUrl(): string {
+    const baseUrl = String(import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
+    return `${baseUrl}/auth/google/redirect`;
+  },
+
+  redirectToGoogle(): void {
+    window.location.assign(authService.getGoogleRedirectUrl());
   },
 
   /**

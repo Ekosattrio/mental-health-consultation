@@ -17,20 +17,20 @@
 
 ## Saat Menambah Fitur
 
-- Update `docs/FEATURES.md`.
-- Update `docs/API.md` jika butuh endpoint.
-- Update `docs/DATABASE.md` jika butuh schema baru.
-- Update `docs/ROLES_PERMISSIONS.md` jika akses role berubah.
-- Update `docs/BUSINESS_RULES.md` jika ada aturan bisnis baru.
+- Update `docs/Psikolog/Live Docs/FEATURES.md`.
+- Update `docs/Psikolog/Live Docs/API.md` jika butuh endpoint.
+- Update `docs/Psikolog/Live Docs/DATABASE.md` jika butuh schema baru.
+- Update `docs/Psikolog/Live Docs/ROLES_PERMISSIONS.md` jika akses role berubah.
+- Update `docs/Psikolog/Live Docs/BUSINESS_RULES.md` jika ada aturan bisnis baru.
 
 ## Saat Menemukan Bug
 
-- Catat di `docs/KNOWN_ISSUES.md` jika belum langsung diperbaiki.
-- Jika diperbaiki, catat ringkas di `docs/CHANGELOG.md`.
+- Catat di `docs/Psikolog/Live Docs/KNOWN_ISSUES.md` jika belum langsung diperbaiki.
+- Jika diperbaiki, catat ringkas di `docs/Psikolog/Live Docs/CHANGELOG.md`.
 
 ## Handoff
 
-Gunakan `docs/SESSION_HANDOFF.md` untuk mencatat:
+Gunakan `docs/Psikolog/Live Docs/SESSION_HANDOFF.md` untuk mencatat:
 
 - pekerjaan terakhir
 - file yang berubah

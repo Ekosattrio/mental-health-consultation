@@ -10,7 +10,6 @@ export interface AuthStateCallbacks {
   setUsers: React.Dispatch<React.SetStateAction<UserEntity[]>>;
   setPsychologists: React.Dispatch<React.SetStateAction<PsychologistProfile[]>>;
   setIsLoginModalOpen: (open: boolean) => void;
-  setViewMode: (mode: 'PLATFORM' | 'BLUEPRINT') => void;
 }
 
 /**
@@ -36,7 +35,6 @@ export class AuthController extends BaseController {
     if (role === 'GUEST') {
       this.callbacks.setCurrentRole('GUEST');
       this.callbacks.setCurrentUserId('user-pat-1');
-      this.callbacks.setViewMode('PLATFORM');
       this.callbacks.setIsLoginModalOpen(false);
       this.notify('Mode Tamu', 'Kembali ke halaman publik.');
       return true;
@@ -63,7 +61,6 @@ export class AuthController extends BaseController {
       const loggedUser = new User(response.data.user);
       this.callbacks.setCurrentRole(role);
       this.callbacks.setCurrentUserId(loggedUser.id);
-      this.callbacks.setViewMode('PLATFORM');
       this.callbacks.setIsLoginModalOpen(false);
 
       this.notify(
@@ -103,7 +100,6 @@ export class AuthController extends BaseController {
       // Auto login
       this.callbacks.setCurrentRole(newUser.role);
       this.callbacks.setCurrentUserId(newUser.id);
-      this.callbacks.setViewMode('PLATFORM');
       this.callbacks.setIsLoginModalOpen(false);
 
       this.notify(
@@ -126,7 +122,6 @@ export class AuthController extends BaseController {
    */
   public logout(): void {
     this.callbacks.setCurrentRole('GUEST');
-    this.callbacks.setViewMode('PLATFORM');
     this.notify('Berhasil Keluar', 'Anda telah keluar dari akun dan kembali ke halaman utama.', 'info');
   }
 }

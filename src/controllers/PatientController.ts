@@ -9,7 +9,6 @@ import {
   ConsultationPackage,
   IntakeForm,
   ScheduleSlot,
-  TestResult,
   Review,
   User as UserEntity,
   UserRole
@@ -19,7 +18,6 @@ export interface PatientStateCallbacks {
   setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>>;
   setSchedules: React.Dispatch<React.SetStateAction<ScheduleSlot[]>>;
   setIntakeForms: React.Dispatch<React.SetStateAction<Record<string, IntakeForm>>>;
-  setTestResults: React.Dispatch<React.SetStateAction<TestResult[]>>;
   setReviews: React.Dispatch<React.SetStateAction<Review[]>>;
 }
 
@@ -45,8 +43,7 @@ export class PatientController extends BaseController {
     appointments: Appointment[],
     packages: ConsultationPackage[],
     users: UserEntity[],
-    intakeForms: Record<string, IntakeForm>,
-    testResults: TestResult[]
+    intakeForms: Record<string, IntakeForm>
   ): Promise<{ success: boolean; message: string; appointment?: Appointment }> {
     try {
       const response = await PatientEndpoints.bookAppointment(
@@ -55,8 +52,7 @@ export class PatientController extends BaseController {
         appointments,
         packages,
         users,
-        intakeForms,
-        testResults
+        intakeForms
       );
 
       if (!response.success || !response.data) {
@@ -67,23 +63,37 @@ export class PatientController extends BaseController {
 
       // Update state atomically
       this.callbacks.setSchedules(prev => {
-        const exists = prev.some(s => s.id === updatedSlot.id);
-        if (exists) {
-          return prev.map(s => (s.id === updatedSlot.id ? updatedSlot : s));
-        }
-        return [...prev, updatedSlot];
+        const merged = [
+          ...schedules,
+          ...prev.filter(item => !schedules.some(snapshot => snapshot.id === item.id))
+        ];
+        const exists = merged.some(s => s.id === updatedSlot.id);
+        return exists
+          ? merged.map(s => (s.id === updatedSlot.id ? updatedSlot : s))
+          : [...merged, updatedSlot];
       });
-      this.callbacks.setAppointments(prev => [appointment, ...prev]);
+      this.callbacks.setAppointments(prev => {
+        const merged = [
+          ...appointments,
+          ...prev.filter(item => !appointments.some(snapshot => snapshot.id === item.id))
+        ];
+        return [appointment, ...merged.filter(item => item.id !== appointment.id)];
+      });
 
+      const isPaid = appointment.paymentStatus === 'PAID';
       this.notify(
-        'Pengajuan Booking Terkirim',
-        `Booking ${appointment.bookingCode} menunggu verifikasi admin atas bukti DP Rp 100.000.`,
+        isPaid ? 'Booking Berhasil Dibuat' : 'Pengajuan Booking Terkirim',
+        isPaid
+          ? `Booking ${appointment.bookingCode} tercatat tanpa pembayaran lanjutan.`
+          : `Booking ${appointment.bookingCode} menunggu verifikasi admin atas bukti DP Rp ${(appointment.dpAmount || 0).toLocaleString('id-ID')}.`,
         'success'
       );
 
       return {
         success: true,
-        message: 'Pengajuan booking berhasil dikirim dan menunggu verifikasi admin.',
+        message: isPaid
+          ? 'Booking berhasil dibuat.'
+          : 'Pengajuan booking berhasil dikirim dan menunggu verifikasi admin.',
         appointment
       };
     } catch (err: any) {
@@ -136,40 +146,6 @@ export class PatientController extends BaseController {
       return savedIntake;
     } catch (err: any) {
       this.handleError(err, 'Gagal Menyimpan Pre-Test');
-      return null;
-    }
-  }
-
-  /**
-   * Submit psychological test result
-   */
-  public async submitTestResult(
-    patientId: string,
-    resultData: Omit<TestResult, 'id' | 'completedAt'>
-  ): Promise<TestResult | null> {
-    try {
-      const response = await PatientEndpoints.submitTest(patientId, resultData);
-      if (!response.success || !response.data) {
-        throw new Error(response.message);
-      }
-
-      const savedResult = response.data;
-      this.callbacks.setTestResults(prev => [savedResult, ...prev]);
-
-      // Update appointments hasTestResult flag
-      this.callbacks.setAppointments(prev =>
-        prev.map(a => (a.patientId === patientId ? { ...a, hasTestResult: true } : a))
-      );
-
-      this.notify(
-        'Hasil Tes Diterbitkan',
-        `Skor ${savedResult.testCode} selesai dikalkulasi: Kategori ${savedResult.severityLevel}. Psikolog Anda dapat mengakses psikogram ini.`,
-        'success'
-      );
-
-      return savedResult;
-    } catch (err: any) {
-      this.handleError(err, 'Gagal Memproses Hasil Tes');
       return null;
     }
   }

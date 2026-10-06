@@ -13,8 +13,11 @@ import {
   DayScheduleConfig,
   CustomDateOverride,
   PracticeScheduleSettings,
+  SCHEDULE_SETTINGS_STORAGE_KEY,
+  SCHEDULE_SETTINGS_UPDATED_EVENT,
   loadScheduleSettings,
-  saveScheduleSettings
+  saveScheduleSettings,
+  timeToMinutes
 } from '../../../data/scheduleConfig';
 
 interface ScheduleTabProps {
@@ -32,6 +35,7 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
 }) => {
   const [settings, setSettings] = useState<PracticeScheduleSettings>(loadScheduleSettings);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
+  const [validationError, setValidationError] = useState('');
 
   // Form states for Custom Date Override
   const [overrideDate, setOverrideDate] = useState('2026-10-15');
@@ -45,8 +49,18 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const [newHoliday, setNewHoliday] = useState('2026-10-28');
 
   useEffect(() => {
-    saveScheduleSettings(settings);
-  }, [settings]);
+    const syncSettings = () => setSettings(loadScheduleSettings());
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === SCHEDULE_SETTINGS_STORAGE_KEY) syncSettings();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener(SCHEDULE_SETTINGS_UPDATED_EVENT, syncSettings);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(SCHEDULE_SETTINGS_UPDATED_EVENT, syncSettings);
+    };
+  }, []);
 
   const handleSetDayStatus = (dayIndex: number, isOpen: boolean) => {
     setSettings(prev => ({
@@ -71,6 +85,19 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
     e.preventDefault();
     if (!overrideDate) return;
 
+    if (
+      overrideIsOpen && (
+        timeToMinutes(overrideEndTime) <= timeToMinutes(overrideStartTime) ||
+        !Number.isInteger(Number(overrideMaxPatients)) ||
+        Number(overrideMaxPatients) < 1 ||
+        Number(overrideMaxPatients) > 15
+      )
+    ) {
+      setValidationError('Tanggal khusus harus memiliki jam selesai setelah jam mulai dan kuota 1-15 pasien.');
+      return;
+    }
+    setValidationError('');
+
     const newOverride: CustomDateOverride = {
       date: overrideDate,
       isOpen: overrideIsOpen,
@@ -88,8 +115,6 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
       ].sort((a, b) => a.date.localeCompare(b.date))
     }));
 
-    setSaveSuccessMsg(true);
-    setTimeout(() => setSaveSuccessMsg(false), 2500);
   };
 
   const handleRemoveOverride = (date: string) => {
@@ -106,8 +131,6 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
       ...prev,
       holidays: [...prev.holidays, newHoliday].sort()
     }));
-    setSaveSuccessMsg(true);
-    setTimeout(() => setSaveSuccessMsg(false), 2500);
   };
 
   const handleRemoveHoliday = (date: string) => {
@@ -118,6 +141,35 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   };
 
   const handleSaveAll = () => {
+    const invalidWeeklyDay = settings.weeklyDays.find(day => (
+      day.isOpen && (
+        timeToMinutes(day.endTime) <= timeToMinutes(day.startTime) ||
+        !Number.isInteger(day.maxPatients) ||
+        day.maxPatients < 1 ||
+        day.maxPatients > 15
+      )
+    ));
+    const invalidOverride = settings.customDateOverrides.find(item => (
+      item.isOpen && (
+        !item.startTime ||
+        !item.endTime ||
+        timeToMinutes(item.endTime) <= timeToMinutes(item.startTime) ||
+        !Number.isInteger(item.maxPatients) ||
+        item.maxPatients < 1 ||
+        item.maxPatients > 15
+      )
+    ));
+
+    if (invalidWeeklyDay || invalidOverride) {
+      setValidationError(
+        invalidWeeklyDay
+          ? `Periksa jadwal ${invalidWeeklyDay.dayName}: jam dan kuota harus valid.`
+          : `Periksa pengaturan tanggal khusus ${invalidOverride?.date}.`
+      );
+      return;
+    }
+
+    setValidationError('');
     saveScheduleSettings(settings);
     setSaveSuccessMsg(true);
     setTimeout(() => setSaveSuccessMsg(false), 3000);
@@ -150,6 +202,12 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
         <div className="p-2.5 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-bold flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>Jadwal dan kuota berhasil disimpan dan otomatis disinkronkan ke sistem booking pasien!</span>
+        </div>
+      )}
+
+      {validationError && (
+        <div className="p-2.5 bg-rose-50 border border-rose-200 text-rose-900 rounded-xl text-xs font-bold">
+          {validationError}
         </div>
       )}
 

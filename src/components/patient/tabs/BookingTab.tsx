@@ -26,7 +26,6 @@ import {
   Lock,
   Edit2,
   Sparkles,
-  Video,
   Users,
   X
 } from 'lucide-react';
@@ -34,6 +33,7 @@ import {
   loadScheduleSettings,
   computeDynamicSlotsForDate
 } from '../../../data/scheduleConfig';
+import { calculatePackagePayableAmount } from '../../../utils/discounts';
 
 interface BookingTabProps {
   packages: ConsultationPackage[];
@@ -47,12 +47,21 @@ interface BookingTabProps {
   selectedBookingPsychologistId?: string;
   existingIntake?: IntakeForm;
   bookAppointment: (data: any) => Promise<{ success: boolean; appointment?: Appointment; message?: string }>;
-  submitIntakeForm?: (form: Omit<IntakeForm, 'id' | 'completedAt'>) => void;
+  submitIntakeForm?: (form: Omit<IntakeForm, 'id' | 'completedAt'>) => Promise<IntakeForm | null>;
   updateUserProfile?: (userId: string, data: Partial<User>) => void;
   onNavigateTab: (tabId: 'history' | 'overview') => void;
 }
 
-const MIN_BOOKING_DATE = '2026-10-03';
+const getLocalDateString = (date: Date) => {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
+};
+
+const getMinimumBookingDate = () => {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return getLocalDateString(tomorrow);
+};
 
 export const BookingTab: React.FC<BookingTabProps> = ({
   packages,
@@ -69,7 +78,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   updateUserProfile,
   onNavigateTab
 }) => {
-  // Wizard Step: 1 = Pilih Jadwal & Paket, 2 = Isi Pre-Test, 3 = Pembayaran DP Administrasi
+  const minimumBookingDate = getMinimumBookingDate();
+  // Wizard Step: 1 = Pilih Jadwal & Paket, 2 = Isi Pre-Test, 3 = Konfirmasi
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Active packages filter (ignore legacy inactive packages)
@@ -117,12 +127,28 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     selectedBookingPackageId || activePackages[0]?.id || ''
   );
   const [selectedPsychologistId, setSelectedPsychologistId] = useState(
-    selectedBookingPsychologistId || psychologists[0]?.userId || 'user-psy-1'
+    selectedBookingPsychologistId || psychologists[0]?.userId || ''
   );
-  const [selectedDate, setSelectedDate] = useState(MIN_BOOKING_DATE);
+  const [selectedDate, setSelectedDate] = useState(getMinimumBookingDate);
   const [selectedSlotId, setSelectedSlotId] = useState('');
   const [selectedSlotTime, setSelectedSlotTime] = useState({ startTime: '', endTime: '' });
   const [dateNotice, setDateNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (activePackages.length > 0 && !activePackages.some(pkg => pkg.id === selectedPkgId)) {
+      setSelectedPkgId(activePackages[0].id);
+      setSelectedSlotId('');
+      setSelectedSlotTime({ startTime: '', endTime: '' });
+    }
+  }, [activePackages, selectedPkgId]);
+
+  useEffect(() => {
+    if (psychologists.length > 0 && !psychologists.some(item => item.userId === selectedPsychologistId)) {
+      setSelectedPsychologistId(psychologists[0].userId);
+      setSelectedSlotId('');
+      setSelectedSlotTime({ startTime: '', endTime: '' });
+    }
+  }, [psychologists, selectedPsychologistId]);
 
   // Step 2 State: Pre-Test Form
   const [intakeData, setIntakeData] = useState({
@@ -137,21 +163,29 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     goals: existingIntake?.goals || 'Mendapatkan wawasan klinis dan strategi koping adaptif.'
   });
 
-  // Step 3 State: Payment DP Administrasi (Flat Rp 100.000)
+  // Step 3 State: pembayaran DP sesuai konfigurasi paket
   const [transferSenderName, setTransferSenderName] = useState(currentUser?.name || '');
   const [paymentReference, setPaymentReference] = useState('');
   const [proofName, setProofName] = useState('');
   const [consentAgreed, setConsentAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingPreTest, setIsSavingPreTest] = useState(false);
   const [successApt, setSuccessApt] = useState<Appointment | null>(null);
 
   const currentPackage = activePackages.find(pkg => pkg.id === selectedPkgId) || activePackages[0] || packages[0];
   const psychologist = psychologists.find(psy => psy.userId === selectedPsychologistId) || psychologists[0];
   const psychologistUser = users.find(user => user.id === selectedPsychologistId);
 
-  // Kebijakan Pembayaran Baru: Wajib DP Rp 100.000 untuk biaya administrasi
-  const dpAmount = 100000;
-  const finalAmount = Math.max((currentPackage?.price || 0) - dpAmount, 0);
+  const packagePricing = useMemo(() => calculatePackagePayableAmount(currentPackage), [currentPackage]);
+  const currentDiscount = packagePricing.discount;
+  const subtotalAmount = packagePricing.subtotalAmount;
+  const discountAmount = packagePricing.discountAmount;
+  const payableAmount = packagePricing.totalAmount;
+
+  const configuredDpAmount = Math.max(currentPackage?.dpAmount ?? 100000, 0);
+  const dpAmount = Math.min(configuredDpAmount, payableAmount);
+  const finalAmount = Math.max(payableAmount - dpAmount, 0);
+  const requiresPayment = payableAmount > 0;
 
   // Filtered packages for display in Step 1
   const displayedPackages = useMemo(() => {
@@ -175,8 +209,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     setSelectedSlotId('');
     setSelectedSlotTime({ startTime: '', endTime: '' });
 
-    if (date < MIN_BOOKING_DATE) {
-      setDateNotice(`Booking tidak bisa untuk hari yang sama. Minimal tanggal pemesanan adalah ${MIN_BOOKING_DATE}.`);
+    if (date < minimumBookingDate) {
+      setDateNotice(`Booking tidak bisa untuk hari yang sama. Minimal tanggal pemesanan adalah ${minimumBookingDate}.`);
       return;
     }
 
@@ -243,10 +277,11 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   };
 
   // Move from Step 2 to Step 3 (Save Pre-Test in Context)
-  const handleProceedToPayment = (e: React.FormEvent) => {
+  const handleProceedToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSavingPreTest(true);
     if (submitIntakeForm) {
-      submitIntakeForm({
+      const savedIntake = await submitIntakeForm({
         patientId,
         birthDate: profileFormData.birthDate || '1996-06-15',
         gender: profileFormData.gender || 'Laki-laki',
@@ -265,24 +300,33 @@ export const BookingTab: React.FC<BookingTabProps> = ({
         suicideRiskFlag: false,
         goals: intakeData.goals
       });
+      if (!savedIntake) {
+        setIsSavingPreTest(false);
+        return;
+      }
     }
+    setIsSavingPreTest(false);
     setCurrentStep(3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Final Submit Booking with flat DP 100rb & Transfer Sender Name
+  // Final submit booking dengan pembayaran yang dihitung dari paket aktif
   const handleFinalSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!transferSenderName.trim()) {
+    if (requiresPayment && !transferSenderName.trim()) {
       alert('Mohon cantumkan nama pemilik rekening pengirim yang melakukan transfer.');
       return;
     }
-    if (!proofName.trim()) {
+    if (requiresPayment && !proofName.trim()) {
       alert('Mohon unggah bukti pembayaran transfer DP administrasi.');
       return;
     }
     if (!consentAgreed) {
       alert('Mohon setujui informed consent dan kebijakan privasi sebelum mengirim booking.');
+      return;
+    }
+    if (!currentPackage || !psychologist) {
+      alert('Paket atau psikolog tidak tersedia. Silakan kembali dan pilih ulang layanan.');
       return;
     }
 
@@ -293,15 +337,14 @@ export const BookingTab: React.FC<BookingTabProps> = ({
         patientId,
         patientName: profileFormData.name || currentUser?.name || 'Pasien',
         patientEmail: currentUser?.email || 'pasien@jiwasehat.id',
-        psychologistId: selectedPsychologistId,
-        packageId: selectedPkgId,
+        psychologistId: psychologist?.userId || selectedPsychologistId,
+        packageId: currentPackage.id,
         date: selectedDate,
         slotId: selectedSlotId,
         startTime: selectedSlotTime.startTime,
         endTime: selectedSlotTime.endTime,
-        paymentMethod: 'TRANSFER_BANK_DP_ADMIN_100K',
-        paymentChannelDetail: 'BCA - 8830-1122-3344',
-        dpAmount: 100000,
+        paymentMethod: requiresPayment ? 'TRANSFER_BANK_DP' : undefined,
+        paymentChannelDetail: requiresPayment ? 'BCA - 8830-1122-3344' : undefined,
         transferSenderName: transferSenderName.trim(),
         paymentReference: paymentReference.trim(),
         paymentProofUrl: proofName.trim()
@@ -483,7 +526,9 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               Booking Berhasil Dibuat!
             </h2>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Terima kasih. Pengajuan jadwal konsultasi, data diri pasien, dan bukti pembayaran DP administrasi Anda telah kami terima untuk diverifikasi admin klinik.
+              {successApt.totalAmount > 0
+                ? 'Pengajuan jadwal, pre-test, dan bukti pembayaran DP telah diterima untuk diverifikasi admin.'
+                : 'Pengajuan jadwal dan pre-test telah diterima. Admin akan memeriksa ketersediaan dan mengonfirmasi booking.'}
             </p>
           </div>
 
@@ -502,24 +547,41 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-400 font-medium">JADWAL KONSULTASI</span>
-              <strong className="text-slate-900">{successApt.date} • {successApt.startTime} - {successApt.endTime} WIB</strong>
+              <strong className="text-slate-900">{successApt.date} | {successApt.startTime} - {successApt.endTime} WIB</strong>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-400 font-medium">LOKASI PRAKTIK</span>
               <strong className="text-slate-900">{successApt.meetingLocation}</strong>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-200 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
-              <div>
-                <span className="text-emerald-950 font-bold block">DP BIAYA ADMINISTRASI</span>
-                <span className="text-[10px] text-emerald-800">Nama Rekening Pengirim: {transferSenderName || 'Terlampir'}</span>
+            {!!successApt.discountAmount && successApt.discountAmount > 0 && (
+              <div className="flex justify-between py-1 border-b border-slate-200 text-emerald-800">
+                <span className="font-medium">{successApt.discountLabel || 'POTONGAN PENGELOLA'}</span>
+                <strong>- Rp {successApt.discountAmount.toLocaleString('id-ID')}</strong>
               </div>
-              <strong className="text-emerald-900 font-black text-sm">
-                Rp {dpAmount.toLocaleString('id-ID')} (Menunggu Verifikasi)
-              </strong>
+            )}
+            <div className="flex justify-between py-1 border-b border-slate-200">
+              <span className="text-slate-400 font-medium">TOTAL SETELAH POTONGAN</span>
+              <strong className="text-slate-900 font-bold">Rp {successApt.totalAmount.toLocaleString('id-ID')}</strong>
             </div>
+            {successApt.totalAmount > 0 ? (
+              <div className="flex justify-between py-1 border-b border-slate-200 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
+                <div>
+                  <span className="text-emerald-950 font-bold block">DP PAKET</span>
+                  <span className="text-[10px] text-emerald-800">Nama Rekening Pengirim: {transferSenderName || 'Terlampir'}</span>
+                </div>
+                <strong className="text-emerald-900 font-black text-sm">
+                  Rp {(successApt.dpAmount ?? dpAmount).toLocaleString('id-ID')} (Menunggu Verifikasi)
+                </strong>
+              </div>
+            ) : (
+              <div className="flex justify-between py-2 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200 text-emerald-900 font-bold">
+                <span>PEMBAYARAN</span>
+                <strong>Tidak diperlukan</strong>
+              </div>
+            )}
             <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-400 font-medium">SISA PELUNASAN DI KLINIK</span>
-              <strong className="text-slate-900 font-bold">Rp {finalAmount.toLocaleString('id-ID')}</strong>
+              <strong className="text-slate-900 font-bold">Rp {(successApt.remainingAmount ?? finalAmount).toLocaleString('id-ID')}</strong>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400 font-medium">STATUS PRE-TEST</span>
@@ -589,7 +651,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                   3
                 </div>
                 <span className={`font-bold ${currentStep === 3 ? 'text-slate-900' : 'text-slate-400'}`}>
-                  DP Administrasi
+                  Konfirmasi
                 </span>
               </div>
             </div>
@@ -665,7 +727,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               <div className="space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <label className="block text-xs font-bold text-slate-700">
-                    Pilih Paket Layanan Resmi:
+                    Pilih Paket Layanan:
                   </label>
 
                   {/* Filter kategori */}
@@ -720,6 +782,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {displayedPackages.map(pkg => {
                     const isSelected = selectedPkgId === pkg.id;
+                    const pricing = calculatePackagePayableAmount(pkg);
 
                     return (
                       <div
@@ -756,8 +819,18 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                         )}
 
                         <div className="text-emerald-700 font-black text-sm mt-1.5">
-                          Rp {pkg.price.toLocaleString('id-ID')}
+                          Rp {pricing.totalAmount.toLocaleString('id-ID')}
+                          {pricing.discount && (
+                            <span className="block text-[10px] text-slate-400 line-through font-bold">
+                              Rp {pkg.price.toLocaleString('id-ID')}
+                            </span>
+                          )}
                         </div>
+                        {pricing.discount && (
+                          <div className="inline-flex mt-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black">
+                            {pricing.discount.label}
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
                           <Clock className="w-3 h-3" />
@@ -789,7 +862,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                       </label>
                       <input
                         type="date"
-                        min={MIN_BOOKING_DATE}
+                        min={minimumBookingDate}
                         value={selectedDate}
                         onChange={e => handleDateChange(e.target.value)}
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden bg-white"
@@ -1024,22 +1097,25 @@ export const BookingTab: React.FC<BookingTabProps> = ({
 
                 <button
                   type="submit"
-                  className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
+                  disabled={isSavingPreTest}
+                  className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
                 >
-                  <span>Lanjut: Pembayaran DP Administrasi (Langkah 3)</span>
+                  <span>{isSavingPreTest ? 'Menyimpan Pre-Test...' : 'Lanjut: Konfirmasi Booking (Langkah 3)'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 3: KONFIRMASI RINCIAN & PEMBAYARAN DP ADMINISTRASI (FLAT 100RB) */}
+          {/* STEP 3: KONFIRMASI RINCIAN DAN PEMBAYARAN */}
           {currentStep === 3 && (
             <form onSubmit={handleFinalSubmitBooking} className="space-y-6">
               <div>
-                <h3 className="text-xl font-black text-slate-900">Langkah 3: Konfirmasi Rincian & DP Administrasi</h3>
+                <h3 className="text-xl font-black text-slate-900">Langkah 3: Konfirmasi Rincian Booking</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Wajib membayar DP flat sebesar Rp 100.000 untuk biaya administrasi & mengunci jadwal, mencantumkan nama yang transfer, dan mengunggah bukti pembayaran.
+                  {requiresPayment
+                    ? `Bayar DP Rp ${dpAmount.toLocaleString('id-ID')} sesuai paket untuk mengunci jadwal, lalu unggah bukti pembayaran.`
+                    : 'Paket ini tidak memerlukan pembayaran. Periksa rincian dan consent sebelum mengirim booking.'}
                 </p>
               </div>
 
@@ -1063,22 +1139,31 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200">
                   <span className="text-slate-400 font-bold uppercase">Lokasi Praktik</span>
-                  <strong className="text-slate-900">
-                    {currentPackage?.type === 'ONLINE_TELE'
-                      ? 'Telekonseling Video Call Online (Google Meet)'
-                      : 'Ruang Praktik JiwaSehat Senopati Lt. 3 (Tatap Muka)'}
-                  </strong>
+                  <strong className="text-slate-900">Ruang Praktik JiwaSehat Senopati Lt. 3 (Tatap Muka)</strong>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200">
                   <span className="text-slate-400 font-bold uppercase">Total Biaya Paket</span>
-                  <span className="font-bold text-slate-900">Rp {(currentPackage?.price || 0).toLocaleString('id-ID')}</span>
+                  <span className="font-bold text-slate-900">Rp {subtotalAmount.toLocaleString('id-ID')}</span>
                 </div>
+
+                {currentDiscount && (
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
+                    <div className="flex justify-between text-emerald-900">
+                      <span className="font-bold uppercase text-[10px]">{currentDiscount.label}</span>
+                      <strong>- Rp {discountAmount.toLocaleString('id-ID')}</strong>
+                    </div>
+                    <div className="flex justify-between pt-2 border-t border-emerald-200 text-emerald-950">
+                      <span className="font-bold uppercase text-[10px]">Total Setelah Potongan</span>
+                      <span className="font-black">Rp {payableAmount.toLocaleString('id-ID')}</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* DP ADMINISTRASI HIGHLIGHT */}
                 <div className="flex justify-between py-2 border-b border-slate-200 bg-emerald-50/90 p-3 rounded-xl border border-emerald-200">
                   <div>
-                    <span className="text-emerald-950 font-black block">DP Wajib Biaya Administrasi (Bayar Sekarang)</span>
-                    <span className="text-[10px] text-emerald-800">Sebagai syarat mengunci jadwal dan persiapan berkas</span>
+                    <span className="text-emerald-950 font-black block">{requiresPayment ? 'DP Paket (Bayar Sekarang)' : 'Tanpa Pembayaran'}</span>
+                    <span className="text-[10px] text-emerald-800">{requiresPayment ? 'Sebagai syarat mengunci jadwal dan persiapan berkas' : 'Total paket setelah diskon adalah Rp 0'}</span>
                   </div>
                   <strong className="text-emerald-900 font-black text-base">
                     Rp {dpAmount.toLocaleString('id-ID')}
@@ -1091,10 +1176,12 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 </div>
               </div>
 
+              {requiresPayment && (
+                <>
               {/* Bank Account Info Card */}
               <div className="p-4 rounded-2xl bg-white border border-emerald-200 shadow-2xs space-y-2 text-xs">
                 <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                  Rekening Resmi Pembayaran DP Administrasi Klinik:
+                  Rekening Pembayaran DP Administrasi Klinik:
                 </span>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                   <div>
@@ -1114,7 +1201,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 </label>
                 <input
                   type="text"
-                  required
+                  required={requiresPayment}
                   value={transferSenderName}
                   onChange={e => setTransferSenderName(e.target.value)}
                   placeholder="Ketik nama lengkap sesuai rekening pengirim m-banking..."
@@ -1144,32 +1231,34 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               {/* UPLOAD BUKTI TRANSFER DP 100RB (WAJIB) */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800">
-                  Upload Bukti Pembayaran DP Administrasi (Rp 100.000) <span className="text-rose-600">*</span>:
+                  Upload Bukti Pembayaran DP (Rp {dpAmount.toLocaleString('id-ID')}) <span className="text-rose-600">*</span>:
                 </label>
                 <div className="p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center space-y-2 bg-slate-50/50">
                   <Upload className="w-6 h-6 text-slate-400 mx-auto" />
                   <div className="text-xs text-slate-600">
-                    Unggah tangkapan layar struk / bukti transfer bank flat Rp 100.000
+                    Unggah tangkapan layar struk / bukti transfer sebesar Rp {dpAmount.toLocaleString('id-ID')}
                   </div>
                   <input
                     type="text"
-                    required
+                    required={requiresPayment}
                     value={proofName}
                     onChange={e => setProofName(e.target.value)}
-                    placeholder="Ketik nama file bukti transfer (misal: transfer_bca_100rb.jpg)..."
+                    placeholder="Ketik nama file bukti transfer (misal: bukti_dp_bca.jpg)..."
                     className="w-full max-w-sm mx-auto px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
                   />
                   <div className="flex justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setProofName('struk_dp_bca_100rb.jpg')}
+                      onClick={() => setProofName('struk_dp_bca.jpg')}
                       className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold hover:bg-emerald-200 cursor-pointer"
                     >
-                      Gunakan File Simulasi Demo (struk_dp_bca_100rb.jpg)
+                      Gunakan File Simulasi Demo (struk_dp_bca.jpg)
                     </button>
                   </div>
                 </div>
               </div>
+                </>
+              )}
 
               <label className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-start gap-3 cursor-pointer">
                 <input

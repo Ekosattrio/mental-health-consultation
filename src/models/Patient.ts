@@ -1,5 +1,5 @@
 import { User } from './User';
-import { User as UserEntity, IntakeForm, Appointment, TestResult } from '../types';
+import { User as UserEntity, IntakeForm, Appointment } from '../types';
 
 export interface RiskEvaluation {
   level: 'RENDAH' | 'SEDANG' | 'TINGGI' | 'KRITIS';
@@ -12,7 +12,7 @@ export interface RiskEvaluation {
 
 /**
  * Patient Model (OOP)
- * Inherits from User and encapsulates clinical records, intake status, and psychological test evaluations.
+ * Inherits from User and encapsulates booking records and pre-test profiling.
  */
 export class Patient extends User {
   constructor(data: UserEntity) {
@@ -60,39 +60,12 @@ export class Patient extends User {
     );
   }
 
-  /**
-   * Get all test results taken by this patient
-   */
-  public getTestResults(results: TestResult[]): TestResult[] {
-    return results.filter(r => r.patientId === this._id);
-  }
-
-  /**
-   * Get the most recent psychological assessment result
-   */
-  public getLatestTestResult(results: TestResult[]): TestResult | undefined {
-    const userResults = this.getTestResults(results);
-    if (userResults.length === 0) return undefined;
-    return [...userResults].sort(
-      (a, b) => new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
-    )[0];
-  }
-
-  /**
-   * OOP Evaluator: Compute patient overall risk level based on Intake and DASS-21 score
-   */
-  public evaluateRiskProfile(
-    results: TestResult[],
-    forms: Record<string, IntakeForm>
-  ): RiskEvaluation {
+  public evaluateRiskProfile(forms: Record<string, IntakeForm>): RiskEvaluation {
     const intake = this.getIntakeForm(forms);
-    const latestTest = this.getLatestTestResult(results);
-
     const hasSuicideFlag = !!intake?.suicideRiskFlag;
     const stressScore = intake?.currentStressLevel || 5;
-    const dassSeverity = latestTest?.severityLevel || 'NORMAL';
 
-    if (hasSuicideFlag || dassSeverity === 'SANGAT_BERAT') {
+    if (hasSuicideFlag) {
       return {
         level: 'KRITIS',
         score: 95,
@@ -103,7 +76,7 @@ export class Patient extends User {
       };
     }
 
-    if (dassSeverity === 'BERAT' || stressScore >= 8) {
+    if (stressScore >= 8) {
       return {
         level: 'TINGGI',
         score: 75,
@@ -114,7 +87,7 @@ export class Patient extends User {
       };
     }
 
-    if (dassSeverity === 'SEDANG' || stressScore >= 6) {
+    if (stressScore >= 6) {
       return {
         level: 'SEDANG',
         score: 50,

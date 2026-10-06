@@ -49,6 +49,10 @@ export class AuthEndpoints {
           throw new ApiError('Pengguna tidak ditemukan dalam sistem.', 404);
         }
 
+        if (user.role !== request.role) {
+          throw new ApiError('Role login tidak sesuai dengan akun pengguna.', 403);
+        }
+
         if (user.status === 'BLOCKED') {
           throw new ApiError('Akun Anda ditangguhkan. Silakan hubungi admin.', 403);
         }
@@ -73,6 +77,10 @@ export class AuthEndpoints {
       `${this.BASE_URL}/register`,
       request,
       () => {
+        if (request.role !== 'PATIENT') {
+          throw new ApiError('Registrasi publik hanya tersedia untuk akun pasien.', 403);
+        }
+
         const emailExists = existingUsers.some(
           u => u.email.toLowerCase() === request.email.toLowerCase().trim()
         );
@@ -81,10 +89,7 @@ export class AuthEndpoints {
         }
 
         const newId = `user-${request.role.toLowerCase().slice(0, 3)}-${Date.now().toString().slice(-4)}`;
-        const avatar =
-          request.role === 'PSYCHOLOGIST'
-            ? 'https://images.unsplash.com/photo-1594824813571-638f026361a1?w=200&auto=format&fit=crop&q=80'
-            : 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
+        const avatar = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80';
 
         const newUser: User = {
           id: newId,
@@ -92,34 +97,13 @@ export class AuthEndpoints {
           name: request.name.trim(),
           role: request.role,
           avatar,
-          status: request.role === 'PSYCHOLOGIST' ? 'PENDING_VERIFICATION' : 'ACTIVE',
+          status: 'ACTIVE',
           phone: request.phone.trim(),
-          isVerified: request.role !== 'PSYCHOLOGIST',
+          isVerified: true,
           createdAt: new Date().toISOString().slice(0, 10)
         };
 
-        let profile: PsychologistProfile | undefined;
-        if (request.role === 'PSYCHOLOGIST') {
-          profile = {
-            userId: newId,
-            title: 'Psikolog Klinis (Pendaftar Baru)',
-            strNumber: 'STR-REG-' + Date.now().toString().slice(-5),
-            sipNumber: 'SIP-REG-' + Date.now().toString().slice(-5),
-            experienceYears: 1,
-            bio: `Profil profesional ${request.name}. Akun baru terdaftar dan siap melayani konsultasi.`,
-            specialties: ['Konseling Umum', 'Manajemen Stres'],
-            therapyApproaches: ['Cognitive Behavioral Therapy (CBT)'],
-            rating: 5.0,
-            reviewCount: 0,
-            consultationFeeOnline: 200000,
-            consultationFeeOffline: 300000,
-            languages: ['Bahasa Indonesia'],
-            clinicAddress: 'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan',
-            isAvailableToday: true
-          };
-        }
-
-        return { user: newUser, profile };
+        return { user: newUser, profile: undefined };
       }
     );
   }

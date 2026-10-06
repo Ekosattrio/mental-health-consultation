@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
-import { LandingPage } from './components/landing/LandingPage';
-import { PatientDashboard } from './components/patient/PatientDashboard';
-import { PsychologistDashboard } from './components/psychologist/PsychologistDashboard';
-import { AdminDashboard } from './components/admin/AdminDashboard';
 import { ToastContainer } from './components/common/ToastContainer';
 import { LoginModal } from './components/auth/LoginModal';
-import { PatientProfileCompletionPage } from './components/patient/PatientProfileCompletionPage';
+
+const LandingPage = lazy(() => import('./components/landing/LandingPage').then(module => ({ default: module.LandingPage })));
+const PatientDashboard = lazy(() => import('./components/patient/PatientDashboard').then(module => ({ default: module.PatientDashboard })));
+const PsychologistDashboard = lazy(() => import('./components/psychologist/PsychologistDashboard').then(module => ({ default: module.PsychologistDashboard })));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })));
+const PatientProfileCompletionPage = lazy(() => import('./components/patient/PatientProfileCompletionPage').then(module => ({ default: module.PatientProfileCompletionPage })));
 
 const AppContent: React.FC = () => {
   const { currentRole, currentUser, startBookingFlow } = useApp();
@@ -20,20 +21,22 @@ const AppContent: React.FC = () => {
       <Navbar />
 
       <main className="flex-1 w-full max-w-full">
-        {isPendingProfileCompletion ? (
-          <PatientProfileCompletionPage />
-        ) : (
-          <>
-            {currentRole === 'GUEST' && (
-              <LandingPage
-                onSelectBooking={(psychologistId, packageId) => startBookingFlow(psychologistId, packageId)}
-              />
-            )}
-            {currentRole === 'PATIENT' && <PatientDashboard />}
-            {currentRole === 'PSYCHOLOGIST' && <PsychologistDashboard />}
-            {currentRole === 'ADMIN' && <AdminDashboard />}
-          </>
-        )}
+        <Suspense fallback={<div className="min-h-[50vh] flex items-center justify-center" aria-label="Memuat halaman"><div className="w-8 h-8 rounded-full border-4 border-slate-200 border-t-teal-600 animate-spin" /></div>}>
+          {isPendingProfileCompletion ? (
+            <PatientProfileCompletionPage />
+          ) : (
+            <>
+              {currentRole === 'GUEST' && (
+                <LandingPage
+                  onSelectBooking={(psychologistId, packageId) => startBookingFlow(psychologistId, packageId)}
+                />
+              )}
+              {currentRole === 'PATIENT' && <PatientDashboard />}
+              {currentRole === 'PSYCHOLOGIST' && <PsychologistDashboard />}
+              {currentRole === 'ADMIN' && <AdminDashboard />}
+            </>
+          )}
+        </Suspense>
       </main>
 
       {currentRole === 'GUEST' && <Footer />}

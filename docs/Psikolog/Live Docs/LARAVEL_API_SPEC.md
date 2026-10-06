@@ -1,13 +1,13 @@
-# Spesifikasi Arsitektur Backend API Laravel 12++ (JiwaSehat)
+# Spesifikasi Backend API Laravel 12+ (JiwaSehat)
 
-Dokumen ini merupakan panduan implementasi teknis dan cetak biru (*blueprint*) backend **Laravel 12++** untuk platform konsultasi psikologi **JiwaSehat**, yang dirancang agar terhubung secara mulus dengan frontend React Vite TypeScript yang sudah dibangun.
+Dokumen ini merupakan panduan implementasi teknis backend **Laravel 12+** untuk platform konsultasi psikologi **JiwaSehat**, yang dirancang agar terhubung dengan frontend React/Vite TypeScript.
 
 ---
 
 ## 1. Konsep & Arsitektur Utama
 
 - **Framework**: Laravel 12.x (PHP 8.3+)
-- **Database Engine**: PostgreSQL 16+ / MySQL 8.0+
+- **Database Engine**: MySQL 8.0+
 - **Autentikasi**: Laravel Sanctum (Personal Access Token / SPA State Cookies) & Laravel Socialite (Google SSO)
 - **Format Pertukaran Data**: JSON standar RFC 7807 / RESTful API Resource
 - **Prefix Route API**: `/api/v1`
@@ -112,6 +112,10 @@ Dokumen ini merupakan panduan implementasi teknis dan cetak biru (*blueprint*) b
 | `session_type` | `enum('SINGLE_SESSION','CONTINUOUS_CARE')` | Sesi tunggal atau rawat jalan |
 | `duration_minutes` | `integer` | 60, 75, 90, atau 180 menit |
 | `price` | `decimal(12,2)` | Harga resmi paket konsultasi |
+| `dp_amount` | `decimal(12,2)` | Nominal DP yang ditetapkan psikolog untuk paket |
+| `discount_type` | `enum('NONE','PERCENT','FIXED')` | Jenis diskon langsung tanpa voucher |
+| `discount_value` | `decimal(12,2)` | Nilai persentase atau nominal diskon |
+| `discount_label` | `string(150)` | Nullable, label potongan yang tampil ke pasien |
 | `description` | `text` | Rincian dan deskripsi paket |
 | `benefits` | `json` | Poin manfaat / fasilitas include |
 | `continuous_care_note` | `text` | Nullable, panduan rencana rawat jalan berkala |
@@ -169,14 +173,23 @@ Catatan: paket 4/5/8/10 sesi memakai `treatment_plans` sebagai induk. Appointmen
 | `date` | `date` | Tanggal sesi |
 | `start_time` | `time` | Jam mulai sesi |
 | `end_time` | `time` | Jam berakhir sesi |
-| `session_type` | `enum('OFFLINE','ONLINE')` | Default `'OFFLINE'` (klinik tatap muka) |
-| `status` | `enum('PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED')` |
+| `session_type` | `string(20)` | Default dan nilai aktif `'OFFLINE'` (klinik tatap muka) |
+| `status` | `enum('PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED','NO_SHOW')` |
 | `payment_status` | `enum('PENDING','DP_PENDING_VERIFICATION','DP_PAID','PAID','REFUNDED')` |
-| `total_amount` | `decimal(12,2)` | Total tarif paket |
-| `dp_amount` | `decimal(12,2)` | Default 100000.00 (DP Flat Administrasi) |
+| `subtotal_amount` | `decimal(12,2)` | Snapshot harga paket sebelum diskon |
+| `discount_label` | `string(150)` | Nullable, snapshot label potongan |
+| `discount_amount` | `decimal(12,2)` | Snapshot nominal potongan |
+| `total_amount` | `decimal(12,2)` | Total paket setelah diskon |
+| `dp_amount` | `decimal(12,2)` | Snapshot DP dari konfigurasi paket saat booking |
 | `remaining_amount` | `decimal(12,2)` | Sisa tagihan pelunasan di klinik |
 | `transfer_sender_name` | `string(150)` | Nullable, nama pemilik rekening pengirim |
 | `payment_proof_url` | `string` | Nullable, path foto berkas transfer DP |
+| `final_payment_amount` | `decimal(12,2)` | Nullable, nominal pelunasan aktual yang dicatat admin dan hanya dapat dibaca psikolog/owner |
+| `final_payment_method` | `enum('CASH','BANK_TRANSFER','QRIS','EDC','OTHER')` | Nullable, metode pelunasan |
+| `final_payment_channel_detail` | `string(150)` | Nullable, nama bank/channel pelunasan |
+| `final_payment_reference` | `string(150)` | Nullable, referensi transaksi pelunasan |
+| `final_payment_recorded_at` | `timestamp` | Nullable, waktu pencatatan pelunasan |
+| `final_payment_recorded_by` | `foreignId` | Nullable, admin pencatat pelunasan |
 | `continuous_session_number`| `integer` | Nullable, nomor sesi ke-N jika rawat jalan |
 | `continuous_session_total`| `integer` | Nullable, total sesi dalam paket |
 | `admin_notes` | `text` | Catatan verifikator admin |
@@ -248,6 +261,7 @@ use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\CmsController;
 use App\Http\Controllers\Api\V1\AdminController;
 use App\Http\Controllers\Api\V1\TreatmentPlanController;
+use App\Http\Controllers\Api\V1\NotificationController;
 
 Route::prefix('v1')->group(function () {
 
@@ -260,9 +274,11 @@ Route::prefix('v1')->group(function () {
     // Paket Layanan Publik
     Route::get('/packages', [PackageController::class, 'index']);
     Route::get('/packages/{id}', [PackageController::class, 'show']);
+    Route::get('/psychologists/{id}/profile', [AuthController::class, 'psychologistProfile']);
     
     Route::get('/cms/landing', [CmsController::class, 'getLanding']);
     Route::get('/reviews', [ReviewController::class, 'indexPublic']);
+    Route::get('/reviews/{id}', [ReviewController::class, 'show']);
     Route::get('/schedules/available-slots', [ScheduleController::class, 'availableSlots']);
 
     // --- PROTECTED ENDPOINTS (AUTH SANCTUM) ---
@@ -272,14 +288,21 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
+        Route::get('/appointments', [AppointmentController::class, 'index']);
+        Route::get('/appointments/{id}', [AppointmentController::class, 'show']);
 
         // --- ROLE: PATIENT ---
         Route::middleware('role:PATIENT')->group(function () {
+            Route::get('/patients/me/profile', [AuthController::class, 'patientProfile']);
+            Route::put('/patients/me/profile', [AuthController::class, 'updatePatientProfile']);
             Route::post('/appointments', [AppointmentController::class, 'store']);
-            Route::post('/appointments/{id}/upload-proof', [AppointmentController::class, 'uploadProof']);
+            Route::post('/appointments/{id}/payment-proof', [AppointmentController::class, 'uploadProof']);
             Route::post('/appointments/{id}/reschedule', [AppointmentController::class, 'requestReschedule']);
-            Route::post('/patient/intake-forms', [IntakeController::class, 'submitIntake']);
-            Route::get('/patient/intake-forms', [IntakeController::class, 'myIntakes']);
+            Route::get('/appointments/{id}/receipt', [AppointmentController::class, 'patientReceipt']);
+            Route::post('/patient/pre-tests', [IntakeController::class, 'store']);
+            Route::get('/patient/pre-tests', [IntakeController::class, 'indexMine']);
+            Route::get('/patient/pre-tests/{id}', [IntakeController::class, 'showMine']);
+            Route::put('/patient/pre-tests/{id}', [IntakeController::class, 'updateMine']);
             Route::post('/reviews', [ReviewController::class, 'store']);
             Route::get('/cms/patient', [CmsController::class, 'getPatientCms']);
         });
@@ -290,19 +313,26 @@ Route::prefix('v1')->group(function () {
             Route::post('/packages', [PackageController::class, 'store']);
             Route::put('/packages/{id}', [PackageController::class, 'update']);
             Route::delete('/packages/{id}', [PackageController::class, 'destroy']);
-            Route::patch('/packages/{id}/toggle-status', [PackageController::class, 'toggleStatus']);
+            Route::patch('/packages/{id}/status', [PackageController::class, 'setStatus']);
 
             // Upload & Kelola Foto Wajah Profil Psikolog
             Route::post('/psychologists/me/avatar', [AuthController::class, 'uploadAvatar']);
             Route::delete('/psychologists/me/avatar', [AuthController::class, 'deleteAvatar']);
+            Route::put('/psychologists/{id}/profile', [AuthController::class, 'updatePsychologistProfile']);
+            Route::get('/psychologist/users/{id}', [AdminController::class, 'showPatientForOwner']);
 
             // Jadwal & Pengaturan
             Route::get('/psychologists/{id}/schedules', [ScheduleController::class, 'show']);
+            Route::get('/psychologists/{id}/schedules/weekly', [ScheduleController::class, 'showWeekly']);
             Route::put('/psychologists/{id}/schedules/weekly', [ScheduleController::class, 'updateWeekly']);
             Route::post('/psychologists/{id}/schedules/day-off', [ScheduleController::class, 'addDayOff']);
             Route::delete('/psychologists/{id}/schedules/day-off/{dayOffId}', [ScheduleController::class, 'deleteDayOff']);
-            Route::get('/psychologist/patients/{patientId}/intake', [IntakeController::class, 'patientIntakeDetail']);
-            Route::patch('/appointments/{id}/complete', [AppointmentController::class, 'completeByPsychologist']);
+            Route::put('/psychologists/{id}/schedules/date-overrides/{date}', [ScheduleController::class, 'upsertDateOverride']);
+            Route::delete('/psychologists/{id}/schedules/date-overrides/{date}', [ScheduleController::class, 'deleteDateOverride']);
+            Route::get('/psychologist/patients/{patientId}/pre-test', [IntakeController::class, 'patientPreTest']);
+            Route::patch('/psychologist/appointments/{id}/complete', [AppointmentController::class, 'completeByPsychologist']);
+            Route::patch('/psychologist/appointments/{id}/no-show', [AppointmentController::class, 'markNoShow']);
+            Route::patch('/psychologist/appointments/{id}/cancel', [AppointmentController::class, 'cancelByPsychologist']);
             Route::get('/treatment-plans', [TreatmentPlanController::class, 'index']);
             Route::post('/treatment-plans', [TreatmentPlanController::class, 'store']);
             Route::get('/treatment-plans/{id}', [TreatmentPlanController::class, 'show']);
@@ -310,6 +340,7 @@ Route::prefix('v1')->group(function () {
                 ->middleware('idempotency');
             Route::patch('/treatment-plans/{id}/discontinue', [TreatmentPlanController::class, 'discontinue']);
             Route::put('/cms/psychologist', [CmsController::class, 'updatePsychologistCms']);
+            Route::get('/cms/psychologist', [CmsController::class, 'getPsychologistCms']);
         });
 
         // --- ROLE: ADMIN ---
@@ -318,28 +349,37 @@ Route::prefix('v1')->group(function () {
             Route::get('/admin/users', [AdminController::class, 'users']);
 
             // Reservasi & Walk-in Booking
-            Route::get('/appointments', [AppointmentController::class, 'index']);
-            Route::get('/appointments/{id}', [AppointmentController::class, 'show']);
-            Route::post('/appointments/walk-in', [AppointmentController::class, 'storeWalkIn']);
-            Route::patch('/appointments/{id}/confirm', [AppointmentController::class, 'confirm']);
-            Route::post('/appointments/{id}/verify-payment', [AppointmentController::class, 'verifyPayment']);
+            Route::post('/admin/appointments/walk-in', [AppointmentController::class, 'storeWalkIn']);
+            Route::patch('/admin/appointments/{id}/confirm', [AppointmentController::class, 'confirm']);
+            Route::post('/admin/appointments/{id}/verify-payment', [AppointmentController::class, 'verifyPayment']);
+            Route::post('/admin/appointments/{id}/final-payment', [AppointmentController::class, 'recordFinalPayment']);
+            Route::patch('/admin/appointments/{id}/reschedule', [AppointmentController::class, 'rescheduleByAdmin']);
+            Route::get('/admin/appointments/{id}/receipt', [AppointmentController::class, 'adminReceipt']);
 
             // Moderasi Review
             Route::get('/admin/reviews', [ReviewController::class, 'indexAdmin']);
-            Route::patch('/reviews/{id}/moderate', [ReviewController::class, 'moderate']);
+            Route::patch('/admin/reviews/{id}/moderate', [ReviewController::class, 'moderate']);
         });
 
         // --- ROLE: PSYCHOLOGIST / OWNER REPORTING ---
         Route::middleware('role:PSYCHOLOGIST')->group(function () {
-            // Keuangan & Arus Kas Nyata
+            // Laporan uang masuk paket; tidak menghitung biaya operasional atau laba bersih
             Route::get('/finance/summary', [FinanceController::class, 'summary']);
             Route::get('/finance/transactions', [FinanceController::class, 'transactions']);
-            Route::get('/finance/export', [FinanceController::class, 'exportCsv']);
+            Route::get('/finance/export/clinical', [FinanceController::class, 'clinicalExport']);
+            Route::get('/finance/export/{format}', [FinanceController::class, 'export'])
+                ->whereIn('format', ['pdf', 'xlsx', 'csv']);
 
             // CMS Update
             Route::put('/cms/landing', [CmsController::class, 'updateLanding']);
             Route::put('/cms/patient', [CmsController::class, 'updatePatientCms']);
+            Route::post('/cms/assets', [CmsController::class, 'uploadAsset']);
         });
+
+        Route::get('/notifications/logs', [NotificationController::class, 'index']);
+        Route::post('/notifications/{id}/resend', [NotificationController::class, 'resend']);
+        Route::post('/notifications/appointments/{id}/send', [NotificationController::class, 'sendAppointmentEvent']);
+        Route::post('/notifications/reminders/daily', [NotificationController::class, 'sendDailyReminder']);
     });
 });
 ```
@@ -354,10 +394,13 @@ Seluruh komunikasi API dari frontend React telah dipetakan ke dalam direktori mo
 - `packageService.ts`: CRUD paket konsultasi, filter kategori, dan switch on/off status aktif.
 - `appointmentService.ts`: Booking wizard, verifikasi DP, reschedule, walk-in booking, complete sesi oleh psikolog, dan upload bukti transfer.
 - `scheduleService.ts`: Konfigurasi jadwal mingguan, kuota tanggal tertentu, dan slot dinamis.
-- `financeService.ts`: Mutasi kas masuk, filter bulan & tahun, dan ekspor CSV.
-- `intakeService.ts`: Integrasi pre-test keluhan dan asesmen DASS-21.
+- `treatmentPlanService.ts`: Paket berjalan, sesi lanjutan idempotent, dan discontinue.
+- `financeService.ts`: Mutasi kas masuk, filter bulan & tahun, dan ekspor PDF/XLSX/CSV/klinis.
+- `intakeService.ts`: CRUD pre-test profiling keluhan awal sebagai syarat booking, bukan diagnosis.
 - `reviewService.ts`: Manajemen testimoni dan moderasi bintang 1-5.
 - `cmsService.ts`: Pengelolaan teks konten landing page, panduan pasien, dan kop dinas resmi.
+- `userService.ts`: Profil pasien/psikolog dan monitoring user admin read-only.
+- `notificationService.ts`: Log, retry, event appointment, dan reminder harian WhatsApp/email.
 
 ### Cara Penggunaan di Komponen React:
 ```tsx
@@ -378,7 +421,7 @@ const fetchFinancialData = async (month: string, year: string) => {
 
 ## 6. Checklist Kesiapan Integrasi ke Laravel 12
 
-- [x] Struktur folder `src/services/api/` dibuat lengkap dan bebas error TypeScript.
+- [~] Struktur folder `src/services/api/` dibuat lengkap; pemeriksaan TypeScript menunggu izin developer untuk dijalankan.
 - [x] Endpoint RESTful, payload, dan query parameter sesuai konvensi standar Laravel.
 - [x] Skema database relasional telah disesuaikan dengan kebutuhan praktisi tunggal (tanpa split komisi dan tanpa SOAP medis).
 - [x] Fitur Export CSV dan Cetak siap beroperasi baik di frontend langsung (client-side) maupun melalui stream response dari Laravel.

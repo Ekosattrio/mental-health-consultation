@@ -23,6 +23,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
+import { calculatePackagePayableAmount } from '../../../utils/discounts';
 
 export interface PackagesTabProps {
   packages: ConsultationPackage[];
@@ -62,6 +63,9 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [price, setPrice] = useState(250000);
   const [dpAmount, setDpAmount] = useState(100000);
+  const [discountType, setDiscountType] = useState<'NONE' | 'PERCENT' | 'FIXED'>('NONE');
+  const [discountValue, setDiscountValue] = useState(0);
+  const [discountLabel, setDiscountLabel] = useState('');
   const [badge, setBadge] = useState('');
   const [description, setDescription] = useState('');
   const [benefitsList, setBenefitsList] = useState<string[]>(['Konsultasi privat tatap muka langsung di ruang klinik.']);
@@ -77,6 +81,9 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
     setDurationMinutes(60);
     setPrice(250000);
     setDpAmount(100000);
+    setDiscountType('NONE');
+    setDiscountValue(0);
+    setDiscountLabel('');
     setBadge('');
     setDescription('');
     setBenefitsList(['Konsultasi privat tatap muka langsung di ruang klinik.']);
@@ -99,6 +106,9 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
     setDurationMinutes(pkg.durationMinutes);
     setPrice(pkg.price);
     setDpAmount(pkg.dpAmount || 100000);
+    setDiscountType(pkg.discountType || 'NONE');
+    setDiscountValue(pkg.discountValue || 0);
+    setDiscountLabel(pkg.discountLabel || '');
     setBadge(pkg.badge || '');
     setDescription(pkg.description);
     setBenefitsList(pkg.benefits && pkg.benefits.length > 0 ? pkg.benefits : ['Konsultasi privat tatap muka langsung di ruang klinik.']);
@@ -117,6 +127,59 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       return;
     }
 
+    const normalizedPrice = Number(price);
+    const normalizedDuration = Number(durationMinutes);
+    const normalizedDp = Number(dpAmount);
+    const normalizedSessionCount = Number(sessionCount);
+
+    if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
+      showToast('Tarif Belum Valid', 'Total biaya paket tidak boleh negatif.', 'error');
+      return;
+    }
+
+    if (!Number.isInteger(normalizedDuration) || normalizedDuration < 30 || normalizedDuration > 240) {
+      showToast('Durasi Belum Valid', 'Durasi sesi harus berupa 30-240 menit.', 'error');
+      return;
+    }
+
+    if (!Number.isFinite(normalizedDp) || normalizedDp < 0) {
+      showToast('DP Belum Valid', 'Nominal DP tidak boleh negatif.', 'error');
+      return;
+    }
+
+    if (isContinuousCare && (!Number.isInteger(normalizedSessionCount) || normalizedSessionCount < 2 || normalizedSessionCount > 50)) {
+      showToast('Jumlah Sesi Belum Valid', 'Paket berkelanjutan harus memiliki 2-50 sesi.', 'error');
+      return;
+    }
+
+    if (discountType !== 'NONE') {
+      if (!Number.isFinite(discountValue) || discountValue <= 0) {
+        showToast('Diskon Belum Valid', 'Nilai diskon harus lebih dari 0.', 'error');
+        return;
+      }
+
+      if (discountType === 'PERCENT' && discountValue > 100) {
+        showToast('Diskon Belum Valid', 'Persentase diskon maksimal 100%.', 'error');
+        return;
+      }
+
+      if (discountType === 'FIXED' && discountValue > price) {
+        showToast('Diskon Belum Valid', 'Nominal diskon tidak boleh melebihi total biaya paket.', 'error');
+        return;
+      }
+    }
+
+    const normalizedDiscount = discountType === 'PERCENT'
+      ? Math.floor(normalizedPrice * (Number(discountValue) / 100))
+      : discountType === 'FIXED'
+      ? Number(discountValue)
+      : 0;
+    const payableAfterDiscount = Math.max(normalizedPrice - normalizedDiscount, 0);
+    if (normalizedDp > payableAfterDiscount) {
+      showToast('DP Belum Valid', 'Nominal DP tidak boleh melebihi total paket setelah diskon.', 'error');
+      return;
+    }
+
     const benefitsArray = benefitsList
       .map(b => b.trim())
       .filter(b => b.length > 0);
@@ -126,11 +189,14 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       name: name.trim(),
       category,
       type: 'OFFLINE_CLINIC',
-      durationMinutes: Number(durationMinutes),
-      price: Number(price),
-      dpAmount: Number(dpAmount),
+      durationMinutes: normalizedDuration,
+      price: normalizedPrice,
+      dpAmount: normalizedDp,
+      discountType,
+      discountValue: discountType === 'NONE' ? 0 : Number(discountValue),
+      discountLabel: discountType === 'NONE' ? undefined : discountLabel.trim() || 'Potongan dari psikolog/pengelola',
       isContinuousCare,
-      sessionCount: isContinuousCare ? Number(sessionCount) : 1,
+      sessionCount: isContinuousCare ? normalizedSessionCount : 1,
       badge: badge.trim() || undefined,
       description: description.trim(),
       benefits: benefitsArray.length > 0 ? benefitsArray : ['Konsultasi privat tatap muka langsung di ruang klinik.'],
@@ -169,6 +235,18 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
     });
   };
 
+  const handleAddDiscount = () => {
+    setDiscountType('PERCENT');
+    setDiscountValue(10);
+    setDiscountLabel('');
+  };
+
+  const handleRemoveDiscount = () => {
+    setDiscountType('NONE');
+    setDiscountValue(0);
+    setDiscountLabel('');
+  };
+
   // Filter packages
   const filteredPackages = useMemo(() => {
     return packages.filter(pkg => {
@@ -189,6 +267,17 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
   const paginatedPackages = useMemo(() => {
     return filteredPackages.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredPackages, startIndex, itemsPerPage]);
+
+  const hasDiscount = discountType !== 'NONE';
+  const discountPreviewAmount = hasDiscount
+    ? Math.min(
+        discountType === 'PERCENT'
+          ? Math.floor(Math.max(price, 0) * (Math.min(Math.max(discountValue, 0), 100) / 100))
+          : Math.max(discountValue, 0),
+        Math.max(price, 0)
+      )
+    : 0;
+  const priceAfterDiscount = Math.max(price - discountPreviewAmount, 0);
 
   return (
     <div className="space-y-6">
@@ -297,6 +386,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                 <th className="py-3.5 px-4">Tipe & Sesi</th>
                 <th className="py-3.5 px-4">Durasi</th>
                 <th className="py-3.5 px-4">Tarif Total</th>
+                <th className="py-3.5 px-4">Potongan</th>
                 <th className="py-3.5 px-4">DP Admin</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
                 <th className="py-3.5 px-4 text-center min-w-[120px]">Aksi</th>
@@ -305,12 +395,14 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
             <tbody className="divide-y divide-slate-100 font-medium">
               {paginatedPackages.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400 italic">
+                  <td colSpan={10} className="py-12 text-center text-slate-400 italic">
                     Tidak ditemukan paket konsultasi yang sesuai filter.
                   </td>
                 </tr>
               ) : (
-                paginatedPackages.map((pkg, idx) => (
+                paginatedPackages.map((pkg, idx) => {
+                  const pricing = calculatePackagePayableAmount(pkg);
+                  return (
                   <tr key={pkg.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="py-3 px-4 text-center text-slate-400 font-mono text-[11px]">
                       {startIndex + idx + 1}
@@ -364,6 +456,22 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                     {/* Tarif */}
                     <td className="py-3 px-4 whitespace-nowrap font-bold text-slate-900">
                       Rp {pkg.price.toLocaleString('id-ID')}
+                      {pricing.discount && (
+                        <span className="block text-[10px] text-emerald-700 font-black">
+                          Jadi Rp {pricing.totalAmount.toLocaleString('id-ID')}
+                        </span>
+                      )}
+                    </td>
+
+                    <td className="py-3 px-4 whitespace-nowrap text-emerald-700 font-bold text-xs">
+                      {pricing.discount ? (
+                        <div>
+                          <span className="block">- Rp {pricing.discountAmount.toLocaleString('id-ID')}</span>
+                          <span className="block text-[10px] text-slate-500 font-semibold">{pricing.discount.label}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">Tidak ada</span>
+                      )}
                     </td>
 
                     {/* DP Admin */}
@@ -429,7 +537,8 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -750,6 +859,108 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white font-bold text-purple-700 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
                   />
                 </div>
+              </div>
+
+              <div className={`p-4 rounded-2xl border space-y-3 ${hasDiscount ? 'bg-emerald-50/60 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <Tag className={`w-4 h-4 shrink-0 mt-0.5 ${hasDiscount ? 'text-emerald-700' : 'text-slate-500'}`} />
+                    <div>
+                      <strong className={`text-xs block ${hasDiscount ? 'text-emerald-950' : 'text-slate-800'}`}>Diskon Paket</strong>
+                      <span className={`text-[11px] ${hasDiscount ? 'text-emerald-700' : 'text-slate-500'}`}>
+                        {hasDiscount
+                          ? 'Diskon ini otomatis diterapkan ke harga paket yang dilihat pasien.'
+                          : 'Belum ada diskon aktif pada paket ini.'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {hasDiscount ? (
+                    <Tooltip content="Hapus diskon">
+                      <button
+                        type="button"
+                        onClick={handleRemoveDiscount}
+                        className="w-9 h-9 shrink-0 rounded-xl border border-rose-200 bg-white text-rose-600 hover:bg-rose-50 flex items-center justify-center transition-colors cursor-pointer"
+                        aria-label="Hapus diskon paket"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </Tooltip>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleAddDiscount}
+                      className="shrink-0 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Tambah Diskon
+                    </button>
+                  )}
+                </div>
+
+                {hasDiscount && (
+                  <div className="space-y-3 pt-3 border-t border-emerald-200 animate-fadeIn">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">Jenis Diskon</label>
+                        <select
+                          value={discountType}
+                          onChange={e => {
+                            const nextType = e.target.value as 'PERCENT' | 'FIXED';
+                            setDiscountType(nextType);
+                            setDiscountValue(nextType === 'PERCENT' ? 10 : 25000);
+                          }}
+                          className="w-full px-3.5 py-2 rounded-xl border border-emerald-200 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                        >
+                          <option value="PERCENT">Persentase (%)</option>
+                          <option value="FIXED">Nominal Rupiah</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                          Nilai Diskon {discountType === 'PERCENT' ? '(%)' : '(Rp)'}
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min={discountType === 'PERCENT' ? 1 : 1000}
+                          max={discountType === 'PERCENT' ? 100 : Math.max(price, 0)}
+                          step={discountType === 'PERCENT' ? 1 : 1000}
+                          value={discountValue}
+                          onChange={e => setDiscountValue(Number(e.target.value))}
+                          className="w-full px-3.5 py-2 rounded-xl border border-emerald-200 bg-white font-bold text-emerald-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">Nama Diskon (Opsional)</label>
+                      <input
+                        type="text"
+                        value={discountLabel}
+                        onChange={e => setDiscountLabel(e.target.value)}
+                        placeholder="Contoh: Diskon Oktober"
+                        className="w-full px-3.5 py-2 rounded-xl border border-emerald-200 bg-white font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 rounded-xl border border-emerald-200 bg-white p-3">
+                      <div className="min-w-0">
+                        <span className="block text-[9px] font-bold uppercase text-slate-500">Harga Awal</span>
+                        <strong className="block text-[11px] text-slate-800 truncate">Rp {Math.max(price, 0).toLocaleString('id-ID')}</strong>
+                      </div>
+                      <div className="min-w-0 text-center border-x border-slate-100 px-1">
+                        <span className="block text-[9px] font-bold uppercase text-slate-500">Diskon</span>
+                        <strong className="block text-[11px] text-rose-600 truncate">- Rp {discountPreviewAmount.toLocaleString('id-ID')}</strong>
+                      </div>
+                      <div className="min-w-0 text-right">
+                        <span className="block text-[9px] font-bold uppercase text-slate-500">Harga Akhir</span>
+                        <strong className="block text-[11px] text-emerald-700 truncate">Rp {priceAfterDiscount.toLocaleString('id-ID')}</strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

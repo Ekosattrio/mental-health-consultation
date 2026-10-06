@@ -96,7 +96,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
       step: 4,
       title: 'Sesi Tatap Muka di Klinik',
       badge: 'Privat & Offline',
-      desc: 'Hadir 10 menit lebih awal di JiwaSehat Center. Sesi berlangsung privat tatap muka bersama psikolog berizin SIP.',
+      desc: 'Hadir 10 menit lebih awal di JiwaSehat Center. Sesi berlangsung privat tatap muka bersama psikolog.',
       icon: Building
     },
     {

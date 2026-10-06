@@ -15,7 +15,8 @@ interface HistoryTabProps {
 const getTomorrowDate = () => {
   const date = new Date();
   date.setDate(date.getDate() + 1);
-  return date.toISOString().slice(0, 10);
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+  return localDate.toISOString().slice(0, 10);
 };
 
 export const HistoryTab: React.FC<HistoryTabProps> = ({
@@ -33,6 +34,10 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   const [nextStartTime, setNextStartTime] = useState('09:00');
   const [nextEndTime, setNextEndTime] = useState('10:00');
   const [isSchedulingNext, setIsSchedulingNext] = useState(false);
+  const [pendingStatusAction, setPendingStatusAction] = useState<{
+    appointment: Appointment;
+    type: 'COMPLETE' | 'NO_SHOW' | 'CANCEL';
+  } | null>(null);
   const itemsPerPage = 8;
 
   // Reset page when search or filter changes
@@ -75,7 +80,12 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   const canScheduleNextSession = (apt: Appointment) => {
     const currentNumber = apt.continuousSessionNumber || 1;
     const totalSessions = apt.continuousSessionTotal || 1;
-    if (apt.status !== 'COMPLETED' || totalSessions <= 1 || currentNumber >= totalSessions) return false;
+    if (
+      apt.status !== 'COMPLETED' ||
+      apt.treatmentPlanStatus === 'DISCONTINUED' ||
+      totalSessions <= 1 ||
+      currentNumber >= totalSessions
+    ) return false;
 
     const planAppointments = getPlanAppointments(apt);
     const hasNextSession = planAppointments.some(item => (item.continuousSessionNumber || 1) === currentNumber + 1);
@@ -100,6 +110,15 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
     const success = await onScheduleNextSession(nextSessionSource.id, nextDate, nextStartTime, nextEndTime);
     setIsSchedulingNext(false);
     if (success) closeNextSessionModal();
+  };
+
+  const confirmStatusAction = () => {
+    if (!pendingStatusAction) return;
+    const { appointment, type } = pendingStatusAction;
+    if (type === 'COMPLETE') onCompleteAppointment(appointment.id);
+    if (type === 'NO_SHOW') onMarkNoShow(appointment.id);
+    if (type === 'CANCEL') onCancelAppointment(appointment.id);
+    setPendingStatusAction(null);
   };
 
   return (
@@ -163,8 +182,83 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
           </div>
         </div>
 
+        <div className="md:hidden divide-y divide-slate-100 border-y border-slate-200">
+          {paginatedAppointments.length === 0 ? (
+            <div className="py-10 px-4 text-center text-xs text-slate-400">
+              Tidak ditemukan riwayat sesi konseling yang cocok.
+            </div>
+          ) : paginatedAppointments.map(apt => (
+            <article key={apt.id} className="p-4 bg-white space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="font-black text-slate-900 truncate">{apt.patientName}</div>
+                  <div className="text-[11px] font-mono text-slate-500 mt-0.5">{apt.bookingCode}</div>
+                </div>
+                <span className={`px-2 py-1 rounded text-[10px] font-bold shrink-0 ${
+                  apt.status === 'COMPLETED'
+                    ? 'bg-slate-200 text-slate-800'
+                    : apt.status === 'CONFIRMED'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : apt.status === 'PENDING'
+                    ? 'bg-amber-100 text-amber-800'
+                    : apt.status === 'NO_SHOW'
+                    ? 'bg-orange-100 text-orange-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}>
+                  {apt.status}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-[11px]">
+                <div className="min-w-0">
+                  <span className="block text-slate-400 font-bold uppercase">Paket</span>
+                  <span className="block text-slate-800 font-semibold mt-0.5 line-clamp-2">{apt.packageName}</span>
+                </div>
+                <div>
+                  <span className="block text-slate-400 font-bold uppercase">Jadwal</span>
+                  <span className="block text-slate-800 font-semibold mt-0.5">{apt.date}</span>
+                  <span className="block text-slate-500">{apt.startTime} - {apt.endTime}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-indigo-700">
+                  {apt.continuousSessionTotal && apt.continuousSessionTotal > 1
+                    ? `Sesi ${apt.continuousSessionNumber || 1}/${apt.continuousSessionTotal}`
+                    : 'Sesi tunggal'}
+                </span>
+                <div className="flex items-center gap-2">
+                  {apt.status === 'CONFIRMED' && (
+                    <>
+                      <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'COMPLETE' })} className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center" aria-label="Tandai sesi selesai">
+                        <CheckCheck className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'NO_SHOW' })} className="w-9 h-9 rounded-xl bg-orange-50 text-orange-700 border border-orange-200 flex items-center justify-center" aria-label="Tandai pasien tidak hadir">
+                        <UserX className="w-4 h-4" />
+                      </button>
+                      <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan sesi">
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                  {canScheduleNextSession(apt) && (
+                    <button type="button" onClick={() => openNextSessionModal(apt)} className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center" aria-label="Jadwalkan sesi berikutnya">
+                      <CalendarPlus className="w-4 h-4" />
+                    </button>
+                  )}
+                  {apt.status === 'COMPLETED' && !canScheduleNextSession(apt) && (
+                    <span className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center" aria-label="Sesi sudah selesai">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </span>
+                  )}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
         {/* Tabel Data */}
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full min-w-[700px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-y border-slate-200">
               <tr>
@@ -174,14 +268,13 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 <th className="py-3 px-4">Paket Layanan</th>
                 <th className="py-3 px-4">Tanggal & Jam</th>
                 <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Catatan Medis</th>
                 <th className="py-3 px-4 text-right">Aksi Psikolog</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedAppointments.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-slate-400">
+                  <td colSpan={7} className="py-8 text-center text-slate-400">
                     Tidak ditemukan riwayat sesi konseling yang cocok.
                   </td>
                 </tr>
@@ -222,23 +315,13 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      {apt.clinicalNotesId ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          Tersimpan (Rekam Medis)
-                        </span>
-                      ) : (
-                        <span className="text-amber-600 font-medium">Belum Ditulis</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-1.5">
                         {apt.status === 'CONFIRMED' && (
                           <>
                             <Tooltip content="Tandai sesi konsultasi selesai" position="left">
                               <button
                                 type="button"
-                                onClick={() => onCompleteAppointment(apt.id)}
+                                onClick={() => setPendingStatusAction({ appointment: apt, type: 'COMPLETE' })}
                                 className="w-8 h-8 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                                 aria-label="Tandai sesi konsultasi selesai"
                               >
@@ -248,7 +331,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                             <Tooltip content="Tandai pasien tidak hadir" position="left">
                               <button
                                 type="button"
-                                onClick={() => onMarkNoShow(apt.id)}
+                                onClick={() => setPendingStatusAction({ appointment: apt, type: 'NO_SHOW' })}
                                 className="w-8 h-8 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 border border-orange-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                                 aria-label="Tandai pasien tidak hadir"
                               >
@@ -258,7 +341,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                             <Tooltip content="Batalkan sesi oleh psikolog" position="left">
                               <button
                                 type="button"
-                                onClick={() => onCancelAppointment(apt.id)}
+                                onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })}
                                 className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
                                 aria-label="Batalkan sesi oleh psikolog"
                               >
@@ -425,6 +508,40 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSchedulingNext ? 'Menyimpan...' : 'Simpan Jadwal'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {pendingStatusAction && createPortal(
+        <div className="fixed inset-0 z-[999999] bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900">Konfirmasi Status Sesi</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{pendingStatusAction.appointment.bookingCode} - {pendingStatusAction.appointment.patientName}</p>
+              </div>
+              <button type="button" onClick={() => setPendingStatusAction(null)} className="w-9 h-9 rounded-xl border border-slate-200 text-slate-500 flex items-center justify-center" aria-label="Tutup konfirmasi status sesi">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 text-sm text-slate-700 leading-relaxed">
+              {pendingStatusAction.type === 'COMPLETE' && 'Pastikan konsultasi benar-benar selesai sebelum mengubah status sesi.'}
+              {pendingStatusAction.type === 'NO_SHOW' && 'Pasien akan dicatat tidak hadir. Status ini memengaruhi progres paket berjalan.'}
+              {pendingStatusAction.type === 'CANCEL' && 'Sesi akan dibatalkan oleh psikolog. Tindakan ini tidak tersedia untuk admin.'}
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+              <button type="button" onClick={() => setPendingStatusAction(null)} className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600">Kembali</button>
+              <button
+                type="button"
+                onClick={confirmStatusAction}
+                className={`px-4 py-2 rounded-xl text-white text-xs font-bold ${
+                  pendingStatusAction.type === 'COMPLETE' ? 'bg-sky-600' : pendingStatusAction.type === 'NO_SHOW' ? 'bg-orange-600' : 'bg-rose-600'
+                }`}
+              >
+                Konfirmasi
               </button>
             </div>
           </div>

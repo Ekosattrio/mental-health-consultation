@@ -27,7 +27,6 @@ export const AdminDashboard: React.FC = () => {
     analytics,
     activeAdminTab,
     setActiveAdminTab,
-    toggleUserStatus,
     approveReview,
     rejectReview,
     updateAppointmentStatus,
@@ -129,7 +128,6 @@ export const AdminDashboard: React.FC = () => {
             <UsersTab
               users={users}
               psychologists={psychologists}
-              toggleUserStatus={toggleUserStatus}
             />
           )}
 

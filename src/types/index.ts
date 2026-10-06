@@ -32,8 +32,6 @@ export interface PsychologistProfile {
   therapyApproaches: string[];
   rating: number;
   reviewCount: number;
-  consultationFeeOnline: number;
-  consultationFeeOffline: number;
   languages: string[];
   clinicAddress: string;
   avatarUrl?: string;
@@ -70,7 +68,7 @@ export interface IntakeForm {
 
 export type PackageCategory = 'KONSELING' | 'ASESMEN' | 'PSIKOTERAPI';
 
-export type PackageType = 'OFFLINE_CLINIC' | 'ONLINE_TELE' | 'BUNDLING_ASSESSMENT' | 'PSYCHOTHERAPY';
+export type PackageType = 'OFFLINE_CLINIC' | 'BUNDLING_ASSESSMENT' | 'PSYCHOTHERAPY';
 
 export interface ConsultationPackage {
   id: string;
@@ -80,6 +78,9 @@ export interface ConsultationPackage {
   durationMinutes: number;
   price: number;
   dpAmount?: number;
+  discountType?: 'NONE' | 'PERCENT' | 'FIXED';
+  discountValue?: number;
+  discountLabel?: string;
   isContinuousCare?: boolean;
   sessionCount?: number;
   badge?: string;
@@ -119,6 +120,10 @@ export interface Appointment {
   endTime: string;
   status: AppointmentStatus;
   paymentStatus: 'PENDING' | 'DP_PENDING_VERIFICATION' | 'DP_PAID' | 'FINAL_PENDING_VERIFICATION' | 'PAID' | 'REFUNDED';
+  subtotalAmount?: number;
+  discountCode?: string;
+  discountLabel?: string;
+  discountAmount?: number;
   totalAmount: number;
   dpAmount?: number;
   remainingAmount?: number;
@@ -127,76 +132,26 @@ export interface Appointment {
   transferSenderName?: string;
   paymentReference?: string;
   paymentProofUrl?: string;
+  finalPaymentAmount?: number;
+  finalPaymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
+  finalPaymentChannelDetail?: string;
+  finalPaymentReference?: string;
+  finalPaymentRecordedAt?: string;
+  finalPaymentRecordedByName?: string;
+  rescheduledAt?: string;
+  rescheduledByName?: string;
+  rescheduledByRole?: UserRole;
+  rescheduleReason?: string;
   treatmentPlanId?: string;
+  treatmentPlanStatus?: 'ACTIVE' | 'COMPLETED' | 'DISCONTINUED';
+  treatmentPlanDiscontinuedAt?: string;
+  treatmentPlanDiscontinuedReason?: string;
   continuousSessionNumber?: number;
   continuousSessionTotal?: number;
-  meetingLocation: string; // Virtual Room ID or Clinic Room
+  meetingLocation: string;
   hasIntakeForm: boolean;
-  hasTestResult: boolean;
   createdAt: string;
-  clinicalNotesId?: string;
   reviewId?: string;
-}
-
-export interface QuestionOption {
-  label: string;
-  score: number;
-}
-
-export interface Question {
-  id: number;
-  text: string;
-  subscale?: 'Depresi' | 'Kecemasan' | 'Stres' | 'Umum';
-  options: QuestionOption[];
-}
-
-export interface PsychologicalTest {
-  id: string;
-  code: 'DASS-21' | 'PHQ-9' | 'GAD-7';
-  title: string;
-  shortDescription: string;
-  instruction: string;
-  estimatedMinutes: number;
-  questionCount: number;
-  questions: Question[];
-  subscales?: string[];
-  scoringFormula: string;
-}
-
-export interface TestResult {
-  id: string;
-  patientId: string;
-  patientName: string;
-  testId: string;
-  testCode: string;
-  testTitle: string;
-  completedAt: string;
-  totalScore: number;
-  subscaleScores: {
-    depression?: number;
-    anxiety?: number;
-    stress?: number;
-  };
-  severityLevel: 'NORMAL' | 'RINGAN' | 'SEDANG' | 'BERAT' | 'SANGAT_BERAT';
-  interpretation: string;
-  clinicalRecommendation: string;
-}
-
-export interface ClinicalNote {
-  id: string;
-  appointmentId: string;
-  patientId: string;
-  psychologistId: string;
-  sessionDate: string;
-  // SOAP Format
-  subjective: string; // Keluhan subyektif pasien
-  objective: string;   // Observasi perilaku klinis, afek, kontak mata
-  assessment: string;  // Analisis diagnosis sementara / dinamika psikologis
-  plan: string;        // Rencana intervensi, pekerjaan rumah / sesi lanjutan
-  prognosis: 'Baik' | 'Perlu Pemantauan' | 'Butuh Rujukan Psikiater';
-  requiresPsychiatristReferral: boolean;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface Review {

@@ -1,48 +1,45 @@
+import { IntakeForm } from '../../types';
 import { apiClient, ApiResponse } from './client';
-import { IntakeForm, TestResult } from '../../types';
 
-export interface SubmitIntakePayload {
-  appointment_id?: string;
-  birthDate?: string;
-  gender?: 'Laki-laki' | 'Perempuan' | 'Lainnya';
+export interface UpsertPreTestPayload {
+  birth_date?: string;
+  gender?: string;
   occupation?: string;
-  chief_complaint?: string;
-  symptoms_duration?: string;
-  previous_counseling_experience?: string;
-  emergency_contact?: {
+  emergency_contact: {
     name: string;
     relationship: string;
     phone: string;
   };
-  consent_given?: boolean;
-  dass21_answers?: Record<string, number>;
+  primary_concerns: string[];
+  concern_description: string;
+  previous_therapy: boolean;
+  previous_diagnosis?: string;
+  current_medications?: string;
+  current_stress_level: number;
+  sleep_quality: IntakeForm['sleepQuality'];
+  suicide_risk_flag: boolean;
+  goals: string;
+  consent_given: boolean;
 }
 
 export const intakeService = {
-  /**
-   * Mengambil riwayat pengisian form intake pasien
-   * Endpoint Laravel: GET /api/v1/patient/intake-forms
-   */
-  async getMyIntakeForms(): Promise<ApiResponse<IntakeForm[]>> {
-    return apiClient.get<IntakeForm[]>('/patient/intake-forms');
+  listMine(): Promise<ApiResponse<IntakeForm[]>> {
+    return apiClient.get<IntakeForm[]>('/patient/pre-tests');
   },
 
-  /**
-   * Mengirim jawaban form intake pre-test saat booking
-   * Endpoint Laravel: POST /api/v1/patient/intake-forms
-   */
-  async submitIntake(payload: SubmitIntakePayload): Promise<ApiResponse<IntakeForm>> {
-    return apiClient.post<IntakeForm>('/patient/intake-forms', payload);
+  getMineById(id: string): Promise<ApiResponse<IntakeForm>> {
+    return apiClient.get<IntakeForm>(`/patient/pre-tests/${id}`);
   },
 
-  /**
-   * Psikolog melihat rincian intake & hasil tes pasien
-   * Endpoint Laravel: GET /api/v1/psychologist/patients/{patientId}/intake
-   */
-  async getPatientIntakeForPsychologist(patientId: string): Promise<ApiResponse<{
-    intake_form: IntakeForm;
-    test_results: TestResult[];
-  }>> {
-    return apiClient.get(`/psychologist/patients/${patientId}/intake`);
+  create(payload: UpsertPreTestPayload): Promise<ApiResponse<IntakeForm>> {
+    return apiClient.post<IntakeForm>('/patient/pre-tests', payload);
+  },
+
+  update(id: string, payload: UpsertPreTestPayload): Promise<ApiResponse<IntakeForm>> {
+    return apiClient.put<IntakeForm>(`/patient/pre-tests/${id}`, payload);
+  },
+
+  getPatientPreTest(patientId: string): Promise<ApiResponse<IntakeForm>> {
+    return apiClient.get<IntakeForm>(`/psychologist/patients/${patientId}/pre-test`);
   }
 };

@@ -1,17 +1,15 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { User, PsychologistProfile, UserStatus } from '../../../types';
+import { User, PsychologistProfile } from '../../../types';
 import { Search, CheckCircle2, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface UsersTabProps {
   users: User[];
   psychologists: PsychologistProfile[];
-  toggleUserStatus?: (userId: string, status: UserStatus) => void;
 }
 
 export const UsersTab: React.FC<UsersTabProps> = ({
   users,
-  psychologists,
-  toggleUserStatus
+  psychologists
 }) => {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'ALL' | 'PATIENT' | 'PSYCHOLOGIST' | 'ADMIN'>('ALL');

@@ -8,7 +8,7 @@ Aplikasi menggunakan React dengan TypeScript dan Vite. State aplikasi dikelola d
 
 - `src/App.tsx`: root aplikasi, menampilkan Landing Page untuk GUEST dan dashboard untuk role terautentikasi (PATIENT, PSYCHOLOGIST, ADMIN).
 - `src/context/AppContext.tsx`: global state, action facade, dan sinkronisasi LocalStorage/API.
-- `src/services/api/`: service layer API terstandarisasi untuk koneksi ke backend Laravel 12++ (`client.ts`, `authService.ts`, `appointmentService.ts`, `packageService.ts`, `scheduleService.ts`, `financeService.ts`, `reviewService.ts`, `cmsService.ts`).
+- `src/services/api/`: HTTP client dan service CRUD untuk backend Laravel 12+ (`auth`, `user`, `package`, `appointment`, `schedule`, `intake`, `treatment plan`, `finance`, `review`, `CMS`, dan `notification`).
 - `src/components`: UI modular berdasarkan domain dan role (landing, patient, psychologist, admin, common, layout, auth).
 - `src/types`: kontrak TypeScript untuk entity, request/response, dan state.
 - `src/data/mockData.ts`: data awal untuk simulasi offline.
@@ -28,24 +28,19 @@ Role tertinggi adalah psikolog/super admin/pengelola. Admin berfokus pada verifi
 
 ## Persistence Saat Ini
 
-Data sementara disimpan di `localStorage` dengan prefix `jiwasehat_v3_` dengan fallback dinamis dari service API `src/services/api/`.
+Data prototype disimpan di `localStorage` dengan prefix `jiwasehat_v3_`. Service API sudah tersedia, tetapi belum dipasang sebagai sumber data runtime sampai backend tersedia.
 
-## Arah Backend
+## Backend Final
 
-Laravel memungkinkan dipakai bersama React.
-
-Opsi arsitektur yang masuk akal:
-
-- Laravel sebagai backend API, React tetap menjadi frontend Vite terpisah.
-- Laravel melayani API, auth, database, upload bukti pembayaran, laporan PDF/Excel, dan authorization.
-- React mengonsumsi API dari Laravel.
-- Alternatif lain: Laravel + Inertia React jika ingin aplikasi React lebih menyatu dengan Laravel.
-
-Untuk project ini, opsi yang paling aman secara bertahap adalah Laravel API + React frontend, karena project React sudah ada dan bisa dipertahankan.
+- Laravel 12+ menjadi REST API terpisah.
+- MySQL 8+ menjadi database utama.
+- React/Vite tetap menjadi SPA frontend dan mengonsumsi endpoint `/api/v1`.
+- Laravel menangani autentikasi, authorization, validasi, transaction/locking booking, upload bukti pembayaran, audit log, notifikasi, serta export PDF/Excel.
+- Tidak menggunakan Inertia pada arsitektur yang disepakati saat ini.
 
 ## Target Arsitektur Berikutnya
 
 - Pisahkan state client dari API service.
-- Tambahkan backend, kemungkinan Laravel, dengan autentikasi, authorization, database, upload file, laporan, audit log, dan validasi server-side.
+- Implementasikan backend Laravel 12+ dan schema MySQL 8+ dengan autentikasi, authorization, upload file, laporan, audit log, serta validasi server-side.
 - Jadikan frontend hanya consumer API, bukan sumber kebenaran data.
 - Pertahankan scope tanpa ruang chat konsultasi online di web.

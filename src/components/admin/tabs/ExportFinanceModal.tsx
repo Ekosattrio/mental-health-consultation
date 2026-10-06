@@ -14,6 +14,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
+import { getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
 
 interface ExportFinanceModalProps {
   isOpen: boolean;
@@ -95,19 +96,16 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
 
   // Transaksi Terverifikasi
   const paidTransactions = useMemo(() => {
-    return filteredData.filter(
-      a => a.paymentStatus === 'PAID' || a.paymentStatus === 'DP_PAID'
-    );
+    return filteredData.filter(a => getRecordedCashIn(a) > 0);
   }, [filteredData]);
 
   const totalCashIn = useMemo(() => {
     return paidTransactions.reduce((acc, a) => {
-      if (a.paymentStatus === 'PAID') return acc + (a.totalAmount || 0);
-      return acc + (a.dpAmount ?? 100000);
+      return acc + getRecordedCashIn(a);
     }, 0);
   }, [paidTransactions]);
 
-  const avgPerSession = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
+  const avgPerPayment = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
 
   // Tanggal terbit dokumen
   const printDateFormatted = new Date().toLocaleDateString('id-ID', {
@@ -144,12 +142,8 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
     const rows = filteredData.map((a, idx) => {
       const isPaid = a.paymentStatus === 'PAID';
       const isDpPaid = a.paymentStatus === 'DP_PAID';
-      const nominalMasuk = isPaid
-        ? a.totalAmount
-        : isDpPaid
-        ? (a.dpAmount ?? 100000)
-        : 0;
-      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+      const nominalMasuk = getRecordedCashIn(a);
+      const skema = getPaymentSchemeLabel(a);
       const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Admin Diterima' : 'Verifikasi Bukti';
 
       return [
@@ -390,7 +384,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                 Praktisi Penanggung Jawab: {doctorName}
               </p>
               <p className="text-[11px] text-slate-600 font-medium">
-                SIP: {sipNumber} • STR: {strNumber} • Layanan Berizin Resmi
+                SIP: {sipNumber} • STR: {strNumber} • Dokumen Praktik
               </p>
               <p className="text-[10px] text-slate-500">
                 {clinicAddress} • Telp: {clinicPhone} • Email: {clinicEmail}
@@ -432,9 +426,9 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                 </span>
               </div>
               <div>
-                <span className="text-[10px] text-slate-500 font-bold block">Rata-rata per Sesi</span>
+                <span className="text-[10px] text-slate-500 font-bold block">Rata-rata per Transaksi</span>
                 <span className="text-base font-black text-sky-700">
-                  Rp {avgPerSession.toLocaleString('id-ID')}
+                  Rp {avgPerPayment.toLocaleString('id-ID')}
                 </span>
               </div>
             </div>
@@ -465,11 +459,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                     filteredData.map((a, idx) => {
                       const isPaid = a.paymentStatus === 'PAID';
                       const isDpPaid = a.paymentStatus === 'DP_PAID';
-                      const nominalMasuk = isPaid
-                        ? a.totalAmount
-                        : isDpPaid
-                        ? (a.dpAmount ?? 100000)
-                        : 0;
+                      const nominalMasuk = getRecordedCashIn(a);
 
                       return (
                         <tr key={a.id} className="hover:bg-slate-50 text-[11px]">
@@ -489,7 +479,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                             {a.packageName}
                           </td>
                           <td className="py-1.5 px-3 border-r border-slate-200 text-slate-600 whitespace-nowrap">
-                            {isPaid ? 'Lunas 100%' : isDpPaid ? 'DP Admin' : 'Menunggu DP'}
+                            {getPaymentSchemeLabel(a)}
                           </td>
                           <td className="py-1.5 px-3 text-right font-black text-slate-900 border-r border-slate-200 whitespace-nowrap">
                             {nominalMasuk > 0 ? `Rp ${nominalMasuk.toLocaleString('id-ID')}` : '-'}

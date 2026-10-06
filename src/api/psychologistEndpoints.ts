@@ -1,5 +1,5 @@
 import { ApiClient, ApiResponse, ApiError } from './apiClient';
-import { ScheduleSlot, ClinicalNote, PsychologistProfile } from '../types';
+import { ScheduleSlot, PsychologistProfile } from '../types';
 
 export class PsychologistEndpoints {
   public static readonly BASE_URL = '/api/v1/psychologists';
@@ -85,33 +85,6 @@ export class PsychologistEndpoints {
         }
 
         return currentSchedules.filter(s => s.id !== slotId);
-      }
-    );
-  }
-
-  /**
-   * POST /api/v1/appointments/:appointmentId/clinical-notes
-   */
-  public static async saveClinicalNotes(
-    appointmentId: string,
-    notes: Omit<ClinicalNote, 'id' | 'createdAt' | 'updatedAt'>,
-    existingNotes: Record<string, ClinicalNote>
-  ): Promise<ApiResponse<ClinicalNote>> {
-    return ApiClient.post(
-      `/api/v1/appointments/${appointmentId}/clinical-notes`,
-      notes,
-      () => {
-        const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
-        const existing = existingNotes[appointmentId];
-
-        const savedNote: ClinicalNote = {
-          ...notes,
-          id: existing?.id || `note-${Date.now()}`,
-          createdAt: existing?.createdAt || now,
-          updatedAt: now
-        };
-
-        return savedNote;
       }
     );
   }

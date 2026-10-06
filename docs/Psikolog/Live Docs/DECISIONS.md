@@ -3,7 +3,7 @@
 ## 2026-10-01
 
 - Project menggunakan React, TypeScript, dan Vite.
-- Dokumentasi utama dibuat di folder `docs/`.
+- Dokumentasi utama dikelola di vault Obsidian `docs/Psikolog`, dengan dokumen aktif di folder `Live Docs`.
 - AI tidak boleh melakukan operasi Git.
 - Untuk sesi ini, AI tidak boleh menjalankan `npm run dev` dan `npm run build`.
 - Data aplikasi saat ini tetap menggunakan mock data dan LocalStorage sampai backend ditentukan.
@@ -192,17 +192,49 @@
 - Scope tes dikunci menjadi **pre-test profiling** saja untuk kebutuhan booking dan persiapan sesi. Test psikolog tambahan/asesmen mandiri tidak aktif di portal pasien pada scope sekarang.
 - Psikolog/pengelola membutuhkan tab khusus **Paket Berjalan / Rencana Terapi** untuk memantau progres paket multi-sesi, sesi selesai, sesi berikutnya, dan status aktif/selesai/dihentikan.
 - Notifikasi WhatsApp/email diputuskan sebagai tanggung jawab backend produksi, termasuk reminder jadwal harian ke psikolog yang memuat jam sesi, nama pasien, ringkasan pre-test/profil, dan tautan detail web.
-- Invoice/kwitansi wajib memuat DP Rp 100.000, sisa pelunasan, metode/channel pembayaran, nama pengirim, nomor referensi, status pembayaran, dan bukti pembayaran.
+- Invoice/kwitansi wajib memuat DP sesuai konfigurasi paket, sisa pelunasan, metode/channel pembayaran, nama pengirim, nomor referensi, status pembayaran, dan bukti pembayaran.
 - Kebijakan no-show/telat/cancel dikelola oleh psikolog/pengelola. Admin tetap tidak boleh cancel, hapus, no-show, discontinue, atau menandai sesi selesai.
 - Consent & privacy perlu tersedia sebagai halaman/kebijakan dan harus disetujui pasien sebelum booking final. Pre-test wajib diberi disclaimer sebagai profiling awal, bukan diagnosis otomatis.
 - Backup/export data klinis diperlukan untuk owner/psikolog dengan role protection dan audit log.
+- Potongan harga ditambahkan sebagai layer perhitungan sebelum DP dan hanya diatur oleh psikolog/pengelola dari Manajemen Paket. Pasien tidak memakai kode promo, dan admin tidak mengatur potongan.
+- Data appointment menyimpan harga sebelum potongan, label potongan, nominal potongan, total setelah potongan, DP, dan sisa pelunasan agar invoice tetap audit-able.
+- Admin walk-in tidak lagi memilih psikolog yang melayani dan tidak melihat nominal harga. Booking admin memakai psikolog/pengelola utama sebagai default karena scope praktik saat ini satu owner/psikolog utama; admin hanya mengurus data pasien, bukti/metode pembayaran, dan konfirmasi status.
+- Tab **Paket Berjalan** menampilkan pembayaran paket di tabel supaya psikolog bisa melihat real case manajemen paket: total setelah potongan, nominal potongan, DP, dan sisa pelunasan tanpa membuka invoice pasien.
+- Guard sesi lanjutan dipertegas: psikolog hanya bisa menjadwalkan sesi berikutnya jika sesi terakhir sudah `COMPLETED`, belum ada sesi aktif berikutnya, dan paket belum selesai.
+- Scope test psikolog/DASS dinonaktifkan pada tahap awal, lalu seluruh model/type/controller/state legacy dihapus dari source aktif. Scope booking-first hanya memakai pre-test profiling.
+- Wording marketing terkait klaim legalitas layanan yang terlihat di UI publik dibersihkan agar landing page tidak memakai klaim lembaga/organisasi yang tidak diminta klien.
+- Admin diperbolehkan membantu reschedule pasien, tetapi tidak diberi akses batal/hapus/complete. Semua reschedule menyimpan audit pelaku (`rescheduledByName`, `rescheduledByRole`, `rescheduledAt`, `rescheduleReason`) dan tampil di detail jadwal serta receipt.
+- Kwitansi tidak dibuat sebagai menu admin terpisah. Setelah DP/konfirmasi pembayaran, admin hanya mendapat modal receipt administratif untuk screenshot atau Print / Simpan PDF tanpa menampilkan nominal harga.
+- Pengelolaan diskon ditempatkan langsung pada form tambah/edit paket dengan kondisi aktif/nonaktif yang jelas. Psikolog dapat menambahkan, mengubah jenis/nilai/label, atau menghapus diskon; pasien tidak memasukkan voucher atau kode promo.
+- `docs/Psikolog/Live Docs` menjadi satu-satunya sumber dokumentasi aktif. Hardlink lama di root `docs/` dan snapshot usang `docs/Psikolog/Project Docs` dihapus agar tidak ada tiga versi dokumentasi yang membingungkan.
+- Laporan keuangan dibatasi menjadi arus kas/uang masuk murni dari paket. Frontend tidak mengelola biaya operasional, pengeluaran, atau laba bersih.
+- Admin menjadi pencatat pelunasan aktual: admin memasukkan nominal yang diterima tanpa melihat target tagihan, dan nominal tidak ditampilkan kembali setelah submit. Psikolog tetap dapat melihat agregasinya pada laporan uang masuk.
+- Status pembayaran dan status konsultasi dipisahkan. Admin mengubah `DP_PAID` menjadi `PAID` melalui pencatatan pelunasan, sedangkan psikolog menandai sesi `COMPLETED`.
+- WhatsApp dipilih sebagai kanal notifikasi utama untuk event operasional. Email hanya fallback/pengiriman dokumen dan keduanya baru dikirim melalui backend/provider resmi.
+- Frontend menggunakan Web Locks API dengan fallback lock LocalStorage per psikolog/tanggal serta validasi ulang appointment terbaru untuk booking/reschedule. Backend tetap wajib memakai transaction/constraint karena locking frontend tidak dapat memberi jaminan produksi.
+- Backend final ditetapkan menggunakan Laravel 12+ REST API, sedangkan frontend tetap berupa React/Vite TypeScript SPA terpisah.
+- Database final ditetapkan menggunakan MySQL 8+.
+- Architecture Blueprint internal, mode demo `PLATFORM/BLUEPRINT`, telelayanan online, dan seluruh modul DASS/test psikolog legacy dihapus dari source aktif.
+- Scope aktif hanya konsultasi tatap muka dengan pre-test profiling sebagai syarat booking; pre-test bukan diagnosis.
+- `src/services/api/` menjadi kontrak integrasi frontend ke Laravel. Selama backend belum tersedia, AppContext tetap memakai mock/LocalStorage agar prototype dapat digunakan.
+- Halaman dashboard role dimuat secara lazy dan penulisan LocalStorage didebounce sebagai optimasi awal. Profiling browser dan QA perangkat nyata tetap diperlukan.
+- Paket Berjalan memakai tabel pada desktop dan kartu khusus pada ponsel. Psikolog dapat menghentikan paket dengan alasan, dan paket yang dihentikan tidak dapat dijadwalkan kembali.
+- Review hanya dapat dikirim untuk appointment `COMPLETED` dan satu appointment hanya boleh memiliki satu review aktif.
+- Harga layanan hanya bersumber dari paket. Field tarif online/offline pada profil psikolog dihapus dari seluruh kontrak frontend.
+- Catatan SOAP tidak termasuk scope sistem booking dan dihapus total dari state, model, mock, endpoint, serta UI frontend.
+- Booking walk-in admin dipisahkan dari booking mandiri pasien hanya untuk pendaftaran pasien dan kewajiban pre-test awal. Tanggal konsultasi untuk semua booking, termasuk walk-in admin, tetap wajib minimal H+1 serta tunduk pada jam praktik, hari libur, kuota, overlap, dan durasi paket.
+- Semua reschedule wajib memilih tanggal pengganti minimal H+1 dari hari pengajuan; tidak ada reschedule ke hari yang sama.
+- Harga, diskon, total akhir, dan DP tidak dipercaya dari payload UI. Prototype menghitung ulang seluruh nominal dari paket aktif; backend Laravel wajib menerapkan prinsip yang sama.
+- Pasien yang melakukan reschedule pada booking terkonfirmasi mengembalikan status ke `PENDING` untuk konfirmasi admin, sedangkan reschedule yang dibantu admin mempertahankan status sebelumnya.
+- Guard frontend wajib memeriksa role, kepemilikan resource, serta transisi status. Guard ini untuk konsistensi UX dan bukan pengganti Laravel Policy/middleware.
 
 ## Pending Decisions
 
-- Backend stack final disepakati menggunakan Laravel 12++ API + React Vite SPA.
-- Database engine disarankan PostgreSQL 16+ / MySQL 8.0+.
-- Strategi Google SSO via Laravel Socialite.
-- Provider payment gateway (Midtrans / Xendit / Manual Transfer DP Flat Rp 100.000).
+- Strategi autentikasi Sanctum: session cookie atau bearer token.
+- Login produksi hanya Google SSO via Laravel Socialite atau tetap menyediakan email/password.
+- Provider payment gateway (Midtrans / Xendit / transfer manual dengan DP sesuai paket).
+- Provider WhatsApp resmi dan email fallback.
+- Kebijakan final no-show, cancel, refund, dan dampaknya terhadap jatah sesi paket.
 - Deployment target (VPS Ubuntu / Laravel Forge / Shared Hosting Laragon).
 
 

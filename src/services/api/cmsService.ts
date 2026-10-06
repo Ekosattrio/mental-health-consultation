@@ -48,5 +48,12 @@ export const cmsService = {
    */
   async updatePsychologistCms(payload: Partial<PsychologistPageCmsConfig>): Promise<ApiResponse<PsychologistPageCmsConfig>> {
     return apiClient.put<PsychologistPageCmsConfig>('/cms/psychologist', payload);
+  },
+
+  async uploadAsset(file: File, purpose: 'logo' | 'hero' | 'gallery'): Promise<ApiResponse<{ url: string }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('purpose', purpose);
+    return apiClient.upload<{ url: string }>('/cms/assets', formData);
   }
 };

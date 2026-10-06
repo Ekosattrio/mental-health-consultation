@@ -4,7 +4,7 @@ import { Appointment } from '../../types';
 export interface FinancialAnalyticsSummary {
   total_cash_in: number;
   paid_transactions_count: number;
-  average_per_session: number;
+  average_per_transaction: number;
   pending_verification_count: number;
   potential_pending_cash: number;
   month: string;
@@ -37,12 +37,16 @@ export const financeService = {
   },
 
   /**
-   * Mengunduh file ekspor CSV laporan keuangan
-   * Endpoint Laravel: GET /api/v1/finance/export
+   * Mengunduh file laporan dari backend agar data besar tidak diproses browser.
    */
-  async getExportCsvUrl(params?: { month?: string; year?: string }): Promise<string> {
-    const query = new URLSearchParams(params as any).toString();
-    const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || '/api/v1';
-    return `${baseUrl}/finance/export${query ? `?${query}` : ''}`;
+  async downloadExport(
+    format: 'pdf' | 'xlsx' | 'csv',
+    params?: FinanceQueryParams
+  ): Promise<Blob> {
+    return apiClient.download(`/finance/export/${format}`, params);
+  },
+
+  async downloadClinicalExport(format: 'xlsx' | 'csv' = 'xlsx'): Promise<Blob> {
+    return apiClient.download('/finance/export/clinical', { format });
   }
 };

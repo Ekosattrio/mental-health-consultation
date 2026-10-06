@@ -43,7 +43,6 @@ export const PsychologistDashboard: React.FC = () => {
     analytics,
     schedules,
     intakeForms,
-    clinicalNotes,
     landingCms,
     patientCms,
     psychologistCms,
@@ -56,12 +55,12 @@ export const PsychologistDashboard: React.FC = () => {
     toggleSlotAvailability,
     addScheduleSlot,
     deleteScheduleSlot,
-    saveClinicalNotes,
     savePackage,
     deletePackage,
     togglePackageStatus,
     updateAppointmentStatus,
     scheduleNextContinuousSession,
+    discontinueTreatmentPlan,
     isSidebarCollapsed,
     setIsSidebarCollapsed
   } = useApp();
@@ -70,7 +69,7 @@ export const PsychologistDashboard: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isExportFinanceActive, setIsExportFinanceActive] = useState(false);
 
-  const psychologistId = currentUser?.id || 'user-psy-1';
+  const psychologistId = currentUser?.role === 'PSYCHOLOGIST' ? currentUser.id : '';
   const profile = currentPsychologistProfile;
   const myAppointments = currentPsychologistModel
     ? currentPsychologistModel.getAssignedAppointments(appointments)
@@ -240,11 +239,9 @@ export const PsychologistDashboard: React.FC = () => {
               users={users}
               appointments={appointments}
               intakeForms={intakeForms}
-              clinicalNotes={clinicalNotes}
               psychologistId={psychologistId}
               selectedPatientId={selectedPatientId}
               setSelectedPatientId={setSelectedPatientId}
-              saveClinicalNotes={saveClinicalNotes}
             />
           )}
 
@@ -252,6 +249,7 @@ export const PsychologistDashboard: React.FC = () => {
             <TreatmentPlansTab
               appointments={myAppointments}
               onScheduleNextSession={scheduleNextContinuousSession}
+              onDiscontinuePlan={discontinueTreatmentPlan}
             />
           )}
 

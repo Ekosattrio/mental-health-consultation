@@ -1,6 +1,6 @@
 import React from 'react';
 import { Appointment, ScheduleSlot, PsychologistProfile, PsychologistPageCmsConfig } from '../../../types';
-import { FileText, ShieldCheck, CheckCircle2, Sparkles } from 'lucide-react';
+import { FileText, ShieldCheck, CheckCircle2, Sparkles, Stethoscope, User } from 'lucide-react';
 
 interface OverviewTabProps {
   myAppointments: Appointment[];
@@ -69,7 +69,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               onClick={() => onOpenEmr(activeAppointment.patientId, activeAppointment.id)}
               className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-colors"
             >
-              Buka Data Pasien & SOAP
+              Buka Rekam Medis Pasien
             </button>
             <button
               onClick={() => onOpenEmr(activeAppointment.patientId, activeAppointment.id)}
@@ -114,7 +114,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs text-amber-950 font-medium">
               <span className="inline-flex items-center gap-1.5 bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-200 text-[11px]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                Input Rekam Medis SOAP Maks. 24 Jam
+                Input Rekam Medis Pasien Maks. 24 Jam
               </span>
               <span className="inline-flex items-center gap-1.5 bg-amber-100/90 px-3 py-1.5 rounded-xl border border-amber-200 text-[11px]">
                 <CheckCircle2 className="w-3.5 h-3.5 text-amber-700 shrink-0" />

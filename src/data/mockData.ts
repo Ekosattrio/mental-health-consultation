@@ -24,7 +24,13 @@ export const INITIAL_USERS: User[] = [
     status: 'ACTIVE',
     phone: '0812-3456-7890',
     isVerified: true,
-    createdAt: '2026-08-10'
+    createdAt: '2026-08-10',
+    birthDate: '1995-05-14',
+    gender: 'Laki-laki',
+    occupation: 'Karyawan Swasta',
+    city: 'Jakarta Selatan',
+    emergencyContact: '0812-9988-7766 (Rina - Istri)',
+    isProfileComplete: true
   },
   {
     id: 'user-pat-2',
@@ -35,7 +41,8 @@ export const INITIAL_USERS: User[] = [
     status: 'ACTIVE',
     phone: '0813-9876-5432',
     isVerified: true,
-    createdAt: '2026-08-25'
+    createdAt: '2026-08-25',
+    isProfileComplete: false
   },
   {
     id: 'user-pat-3',
@@ -262,6 +269,7 @@ export const INITIAL_USERS: User[] = [
 export const INITIAL_PSYCHOLOGISTS: PsychologistProfile[] = [
   {
     userId: 'user-psy-1',
+    avatarUrl: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200&auto=format&fit=crop&q=80',
     title: 'Psikolog Klinis Dewasa & Hubungan Interpersonal',
     strNumber: 'STR-PSI-2021-09842',
     sipNumber: 'SIP.503/042-DPMPTSP/2022',
@@ -285,55 +293,321 @@ export const INITIAL_PSYCHOLOGISTS: PsychologistProfile[] = [
 ];
 
 export const INITIAL_PACKAGES: ConsultationPackage[] = [
+  // 1. KATEGORI: KONSELING
   {
-    id: 'pkg-regular-1',
-    name: 'Sesi Konsultasi Reguler',
+    id: 'pkg-konseling-offline',
+    name: 'Konsultasi Offline (Tatap Muka)',
+    category: 'KONSELING',
     type: 'OFFLINE_CLINIC',
     durationMinutes: 60,
-    price: 250000,
-    badge: 'Paling Populer',
-    description: 'Konsultasi terjadwal bersama psikolog di ruang praktik. Pasien wajib mengisi pre-test dan membayar DP sebelum jadwal dikonfirmasi admin.',
+    price: 900000,
+    badge: 'Tatap Muka',
+    description: 'Sesi konsultasi psikologi tatap muka langsung di ruang praktik privat klinik JiwaSehat yang tenang, nyaman, dan berstandar klinis.',
     benefits: [
-      'Durasi konsultasi 60 menit',
-      'Pre-test singkat sebelum booking',
-      'DP 50% untuk mengunci pengajuan jadwal',
-      'Konfirmasi admin setelah bukti pembayaran diverifikasi'
+      'Konsultasi privat tatap muka 60 menit',
+      'Ruang konseling kedap suara & berstandar klinis',
+      'Observasi langsung bahasa tubuh & afek klinis',
+      'Rencana intervensi & rekomendasi tindak lanjut'
+    ],
+    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari tarif dasar. Surat laporan hasil pemeriksaan psikologis biaya terpisah Rp 200.000.',
+    isActive: true,
+    iconName: 'Users'
+  },
+  {
+    id: 'pkg-konseling-telelayanan',
+    name: 'Konsultasi Telelayanan (Online)',
+    category: 'KONSELING',
+    type: 'ONLINE_TELE',
+    durationMinutes: 60,
+    price: 750000,
+    badge: 'Paling Fleksibel',
+    description: 'Sesi telekonseling psikologis interaktif secara daring (video call terenkripsi) dari kenyamanan kediaman Anda.',
+    benefits: [
+      'Konsultasi video call terenkripsi 60 menit',
+      'Akses fleksibel dari mana saja tanpa mobilitas',
+      'Evaluasi psikologis & rekomendasi koping mandiri',
+      'Rangkuman poin penting sesi via sistem'
+    ],
+    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari tarif dasar.',
+    isActive: true,
+    iconName: 'Video'
+  },
+  {
+    id: 'pkg-konseling-anak-remaja',
+    name: 'Konsultasi Anak & Remaja',
+    category: 'KONSELING',
+    type: 'OFFLINE_CLINIC',
+    durationMinutes: 60,
+    price: 900000,
+    badge: 'Keluarga & Tumbuh Kembang',
+    description: 'Pendampingan klinis khusus anak dan remaja mencakup emosi, adaptasi sekolah, pertemanan, dan pola asuh orang tua.',
+    benefits: [
+      'Sesi konseling ramah anak & remaja 60 menit',
+      'Eksplorasi emosi melalui metode dialog ekspresif',
+      'Sesi panduan & arahan praktis bagi orang tua',
+      'Rencana tindak lanjut terpadu anak & keluarga'
+    ],
+    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari dasar. Surat laporan hasil pemeriksaan terpisah Rp 200.000.',
+    isActive: true,
+    iconName: 'HeartHandshake'
+  },
+  {
+    id: 'pkg-konseling-dewasa',
+    name: 'Konsultasi Dewasa',
+    category: 'KONSELING',
+    type: 'OFFLINE_CLINIC',
+    durationMinutes: 60,
+    price: 900000,
+    badge: 'Paling Populer',
+    description: 'Konseling individual untuk mengatasi stres kerja, kecemasan, depresi, trauma masa lalu, atau krisis fase kehidupan dewasa.',
+    benefits: [
+      'Konsultasi tatap muka mendalam 60 menit',
+      'Identifikasi pola pikir maladaptif & akar kecemasan',
+      'Formulasi strategi koping adaptif berbasis bukti',
+      'Latihan regulasi emosi & pencegahan burnout'
+    ],
+    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari dasar. Surat laporan terpisah Rp 200.000.',
+    isActive: true,
+    iconName: 'Brain'
+  },
+  {
+    id: 'pkg-konseling-pasangan',
+    name: 'Konsultasi Pasangan & Keluarga',
+    category: 'KONSELING',
+    type: 'OFFLINE_CLINIC',
+    durationMinutes: 60,
+    price: 1500000,
+    badge: 'Komprehensif',
+    description: 'Sesi mediasi dan konseling untuk pasangan suami-istri atau keluarga guna memperbaiki komunikasi, mengatasi kebuntuan, dan rekonsiliasi.',
+    benefits: [
+      'Sesi konseling bersama pasangan/keluarga 60 menit',
+      'Fasilitasi komunikasi netral, sehat, dan konstruktif',
+      'Pemetaan pola relasi dan akar dinamika konflik',
+      'Kesepakatan resolusi konflik & penguatan komitmen'
+    ],
+    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit 25% dari dasar. Surat laporan terpisah Rp 200.000.',
+    isActive: true,
+    iconName: 'Users'
+  },
+
+  // 2. KATEGORI: ASESMEN
+  {
+    id: 'pkg-asesmen-dasar',
+    name: 'Asesmen Psikologis Dasar',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 90,
+    price: 350000,
+    badge: 'Skrining Awal',
+    description: 'Pemeriksaan psikologis awal untuk memetakan kondisi psikologis umum. Sesi evaluasi diagendakan pada saat sesi terpisah.',
+    benefits: [
+      'Pemberian instrumen tes psikologis dasar terstandar',
+      'Skrining awal indikasi gejala & dinamika mental',
+      'Sesi evaluasi hasil diagendakan pada sesi terpisah'
+    ],
+    notes: 'Sesi evaluasi diagendakan pada saat sesi terpisah.',
+    isActive: true,
+    iconName: 'FileCheck'
+  },
+  {
+    id: 'pkg-asesmen-lengkap',
+    name: 'Asesmen Psikologis Lengkap',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 180,
+    price: 1500000,
+    badge: 'Termasuk Laporan Resmi',
+    description: 'Pemeriksaan psikologis menyeluruh baterai tes komprehensif tatap muka 2-4 jam pengerjaan alat tes include laporan tertulis resmi bertanda tangan SIP.',
+    benefits: [
+      'Sesi tatap muka 2-4 jam pengerjaan baterai tes komprehensif',
+      'Asesmen intelegensi, kepribadian, & proyeksi klinis',
+      'Termasuk penyusunan laporan tertulis resmi bertanda tangan SIP',
+      'Sesi pembahasan hasil (feedback session) mendalam'
+    ],
+    notes: 'Sesi tatap muka 2-4 jam pengerjaan alat tes include laporan tertulis resmi.',
+    isActive: true,
+    iconName: 'ClipboardCheck'
+  },
+  {
+    id: 'pkg-tes-intelegensi',
+    name: 'Tes Intelegensi (IQ Test)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 90,
+    price: 750000,
+    badge: 'Psikometri',
+    description: 'Pengukuran kapasitas kognitif, daya tangkap, penalaran logis, verbal, dan profil kecerdasan intelegensi secara terstandar.',
+    benefits: [
+      'Alat tes intelegensi terstandar baku psikologi',
+      'Profil kapasitas logika, memori, & penalaran kognitif',
+      'Laporan resmi skor IQ beserta interpretasi klinis',
+      'Rekomendasi pengembangan potensi diri atau akademik'
     ],
     isActive: true,
+    iconName: 'Brain'
+  },
+  {
+    id: 'pkg-tes-kepribadian-standar',
+    name: 'Tes Kepribadian (Standar)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 60,
+    price: 500000,
+    badge: 'Standar',
+    description: 'Evaluasi struktur kepribadian umum, kecenderungan afek, dan profil gaya interaksi interpersonal standar.',
+    benefits: [
+      'Inventori tes kepribadian terstandar baku',
+      'Pemetaan profil watak, motivasi, & gaya interaksi',
+      'Laporan ringkasan dinamika kepribadian'
+    ],
+    isActive: true,
+    iconName: 'ShieldCheck'
+  },
+  {
+    id: 'pkg-tes-kepribadian-lengkap',
+    name: 'Tes Kepribadian (Lengkap)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 120,
+    price: 900000,
+    badge: 'Mendalam',
+    description: 'Pemeriksaan kepribadian mendalam menggunakan kombinasi tes objektif dan proyektif klinis komprehensif.',
+    benefits: [
+      'Kombinasi baterai tes kepribadian objektif & proyektif',
+      'Analisis mekanisme pertahanan diri & dinamika alam bawah sadar',
+      'Laporan kepribadian mendalam bertanda tangan psikolog'
+    ],
+    isActive: true,
+    iconName: 'ShieldCheck'
+  },
+  {
+    id: 'pkg-asesmen-anak-standar',
+    name: 'Asesmen Anak & Remaja (Standar)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 75,
+    price: 500000,
+    badge: 'Standar',
+    description: 'Evaluasi tumbuh kembang anak, kesiapan belajar, atau orientasi minat bakat dasar.',
+    benefits: [
+      'Instrumen tes tumbuh kembang / minat dasar terstandar',
+      'Observasi perilaku dan respons anak',
+      'Laporan ringkas rekomendasi pengasuhan & edukasi'
+    ],
+    isActive: true,
+    iconName: 'FileCheck'
+  },
+  {
+    id: 'pkg-asesmen-anak-lengkap',
+    name: 'Asesmen Anak & Remaja (Lengkap)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 150,
+    price: 900000,
+    badge: 'Minat Bakat / Klinis',
+    description: 'Pemeriksaan menyeluruh persiapan sekolah, minat bakat terarah, tumbuh kembang, dan kepribadian klinis remaja lengkap.',
+    benefits: [
+      'Asesmen komprehensif kesiapan sekolah & arah minat bakat',
+      'Evaluasi kepribadian klinis remaja secara lengkap',
+      'Laporan psikologis mendalam & panduan khusus orang tua'
+    ],
+    isActive: true,
+    iconName: 'FileCheck'
+  },
+  {
+    id: 'pkg-asesmen-dewasa-standar',
+    name: 'Asesmen Dewasa (Standar)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 75,
+    price: 500000,
+    badge: 'Standar',
+    description: 'Pemeriksaan kesiapan mental dan evaluasi pengembangan diri standar untuk usia dewasa.',
+    benefits: [
+      'Pengukuran kesiapan mental dan ketahanan stres',
+      'Evaluasi potensi dan area pengembangan diri',
+      'Laporan ringkas profil kesiapan psikologis'
+    ],
+    isActive: true,
+    iconName: 'FileCheck'
+  },
+  {
+    id: 'pkg-asesmen-dewasa-lengkap',
+    name: 'Asesmen Dewasa (Lengkap)',
+    category: 'ASESMEN',
+    type: 'BUNDLING_ASSESSMENT',
+    durationMinutes: 150,
+    price: 900000,
+    badge: 'Klinis & Kepribadian Kerja',
+    description: 'Asesmen komprehensif kepribadian klinis, kesiapan mental, pengembangan diri, dan kepribadian kerja lengkap.',
+    benefits: [
+      'Evaluasi klinis, ketahanan emosi, & profil kepribadian kerja',
+      'Analisis kompetensi kepemimpinan & dinamika adaptasi kerja',
+      'Laporan psikologis komprehensif bertanda tangan SIP'
+    ],
+    isActive: true,
+    iconName: 'FileCheck'
+  },
+
+  // 3. KATEGORI: PSIKOTERAPI
+  {
+    id: 'pkg-psikoterapi-intensif',
+    name: 'Paket Psikoterapi Intensif (4 Sesi)',
+    category: 'PSIKOTERAPI',
+    type: 'PSYCHOTHERAPY',
+    durationMinutes: 60,
+    price: 2000000,
+    badge: 'Program Terapi',
+    description: 'Program intervensi psikoterapi berkesinambungan (CBT/ACT) untuk pemulihan trauma, depresi, atau kecemasan persisten. Minimal kontrak 4 sesi (Rp 500.000 / sesi).',
+    benefits: [
+      '4 sesi intervensi tatap muka (60 menit per sesi)',
+      'Protokol CBT / ACT terstruktur berbasis target pemulihan',
+      'Monitoring kemajuan klinis berkala tiap sesi',
+      'Modul latihan mandiri terpandu (guided worksheet)'
+    ],
+    notes: 'Harga Rp 500.000 / sesi dengan minimal kontrak 4 sesi (Total Rp 2.000.000).',
+    isActive: true,
+    iconName: 'Sparkles'
+  },
+
+  // Paket legacy untuk backward compatibility riwayat data demo
+  {
+    id: 'pkg-regular-1',
+    name: 'Konsultasi Offline Reguler',
+    category: 'KONSELING',
+    type: 'OFFLINE_CLINIC',
+    durationMinutes: 60,
+    price: 900000,
+    badge: 'Tatap Muka',
+    description: 'Sesi konsultasi tatap muka berstandar klinis bersama psikolog.',
+    benefits: ['Konsultasi privat 60 menit', 'Ruang konseling nyaman'],
+    isActive: false,
     iconName: 'Calendar'
   },
   {
     id: 'pkg-offline-1',
     name: 'Sesi Tatap Muka (Offline di Klinik)',
+    category: 'KONSELING',
     type: 'OFFLINE_CLINIC',
-    durationMinutes: 75,
-    price: 375000,
-    badge: 'Rekomendasi Klinis',
-    description: 'Pertemuan langsung di ruang konseling privat yang tenang, aman, dan kedap suara di klinik JiwaSehat Senopati Jakarta Selatan.',
-    benefits: [
-      'Durasi tatap muka 75 menit ruang privat kedap suara',
-      'Observasi afek dan bahasa tubuh klinis mendalam',
-      'Free welcome tea & relaxing aromatherapy room',
-      'Surat keterangan psikologis / rujukan jika diperlukan'
-    ],
-    isActive: true,
+    durationMinutes: 60,
+    price: 900000,
+    badge: 'Tatap Muka',
+    description: 'Sesi tatap muka di klinik JiwaSehat.',
+    benefits: ['Konsultasi tatap muka 60 menit'],
+    isActive: false,
     iconName: 'Users'
   },
   {
     id: 'pkg-bundling-1',
     name: 'Paket Bundling: Konsultasi + Tes Asesmen',
+    category: 'ASESMEN',
     type: 'BUNDLING_ASSESSMENT',
     durationMinutes: 90,
-    price: 490000,
-    badge: 'Paling Lengkap',
-    description: 'Kombinasi lengkap instrumen tes psikologi terstandar (DASS-21 / PHQ-9) disertai sesi pembahasan hasil secara komprehensif.',
-    benefits: [
-      'Akses asesmen tes psikometri lengkap online',
-      'Interpretasi psikogram & kalkulasi skor keparahan otomatis',
-      'Sesi konsultasi 90 menit untuk membahas hasil',
-      'Laporan evaluasi klinis resmi bertanda tangan SIP'
-    ],
-    isActive: true,
+    price: 1500000,
+    badge: 'Asesmen Lengkap',
+    description: 'Kombinasi asesmen lengkap dan konsultasi.',
+    benefits: ['Baterai tes lengkap', 'Laporan resmi'],
+    isActive: false,
     iconName: 'FileCheck'
   }
 ];
@@ -2623,7 +2897,12 @@ export const INITIAL_LANDING_CMS: LandingPageCmsConfig = {
   clinicHours: 'Senin - Sabtu: 08:00 - 21:00 WIB • Minggu: Libur Praktik',
   clinicPhone: '+62 21 5790 1234',
   clinicWhatsapp: '+62 811-2233-4455',
-  clinicEmail: 'halo@jiwasehat.id'
+  clinicEmail: 'halo@jiwasehat.id',
+  logoUrl: '',
+  heroImageUrl: '',
+  aboutImageUrl: '',
+  qrisImageUrl: '',
+  clinicKopLogoUrl: ''
 };
 
 export const INITIAL_PATIENT_CMS: PatientPageCmsConfig = {
@@ -2639,7 +2918,7 @@ export const INITIAL_PATIENT_CMS: PatientPageCmsConfig = {
 
 export const INITIAL_PSYCHOLOGIST_CMS: PsychologistPageCmsConfig = {
   guidelinesTitle: 'Standar Prosedur Operasional (SOP) & Etika Klinis',
-  guidelinesContent: 'Sesuai Standar Kode Etik Profesi Psikologi & Regulasi Tenaga Kesehatan RI, psikolog diwajibkan menyelesaikan input Rekam Medis (Catatan SOAP) paling lambat 24 jam setelah sesi konsultasi berakhir. Jaga objektivitas diagnosis, informed consent, dan kerahasiaan penuh rekam medis pasien.',
+  guidelinesContent: 'Sesuai Standar Kode Etik Profesi Psikologi & Regulasi Tenaga Kesehatan RI, psikolog diwajibkan menyelesaikan input Rekam Medis Pasien paling lambat 24 jam setelah sesi konsultasi berakhir. Jaga objektivitas diagnosis, informed consent, dan kerahasiaan penuh rekam medis pasien.',
   announcementTitle: 'Maklumat Praktik Mandiri',
   announcementContent: 'Jadwal konsultasi tatap muka dan rekapitulasi data rekam medis pasien terintegrasi secara aman.',
   remunerationPolicy: 'Alokasi honorarium sesi konsultasi ditransfer setiap tanggal 25 setiap bulannya ke rekening terdaftar dokter.',

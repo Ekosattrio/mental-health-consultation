@@ -12,15 +12,13 @@ import {
   ArrowRight,
   PhoneCall,
   MessageSquare,
-  HelpCircle,
-  FileCheck,
   History,
   CheckCircle2
 } from 'lucide-react';
 
 interface OverviewTabProps {
   patientCms: PatientPageCmsConfig;
-  onNavigateTab: (tabId: 'booking' | 'tests' | 'history') => void;
+  onNavigateTab: (tabId: 'booking' | 'history') => void;
 }
 
 interface FaqItem {
@@ -42,8 +40,8 @@ const FAQS: FaqItem[] = [
   },
   {
     category: 'Pembayaran',
-    question: 'Bagaimana skema pembayaran DP 50% dan pelunasannya?',
-    answer: 'Untuk mengunci slot jadwal, pasien mentransfer DP 50% dan mengunggah bukti transfer. Sisa pelunasan 50% diselesaikan setelah sesi konsultasi tatap muka selesai.'
+    question: 'Bagaimana skema pembayaran DP administrasi dan pelunasannya?',
+    answer: 'Untuk mengunci slot jadwal, pasien mentransfer DP administrasi flat Rp 100.000 dan mengunggah bukti transfer. Sisa biaya paket diselesaikan saat hadir di klinik atau setelah sesi konsultasi selesai.'
   },
   {
     category: 'Reschedule',
@@ -89,9 +87,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     },
     {
       step: 3,
-      title: 'Bayar DP 50% & Upload Bukti',
+      title: 'Bayar DP Rp 100.000 & Upload Bukti',
       badge: 'Kunci Slot',
-      desc: 'Transfer 50% biaya paket ke rekening klinik dan lampirkan bukti transfer untuk diverifikasi admin.',
+      desc: 'Transfer DP administrasi flat Rp 100.000 ke rekening klinik dan lampirkan bukti transfer untuk diverifikasi admin.',
       icon: CreditCard
     },
     {
@@ -103,9 +101,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     },
     {
       step: 5,
-      title: 'Pelunasan 50% & Ulasan',
+      title: 'Pelunasan & Ulasan',
       badge: 'Selesai Konseling',
-      desc: 'Selesaikan sisa 50% setelah sesi berakhir dan berikan ulasan kepuasan secara transparan atau anonim.',
+      desc: 'Selesaikan sisa biaya paket setelah sesi berakhir dan berikan ulasan kepuasan secara transparan atau anonim.',
       icon: Star
     }
   ];
@@ -146,14 +144,6 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             >
               <History className="w-3.5 h-3.5 text-emerald-200" />
               <span>Jadwal Saya</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => onNavigateTab('tests')}
-              className="px-3.5 py-2 bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <FileCheck className="w-3.5 h-3.5 text-teal-200" />
-              <span>Tes DASS-21</span>
             </button>
           </div>
         </div>
@@ -267,8 +257,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-slate-900 block font-bold">Bukti Transfer DP 50%</strong>
-                  <span className="text-[11px] text-slate-500">Pastikan bukti transfer DP 50% sudah diunggah saat booking dan berstatus terkonfirmasi.</span>
+                  <strong className="text-slate-900 block font-bold">Bukti Transfer DP Rp 100.000</strong>
+                  <span className="text-[11px] text-slate-500">Pastikan bukti transfer DP administrasi sudah diunggah saat booking dan berstatus terkonfirmasi.</span>
                 </div>
               </div>
 

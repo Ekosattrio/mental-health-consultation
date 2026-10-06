@@ -12,7 +12,7 @@
   - admin sebagai operasional/verifikasi
   - pasien/pengguna sebagai user layanan
 - Tentukan mekanisme locking slot booking agar tidak double booking.
-- Konfirmasi ke client soal test/assessment tambahan setelah pre-test.
+- Scope tes sudah diputuskan: hanya pre-test profiling untuk booking, tidak ada test psikolog tambahan aktif. [DONE]
 - Konfirmasi apakah review pasien wajib hanya setelah status konsultasi `COMPLETED`.
 - Konfirmasi detail format laporan PDF/Excel.
 - Konfirmasi apakah pembayaran DP/pelunasan cukup upload bukti manual atau perlu payment gateway.
@@ -20,94 +20,109 @@
 ## Prioritas 1 - Backend dan Database
 
 - Buat schema database awal.
-- Pisahkan mock data dari service API.
-- Buat autentikasi Google SSO.
-- Buat authorization berdasarkan role terbaru.
-- Buat endpoint user dan general info saat pendaftaran.
-- Buat endpoint psikolog/pengelola.
-- Buat endpoint admin.
+- Pisahkan mock data dari service API (`src/services/api/` sudah disiapkan).
+- Buat autentikasi Google SSO dan login email/password via Laravel Sanctum & Socialite.
+- Buat authorization berdasarkan role terbaru (Psikolog Owner, Admin Operasional, Pasien).
+- Buat endpoint user dan kelengkapan data diri (`/patients/me/profile`).
+- Buat endpoint paket layanan dinamis (`/packages`).
+- Buat endpoint upload dan kelola foto profil wajah psikolog.
 - Buat endpoint booking/appointment.
 - Buat validasi booking minimal H+1.
-- Buat validasi reschedule minimal H+1.
+- Buat validasi reschedule minimal H+1 (24 jam sebelum sesi).
 - Buat mekanisme anti double booking/slot locking.
-- Buat endpoint hari libur psikolog.
-- Buat endpoint jam kerja psikolog.
-- Buat endpoint batas jumlah pertemuan harian psikolog.
-- Buat endpoint pre-test sebagai syarat booking.
-- Buat endpoint upload bukti pembayaran.
+- Buat endpoint hari libur dan kuota override psikolog.
+- Buat endpoint pre-test keluhan sebagai syarat booking.
+- Buat endpoint upload bukti pembayaran transfer DP Flat Rp 100.000 dan pencatatan nama pengirim.
+- Tambahkan pencatatan metode/channel bayar dan nomor referensi pembayaran pada endpoint pembayaran.
 - Buat endpoint verifikasi pembayaran oleh admin.
-- Buat model pembayaran DP 50% dan pelunasan 50%.
+- Buat endpoint invoice/kwitansi pembayaran yang bisa dicetak ulang.
+- Buat entity dan endpoint `treatment_plans` untuk paket multi-sesi.
+- Buat endpoint psikolog untuk menjadwalkan sesi lanjutan per treatment plan dengan idempotency key.
+- Buat endpoint psikolog untuk menandai sesi selesai/no-show/batal dan memperbarui progres treatment plan.
+- Buat endpoint discontinue paket berjalan oleh psikolog/pengelola.
+- Buat endpoint consent/privacy dan simpan persetujuan pasien.
+- Buat endpoint notifikasi WhatsApp/email:
+  - booking pending
+  - pembayaran dikonfirmasi
+  - jadwal sesi
+  - reschedule
+  - reminder harian psikolog berisi jadwal dan ringkasan profil/pre-test pasien
+- Buat endpoint export/backup data klinis khusus psikolog/pengelola.
 - Buat endpoint perubahan status booking:
   - `PENDING` ke `CONFIRMED`
-  - `CONFIRMED` ke `COMPLETED`
-  - cancellation jika diperlukan
-- Buat endpoint bantuan booking oleh admin untuk pasien datang langsung.
-- Buat endpoint request reschedule ke admin.
+  - `CONFIRMED` ke `COMPLETED` khusus psikolog/pengelola
+  - cancellation jika diperlukan, bukan aksi admin operasional
+- Buat endpoint bantuan booking oleh admin untuk pasien datang langsung (walk-in booking).
 - Buat endpoint moderasi review.
 - Buat endpoint laporan dan export PDF/Excel.
 - Buat audit log untuk perubahan penting.
 
 ## Prioritas 2 - Frontend Umum
 
-- Audit responsive layout.
-- Audit accessibility dasar.
-- Pastikan dashboard tiap role tidak saling bocor akses.
-- Buat sidebar dashboard bisa collapse menjadi ikon. [DONE - pasien, psikolog, admin]
-- Rapikan mode mobile agar nyaman untuk jempol. [PARTIAL - dashboard utama dirapikan]
-- Rapikan layout agar nyaman dipakai dengan mouse dan sentuhan jempol.
-- Ganti auth prototype menjadi alur Google SSO. [PARTIAL - tombol SSO demo, backend belum ada]
-- Tambahkan form general info setelah pendaftaran/login pertama. [PARTIAL - form register frontend]
+- Audit responsive layout. [DONE - bug horizontal overflow diatasi]
+- Audit accessibility dasar. [DONE]
+- Pastikan dashboard tiap role tidak saling bocor akses. [DONE]
+- Buat sidebar dashboard bisa collapse menjadi ikon. [DONE - pasien, psikolog, admin, dan tersinkronisasi via Navbar]
+- Tombol sidebar collapse di Navbar otomatis hilang pada Landing Page Guest. [DONE]
+- Rombak seluruh modal ke desain Modern Simple Light. [DONE]
+- Ganti switcher akun demo lama menjadi login email/password nyata + Google SSO + chip Akses Cepat Testing. [DONE]
+- Eliminasi total halaman Blueprint internal. [DONE]
+- Sembunyikan Footer di seluruh dashboard, hanya tampil di Landing Page. [DONE]
 
 ## Landing Page
 
 - Hapus klaim organisasi/lembaga yang belum valid dari landing page. [DONE - klaim praktik Kemenkes dihapus]
 - Tambahkan carousel pengalaman/testimoni konseling sekitar 10 item. [DONE]
 - Buat carousel bisa auto-play dan bisa digerakkan manual. [DONE]
+- Sembunyikan nominal harga paket sebelum pengguna sign in akun. [DONE]
+- Tampilkan 15 paket resmi klien (Konseling, Asesmen, Psikoterapi). [DONE]
 - Tambahkan media sosial/Instagram di footer. [DONE]
-- Pastikan CTA booking mengarah ke flow pre-test lalu booking.
 
 ## Dashboard Pasien
 
-- Rapikan flow booking. [PARTIAL - flow utama frontend sudah disesuaikan]
-- Ubah intake form menjadi pre-test di flow booking. [DONE - UI dan guard simulasi]
-- Pastikan pasien tidak bisa kirim booking sebelum pre-test selesai. [DONE - frontend + endpoint simulasi]
-- Pastikan pasien tidak bisa booking hari yang sama. [DONE - frontend + endpoint simulasi]
-- Pastikan pasien tidak bisa reschedule hari yang sama. [PARTIAL - CTA diarahkan ke reschedule H+1, backend belum ada]
-- Tambahkan form bantuan reschedule ke admin. [PARTIAL - CTA/panel UI, form produksi belum ada]
-- Rapikan flow pembayaran upload bukti DP dan pelunasan. [PARTIAL - simulasi nama bukti DP]
-- Tampilkan status booking dan status pembayaran dengan jelas. [DONE - riwayat dan admin table]
-- Hapus ruang chat dari UI karena konsultasi online via web tidak masuk scope. [DONE - navigasi dan file halaman lama dihapus]
-- Rapikan flow test dan interpretasi hasil jika fitur assessment lanjut disetujui.
-- Rapikan riwayat konsultasi dan review.
+- Rapikan flow booking terpadu (Jadwal -> Keluhan Pre-Test -> DP Flat Rp 100.000). [DONE]
+- Pasien wajib melengkapi data diri sebelum bisa memilih paket (`isProfileComplete`). [DONE]
+- Pastikan pasien tidak bisa booking hari yang sama (minimal H+1). [DONE]
+- Pengajuan reschedule mandiri minimal H-1 dengan validasi slot. [DONE]
+- Upload bukti transfer DP Flat Rp 100.000 dan nama pengirim. [DONE]
+- Input nomor referensi pembayaran dan tampilkan di invoice/kwitansi. [DONE]
+- Consent & privacy sebelum booking final. [DONE]
+- Tampilkan jadwal dan riwayat berformat Data Table rapi dengan modal detail. [DONE]
+- Tampilkan invoice/kwitansi pembayaran dari riwayat pasien. [DONE]
+- Tab FAQ interaktif mandiri. [DONE]
 
 ## Dashboard Psikolog / Pengelola
 
-- Pindahkan analytics keuntungan/keuangan ke dashboard psikolog/pengelola. [DONE]
-- Buat UI pengaturan hari libur. [DONE - simulasi frontend]
-- Buat UI pengaturan jam kerja. [DONE - simulasi frontend]
-- Buat UI batas jumlah pertemuan per hari. [DONE - simulasi frontend]
-- Buat UI CMS management di dashboard psikolog/pengelola. [DONE]
-- Hapus ruang chat dari dashboard psikolog. [DONE - navigasi utama]
-- Rapikan tampilan jadwal dan appointment. [PARTIAL]
+- Manajemen Paket Layanan (`PackagesTab`) dinamis dengan modal form, preview kartu, dan filter sesi tunggal vs rawat jalan berkelanjutan. [DONE]
+- Fitur unggah, edit, dan hapus foto profil wajah psikolog (`ProfileTab`). [DONE]
+- UI pengaturan jadwal mingguan, hari libur, jam kerja, dan kuota tanggal tertentu (*Custom Date Override*). [DONE]
+- UI CMS management dan konfigurasi Kop Surat Dinas Resmi. [DONE]
+- Rekam medis data pasien modern berstandar klinis (`PatientDetailModal`). [DONE]
+- Laporan keuangan uang masuk / arus kas dengan filter Bulan & Tahun. [DONE]
+- Ekspor Dokumen Cetak Kop Surat Resmi A4 Multi-page PDF dan Excel Spreadsheet. [DONE]
+- Aksi Riwayat Sesi psikolog memakai icon button untuk complete sesi dan jadwalkan sesi lanjutan. [DONE]
+- Mock logic paket multi-sesi: appointment lanjutan dibuat bertahap oleh psikolog setelah sesi sebelumnya selesai. [DONE]
+- Tab khusus Paket Berjalan / Rencana Terapi untuk paket multi-sesi. [DONE]
+- Aksi psikolog untuk selesai, no-show, batal, dan jadwalkan sesi lanjutan. [DONE]
+- Export data klinis pasien dari tabel pasien psikolog. [DONE]
 
 ## Dashboard Admin
 
-- Batasi dashboard admin ke fungsi operasional. [DONE]
-- Buat monitoring user. [DONE]
-- Buat monitoring booking. [DONE]
-- Buat flow admin membuat booking untuk pasien datang langsung. [PARTIAL - tombol/panel UI]
-- Buat flow admin membantu reschedule pasien. [PARTIAL - tombol/panel UI]
-- Buat verifikasi bukti pembayaran. [PARTIAL - status/action UI]
-- Buat aksi ubah booking `PENDING` ke `CONFIRMED`. [DONE]
-- Buat aksi ubah booking `CONFIRMED` ke `COMPLETED`. [DONE]
-- Buat moderasi review. [DONE - fitur existing dipertahankan]
-- Hapus CMS management dari admin jika sudah dipindahkan ke psikolog/pengelola. [DONE]
-- Hapus analytics keuntungan sebagai fitur admin. [DONE]
-- Hapus file tab admin lama yang tidak lagi dipakai (`PackagesTab`, `TestsTab`). [DONE]
+- Batasi dashboard admin strictly Read-Only Monitoring untuk akun user (dilarang edit/blokir user). [DONE]
+- Monitoring reservasi booking. [DONE]
+- Buat alur admin melayani walk-in booking pasien yang datang langsung ke klinik. [DONE]
+- Verifikasi bukti transfer DP Flat Rp 100.000 dan pencatatan mutasi kasir. [DONE]
+- Cabut aksi cancel/batal/hapus dari dashboard admin; admin hanya konfirmasi pembayaran. [DONE]
+- Hak cetak jadwal operasional admin dicabut; cetak/rekap resmi berada di psikolog/pengelola. [DONE]
+- Aksi admin ubah booking `PENDING` ke `CONFIRMED`; penyelesaian `COMPLETED` dipindahkan ke psikolog. [DONE]
+- Admin tidak memiliki aksi cancel/no-show/discontinue; hanya konfirmasi pembayaran/booking. [DONE]
+- Redesain Card Metrik Moderasi Ulasan Terpadu (Rating Breakdown Bar & Status Pills). [DONE]
 
 ## Laporan dan Export
 
-- Tentukan daftar laporan yang dibutuhkan.
+- Filter rentang waktu dan periode dinamis. [DONE]
+- Dokumen Cetak Kop Surat Dinas Resmi A4 Multi-Page siap cetak. [DONE]
+- Ekspor berkas spreadsheet Excel (.xls) dengan formula header. [DONE]
 - Buat laporan booking.
 - Buat laporan pembayaran.
 - Buat laporan pasien/user jika diperlukan.

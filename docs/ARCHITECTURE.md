@@ -6,32 +6,29 @@ Aplikasi menggunakan React dengan TypeScript dan Vite. State aplikasi dikelola d
 
 ## Lapisan Utama
 
-- `src/App.tsx`: root aplikasi, memilih view berdasarkan role dan mode.
-- `src/context/AppContext.tsx`: global state, action facade, persistence LocalStorage.
-- `src/components`: UI berdasarkan domain dan role.
-- `src/models`: representasi domain object.
-- `src/controllers`: class controller untuk operasi domain.
-- `src/types`: kontrak TypeScript untuk entity dan state.
-- `src/data/mockData.ts`: data awal untuk simulasi.
-- `src/api`: placeholder/facade endpoint untuk integrasi API.
+- `src/App.tsx`: root aplikasi, menampilkan Landing Page untuk GUEST dan dashboard untuk role terautentikasi (PATIENT, PSYCHOLOGIST, ADMIN).
+- `src/context/AppContext.tsx`: global state, action facade, dan sinkronisasi LocalStorage/API.
+- `src/services/api/`: service layer API terstandarisasi untuk koneksi ke backend Laravel 12++ (`client.ts`, `authService.ts`, `appointmentService.ts`, `packageService.ts`, `scheduleService.ts`, `financeService.ts`, `reviewService.ts`, `cmsService.ts`).
+- `src/components`: UI modular berdasarkan domain dan role (landing, patient, psychologist, admin, common, layout, auth).
+- `src/types`: kontrak TypeScript untuk entity, request/response, dan state.
+- `src/data/mockData.ts`: data awal untuk simulasi offline.
 
 ## Mode Tampilan
 
-- `PLATFORM`: aplikasi utama.
-- `BLUEPRINT`: halaman blueprint arsitektur.
+Aplikasi berjalan pada satu mode platform terintegrasi. Mode *Blueprint* internal dan menu demo telah dieliminasi sepenuhnya untuk transisi ke otentikasi login nyata dan integrasi backend Laravel 12.
 
 ## Role Aplikasi
 
-- `GUEST`
-- `PATIENT` / pengguna
-- `ADMIN`
-- `PSYCHOLOGIST` / super admin / pengelola
+- `GUEST`: Pengunjung landing page publik.
+- `PATIENT`: Pasien terdaftar untuk konsultasi klinis.
+- `ADMIN`: Petugas administrasi klinik untuk walk-in booking, verifikasi transfer DP, dan moderasi ulasan.
+- `PSYCHOLOGIST`: Psikolog klinis penanggung jawab praktik sekaligus pengelola utama (owner).
 
-Role tertinggi adalah psikolog/super admin/pengelola karena role ini dianggap sebagai owner company/praktik. Admin berada di bawah psikolog dan berfokus pada verifikasi serta pemantauan operasional.
+Role tertinggi adalah psikolog/super admin/pengelola. Admin berfokus pada verifikasi operasional dan melayani reservasi walk-in.
 
 ## Persistence Saat Ini
 
-Data disimpan di `localStorage` dengan prefix `jiwasehat_v2_`. Ini hanya cocok untuk simulasi/prototype, bukan produksi.
+Data sementara disimpan di `localStorage` dengan prefix `jiwasehat_v3_` dengan fallback dinamis dari service API `src/services/api/`.
 
 ## Arah Backend
 

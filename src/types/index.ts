@@ -12,6 +12,13 @@ export interface User {
   phone?: string;
   isVerified: boolean;
   createdAt: string;
+  // Profil Pasien Lengkap
+  birthDate?: string;
+  gender?: 'Laki-laki' | 'Perempuan';
+  occupation?: string;
+  city?: string;
+  emergencyContact?: string;
+  isProfileComplete?: boolean;
 }
 
 export interface PsychologistProfile {
@@ -29,6 +36,7 @@ export interface PsychologistProfile {
   consultationFeeOffline: number;
   languages: string[];
   clinicAddress: string;
+  avatarUrl?: string;
   isAvailableToday: boolean;
   education?: string[];
   strExpiry?: string;
@@ -60,17 +68,24 @@ export interface IntakeForm {
   goals: string;
 }
 
-export type PackageType = 'OFFLINE_CLINIC' | 'BUNDLING_ASSESSMENT';
+export type PackageCategory = 'KONSELING' | 'ASESMEN' | 'PSIKOTERAPI';
+
+export type PackageType = 'OFFLINE_CLINIC' | 'ONLINE_TELE' | 'BUNDLING_ASSESSMENT' | 'PSYCHOTHERAPY';
 
 export interface ConsultationPackage {
   id: string;
   name: string;
+  category?: PackageCategory;
   type: PackageType;
   durationMinutes: number;
   price: number;
+  dpAmount?: number;
+  isContinuousCare?: boolean;
+  sessionCount?: number;
   badge?: string;
   description: string;
   benefits: string[];
+  notes?: string;
   isActive: boolean;
   iconName: string;
 }
@@ -86,7 +101,7 @@ export interface ScheduleSlot {
   appointmentId?: string;
 }
 
-export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
 export interface Appointment {
   id: string;
@@ -105,6 +120,16 @@ export interface Appointment {
   status: AppointmentStatus;
   paymentStatus: 'PENDING' | 'DP_PENDING_VERIFICATION' | 'DP_PAID' | 'FINAL_PENDING_VERIFICATION' | 'PAID' | 'REFUNDED';
   totalAmount: number;
+  dpAmount?: number;
+  remainingAmount?: number;
+  paymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
+  paymentChannelDetail?: string;
+  transferSenderName?: string;
+  paymentReference?: string;
+  paymentProofUrl?: string;
+  treatmentPlanId?: string;
+  continuousSessionNumber?: number;
+  continuousSessionTotal?: number;
   meetingLocation: string; // Virtual Room ID or Clinic Room
   hasIntakeForm: boolean;
   hasTestResult: boolean;
@@ -221,6 +246,11 @@ export interface LandingPageCmsConfig {
   clinicPhone: string;
   clinicWhatsapp: string;
   clinicEmail: string;
+  logoUrl?: string;
+  heroImageUrl?: string;
+  aboutImageUrl?: string;
+  qrisImageUrl?: string;
+  clinicKopLogoUrl?: string;
 }
 
 export interface PatientPageCmsConfig {

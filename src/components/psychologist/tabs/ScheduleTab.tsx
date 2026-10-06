@@ -164,8 +164,8 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+          <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="bg-slate-50/50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="py-2.5 px-4 w-28">Hari</th>

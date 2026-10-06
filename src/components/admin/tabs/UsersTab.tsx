@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { User, PsychologistProfile, UserStatus } from '../../../types';
-import { Search, CheckCircle2, Lock, Unlock } from 'lucide-react';
+import { Search, CheckCircle2, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface UsersTabProps {
   users: User[];
   psychologists: PsychologistProfile[];
-  toggleUserStatus: (userId: string, status: UserStatus) => void;
+  toggleUserStatus?: (userId: string, status: UserStatus) => void;
 }
 
 export const UsersTab: React.FC<UsersTabProps> = ({
@@ -15,6 +15,13 @@ export const UsersTab: React.FC<UsersTabProps> = ({
 }) => {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<'ALL' | 'PATIENT' | 'PSYCHOLOGIST' | 'ADMIN'>('ALL');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [userSearchQuery, userRoleFilter]);
 
   const filteredUsers = useMemo(() => {
     return users.filter(u => {
@@ -24,6 +31,12 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       return matchesSearch && matchesRole;
     });
   }, [users, userSearchQuery, userRoleFilter]);
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage) || 1;
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedUsers = useMemo(() => {
+    return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredUsers, startIndex, itemsPerPage]);
 
   return (
     <div className="space-y-4">
@@ -37,12 +50,12 @@ export const UsersTab: React.FC<UsersTabProps> = ({
           </div>
           <div className="text-right">
             <span className="text-xs font-bold text-slate-600">
-              Menampilkan {filteredUsers.length} dari {users.length} Total Pengguna
+              Total {filteredUsers.length} Pengguna
             </span>
           </div>
         </div>
 
-        {/* Filter & Search Bar for Scalability */}
+        {/* Filter & Search Bar - Search di Kiri, Filter di Kanan */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="relative flex-1 max-w-md">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -83,8 +96,8 @@ export const UsersTab: React.FC<UsersTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-xs text-left">
+        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+          <table className="w-full min-w-[700px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-y border-slate-200">
               <tr>
                 <th className="py-3 px-4">Nama & Email</th>
@@ -95,14 +108,14 @@ export const UsersTab: React.FC<UsersTabProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredUsers.length === 0 ? (
+              {paginatedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-400">
                     Tidak ditemukan pengguna yang cocok dengan kriteria pencarian.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map(u => {
+                paginatedUsers.map(u => {
                   const psyProfile = psychologists.find(p => p.userId === u.id);
                   return (
                     <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
@@ -149,35 +162,10 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                         )}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {u.status === 'PENDING_VERIFICATION' && (
-                            <button
-                              onClick={() => toggleUserStatus(u.id, 'ACTIVE')}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              Verifikasi & Aktifkan
-                            </button>
-                          )}
-                          {u.status === 'ACTIVE' && u.role !== 'ADMIN' && (
-                            <button
-                              onClick={() => toggleUserStatus(u.id, 'BLOCKED')}
-                              className="px-2.5 py-1 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                              title="Blokir akses pengguna"
-                            >
-                              <Lock className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {u.status === 'BLOCKED' && (
-                            <button
-                              onClick={() => toggleUserStatus(u.id, 'ACTIVE')}
-                              className="px-2.5 py-1 text-slate-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                              title="Buka blokir akses"
-                            >
-                              <Unlock className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Terdata Sistem
+                        </span>
                       </td>
                     </tr>
                   );
@@ -186,8 +174,55 @@ export const UsersTab: React.FC<UsersTabProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* PAGINATION FOOTER */}
+        {filteredUsers.length > 0 && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100 mt-4 text-xs">
+            <span className="text-slate-500 font-medium">
+              Menampilkan <strong className="text-slate-800">{startIndex + 1}</strong> -{' '}
+              <strong className="text-slate-800">{Math.min(startIndex + itemsPerPage, filteredUsers.length)}</strong> dari{' '}
+              <strong className="text-slate-800">{filteredUsers.length}</strong> pengguna
+            </span>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors text-slate-600"
+                title="Halaman Sebelumnya"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currentPage === page
+                      ? 'bg-purple-600 text-white shadow-2xs'
+                      : 'border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors text-slate-600"
+                title="Halaman Selanjutnya"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
-

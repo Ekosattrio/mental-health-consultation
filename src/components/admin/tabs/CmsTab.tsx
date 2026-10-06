@@ -25,7 +25,9 @@ import {
   LayoutTemplate,
   ChevronDown,
   ChevronUp,
-  Building2
+  Building2,
+  Image as ImageIcon,
+  QrCode
 } from 'lucide-react';
 
 interface CmsTabProps {
@@ -433,6 +435,232 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                       onChange={e => setCmsForm({ ...cmsForm, clinicEmail: e.target.value })}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
                     />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ACCORDION 4: MANAJEMEN MEDIA & GAMBAR BRANDING WEBSITE */}
+          <div className="bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs transition-all">
+            <button
+              type="button"
+              onClick={() => setOpenLandingSection(prev => prev === 'media' ? null : 'media')}
+              className="w-full p-4 flex items-center justify-between gap-3 text-left hover:bg-slate-50/70 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                    4. Media & Gambar Branding Website (Logo, Banner, QRIS & Foto Klinik)
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Atur URL gambar logo JiwaSehat, banner beranda, foto ruang klinik, QRIS DP, dan kop surat.
+                  </p>
+                </div>
+              </div>
+              {openLandingSection === 'media' ? (
+                <ChevronUp className="w-4 h-4 text-purple-600" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </button>
+
+            {openLandingSection === 'media' && (
+              <div className="p-4 pt-1 border-t border-slate-100 space-y-4 text-xs bg-slate-50/40">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 1. Logo Website */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <HeartHandshake className="w-3.5 h-3.5 text-teal-600" />
+                        Logo Website JiwaSehat (Navbar)
+                      </label>
+                      <span className="text-[10px] text-slate-400">Rasio 1:1 Persegi</span>
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... atau URL gambar logo"
+                      value={cmsForm.logoUrl || ''}
+                      onChange={e => setCmsForm({ ...cmsForm, logoUrl: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="w-12 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                        {cmsForm.logoUrl ? (
+                          <img src={cmsForm.logoUrl} alt="Logo Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <HeartHandshake className="w-6 h-6 text-teal-600" />
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex-1">
+                        {cmsForm.logoUrl ? 'Pratinjau logo aktif.' : 'Jika kosong, navbar menampilkan ikon default HeartHandshake.'}
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setCmsForm({ ...cmsForm, logoUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=160&q=80' })}
+                            className="text-[10px] font-bold text-purple-700 hover:underline cursor-pointer"
+                          >
+                            Pilih Sampel Logo
+                          </button>
+                          {cmsForm.logoUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setCmsForm({ ...cmsForm, logoUrl: '' })}
+                              className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. Hero Banner Image */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                        Gambar Banner Hero Beranda
+                      </label>
+                      <span className="text-[10px] text-slate-400">Rasio 16:9 Landscape</span>
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... atau URL gambar banner"
+                      value={cmsForm.heroImageUrl || ''}
+                      onChange={e => setCmsForm({ ...cmsForm, heroImageUrl: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="w-20 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                        {cmsForm.heroImageUrl ? (
+                          <img src={cmsForm.heroImageUrl} alt="Hero Banner Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] text-slate-400">Belum ada</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex-1">
+                        Banner visual utama di jumbotron beranda.
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setCmsForm({ ...cmsForm, heroImageUrl: 'https://images.unsplash.com/photo-1573497620053-ea5300f94f21?auto=format&fit=crop&w=800&q=80' })}
+                            className="text-[10px] font-bold text-purple-700 hover:underline cursor-pointer"
+                          >
+                            Pilih Sampel Banner
+                          </button>
+                          {cmsForm.heroImageUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setCmsForm({ ...cmsForm, heroImageUrl: '' })}
+                              className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. Foto Ruang Konsultasi Klinik */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <Building2 className="w-3.5 h-3.5 text-sky-600" />
+                        Foto Fasilitas & Ruang Konseling Klinik
+                      </label>
+                      <span className="text-[10px] text-slate-400">Rasio 4:3 / 16:9</span>
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... atau URL foto ruang klinik"
+                      value={cmsForm.aboutImageUrl || ''}
+                      onChange={e => setCmsForm({ ...cmsForm, aboutImageUrl: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="w-20 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                        {cmsForm.aboutImageUrl ? (
+                          <img src={cmsForm.aboutImageUrl} alt="Clinic Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-[10px] text-slate-400">Belum ada</span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex-1">
+                        Foto ruang konseling tatap muka berstandar privasi.
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setCmsForm({ ...cmsForm, aboutImageUrl: 'https://images.unsplash.com/photo-1527689368864-3a821dbccc34?auto=format&fit=crop&w=800&q=80' })}
+                            className="text-[10px] font-bold text-purple-700 hover:underline cursor-pointer"
+                          >
+                            Pilih Sampel Foto
+                          </button>
+                          {cmsForm.aboutImageUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setCmsForm({ ...cmsForm, aboutImageUrl: '' })}
+                              className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 4. QRIS Pembayaran DP 100rb */}
+                  <div className="p-3.5 bg-white rounded-2xl border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-slate-800 flex items-center gap-1.5">
+                        <QrCode className="w-3.5 h-3.5 text-emerald-600" />
+                        Barcode QRIS Pembayaran DP (Rp 100.000)
+                      </label>
+                      <span className="text-[10px] text-slate-400">Barcode QRIS</span>
+                    </div>
+                    <input
+                      type="url"
+                      placeholder="https://images.unsplash.com/... atau URL gambar QRIS"
+                      value={cmsForm.qrisImageUrl || ''}
+                      onChange={e => setCmsForm({ ...cmsForm, qrisImageUrl: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="w-12 h-12 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                        {cmsForm.qrisImageUrl ? (
+                          <img src={cmsForm.qrisImageUrl} alt="QRIS Preview" className="w-full h-full object-contain p-1" />
+                        ) : (
+                          <QrCode className="w-6 h-6 text-slate-400" />
+                        )}
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex-1">
+                        QRIS resmi untuk pembayaran DP administrasi konsultasi.
+                        <div className="flex gap-2 mt-1">
+                          <button
+                            type="button"
+                            onClick={() => setCmsForm({ ...cmsForm, qrisImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=JIWASEHAT-DP100K-MANDIRI' })}
+                            className="text-[10px] font-bold text-purple-700 hover:underline cursor-pointer"
+                          >
+                            Pilih Sampel QRIS
+                          </button>
+                          {cmsForm.qrisImageUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setCmsForm({ ...cmsForm, qrisImageUrl: '' })}
+                              className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Hapus
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

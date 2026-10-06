@@ -16,7 +16,7 @@ export interface CreateAppointmentPayload {
 }
 
 export interface VerifyPaymentPayload {
-  payment_status: 'DP_PAID' | 'PAID' | 'FAILED';
+  payment_status: 'DP_PAID' | 'PAID';
   proof_file?: string;
   admin_notes?: string;
 }
@@ -65,11 +65,19 @@ export const appointmentService = {
   },
 
   /**
-   * Memperbarui status appointment (CONFIRMED, COMPLETED, CANCELLED)
-   * Endpoint Laravel: PATCH /api/v1/appointments/{id}/status
+   * Admin hanya mengonfirmasi booking/pembayaran.
+   * Endpoint Laravel: PATCH /api/v1/appointments/{id}/confirm
    */
-  async updateStatus(id: string, status: string): Promise<ApiResponse<Appointment>> {
-    return apiClient.patch<Appointment>(`/appointments/${id}/status`, { status });
+  async confirmAppointment(id: string): Promise<ApiResponse<Appointment>> {
+    return apiClient.patch<Appointment>(`/appointments/${id}/confirm`, {});
+  },
+
+  /**
+   * Psikolog menandai sesi selesai setelah konsultasi benar-benar selesai.
+   * Endpoint Laravel: PATCH /api/v1/appointments/{id}/complete
+   */
+  async completeByPsychologist(id: string): Promise<ApiResponse<Appointment>> {
+    return apiClient.patch<Appointment>(`/appointments/${id}/complete`, {});
   },
 
   /**
@@ -89,7 +97,7 @@ export const appointmentService = {
   },
 
   /**
-   * Mengunggah bukti transfer DP 50% oleh pasien
+   * Mengunggah bukti transfer DP Rp 100.000 oleh pasien
    * Endpoint Laravel: POST /api/v1/appointments/{id}/upload-proof
    */
   async uploadPaymentProof(id: string, formData: FormData): Promise<ApiResponse<{ proof_url: string }>> {

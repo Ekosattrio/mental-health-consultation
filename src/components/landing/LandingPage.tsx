@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
 import { PsychologistProfile } from '../../types';
 import {
@@ -11,22 +12,25 @@ import {
   CheckCircle2,
   ArrowRight,
   Sparkles,
-  FileCheck,
   ExternalLink,
   GraduationCap,
   Award,
   BookOpen,
   HelpCircle,
   ChevronDown,
-  Stethoscope
+  Stethoscope,
+  Lock,
+  Video,
+  HeartHandshake,
+  ClipboardCheck,
+  Users
 } from 'lucide-react';
 
 interface LandingPageProps {
   onSelectBooking: (psychologistId?: string, packageId?: string) => void;
-  onTakeTest: () => void;
 }
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTakeTest }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => {
   const {
     psychologists,
     users,
@@ -42,6 +46,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
   const [isBioModalOpen, setIsBioModalOpen] = useState<boolean>(false);
   const [testimonialPage, setTestimonialPage] = useState(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [isPrivacyModalOpen, setIsPrivacyModalOpen] = useState(false);
+  const [selectedPackageCategory, setSelectedPackageCategory] = useState<'ALL' | 'KONSELING' | 'ASESMEN' | 'PSIKOTERAPI'>('ALL');
 
   // Single Doctor definition
   const soloPsychologist: PsychologistProfile = psychologists[0];
@@ -78,7 +84,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
   return (
     <div className="min-h-screen bg-slate-50">
       {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-teal-900 via-teal-800 to-slate-900 text-white pt-16 pb-24">
+      <section id="hero" className="relative overflow-hidden bg-gradient-to-b from-teal-900 via-teal-800 to-slate-900 text-white pt-16 pb-28 sm:pb-36 lg:pb-44">
         {/* Subtle background glow effect */}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(20,184,166,0.15),transparent_50%)]" />
 
@@ -110,11 +116,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                 </button>
 
                 <button
-                  onClick={() => requireAuth(onTakeTest, 'mengikuti assessment mandiri')}
+                  onClick={() => requireAuth(() => onSelectBooking(soloPsychologist?.userId), 'mengisi pre-test dan booking konsultasi')}
                   className="px-6 py-3.5 rounded-xl bg-white/10 hover:bg-white/15 text-white border border-white/20 font-semibold text-sm backdrop-blur-md transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <FileCheck className="w-4 h-4 text-amber-300" />
-                  Assessment Mandiri (Opsional)
+                  <ClipboardCheck className="w-4 h-4 text-amber-300" />
+                  Isi Pre-Test & Booking
                 </button>
               </div>
 
@@ -154,12 +160,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                   </span>
                 </div>
 
-                {/* Doctor Identity Badge */}
+                {/* Doctor Identity Badge WITH DYNAMIC PHOTO */}
                 <div className="flex items-center gap-4">
-                  <div className="w-18 h-18 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shrink-0">
-                    <Stethoscope className="w-9 h-9" />
+                  <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl bg-teal-50 border-2 border-teal-200/90 shadow-md shrink-0 overflow-hidden relative group">
+                    {soloPsychologist?.avatarUrl || soloUser?.avatar ? (
+                      <img
+                        src={soloPsychologist?.avatarUrl || soloUser?.avatar}
+                        alt={soloUser?.name || 'dr. Sarah Jenkins, M.Psi.'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-teal-600 text-white flex items-center justify-center">
+                        <Stethoscope className="w-9 h-9" />
+                      </div>
+                    )}
+                    <span
+                      className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs"
+                      title="Status: Praktik Aktif"
+                    />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200 text-[10px] font-bold mb-1">
                       <Sparkles className="w-3 h-3 text-teal-600" />
                       Psikolog Penanggung Jawab
@@ -208,13 +228,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                   </div>
                 </div>
 
-                {/* Fee & Action Buttons */}
+                {/* Status & Action Buttons */}
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] text-slate-400 font-medium block">DP Awal 50%</span>
-                    <span className="text-sm font-black text-slate-900">
-                      Rp {Math.ceil((soloPsychologist?.consultationFeeOffline || 0) * 0.5).toLocaleString('id-ID')}
-                    </span>
+                  <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Praktik Tatap Muka Terjadwal</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -239,17 +257,40 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
             </div>
           </div>
         </div>
+
+        {/* BOTTOM SVG WAVE TRANSITION TO NEXT SECTION */}
+        <div className="absolute bottom-0 left-0 right-0 w-full overflow-hidden leading-none z-10 pointer-events-none">
+          <svg
+            className="relative block w-full h-12 sm:h-16 lg:h-22 text-slate-50"
+            viewBox="0 0 1200 120"
+            preserveAspectRatio="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M0,0 C150,95 350,-35 500,50 C650,135 900,15 1200,45 L1200,120 L0,120 Z"
+              fill="currentColor"
+            />
+          </svg>
+        </div>
       </section>
 
       {/* 2. TENTANG PSIKOLOG & PENDEKATAN KLINIS (PROFIL MANDIRI 1 DOKTER) */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="about-psychologist" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 scroll-mt-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Doctor Identity & Badges */}
           <div className="lg:col-span-5 space-y-4">
             <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200 bg-gradient-to-br from-teal-900 via-slate-900 to-slate-950 p-8 text-white flex flex-col justify-between min-h-[360px]">
               <div className="space-y-4">
-                <div className="w-16 h-16 rounded-2xl bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center shadow-inner">
-                  <Stethoscope className="w-8 h-8" />
+                <div className="w-20 h-20 rounded-3xl bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center shadow-inner overflow-hidden">
+                  {soloPsychologist?.avatarUrl || soloUser?.avatar ? (
+                    <img
+                      src={soloPsychologist?.avatarUrl || soloUser?.avatar}
+                      alt={soloUser?.name || 'Psikolog'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Stethoscope className="w-10 h-10" />
+                  )}
                 </div>
                 <div>
                   <span className="text-xs font-bold text-teal-300 uppercase tracking-wider block">
@@ -263,7 +304,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
               <div className="pt-6 border-t border-white/10 space-y-2">
                 <div className="flex items-center gap-2 text-xs text-teal-200">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span className="font-semibold">Praktik Berizin Resmi & Terverifikasi Klinis</span>
+                  <span className="font-semibold">Profil Praktik dengan STR & SIP</span>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed italic">
                   &ldquo;Mendampingi setiap langkah pemulihan Anda dalam ruang konseling yang aman, hangat, dan bebas stigma.&rdquo;
@@ -377,102 +418,210 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
       </section>
 
       {/* 3. KATALOG PAKET KONSULTASI */}
-      <section className="py-20 bg-slate-100 border-y border-slate-200">
+      <section id="packages" className="py-20 bg-slate-100 border-y border-slate-200 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-14">
+          <div className="text-center max-w-2xl mx-auto mb-10">
             <span className="text-xs font-bold text-teal-700 uppercase tracking-wider bg-teal-100/70 px-3 py-1 rounded-full">
-              Pilihan Format Konsultasi
+              Pilihan Format Layanan
             </span>
             <h2 className="text-3xl font-extrabold text-slate-900 mt-2">
-              Pilih Sesi yang Sesuai Kebutuhan Anda
+              Katalog Layanan Psikologi Klinis
             </h2>
             <p className="text-sm text-slate-600 mt-2">
-              Seluruh sesi ditangani langsung secara privat oleh {soloUser?.name}. Transparan tanpa biaya tersembunyi.
+              Seluruh sesi ditangani langsung secara privat oleh {soloUser?.name}. Rincian tarif dan kalender reservasi dapat diakses setelah Anda masuk akun & melengkapi data diri pasien.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-            {packages.map(pkg => {
-              const isPopular = pkg.type === 'BUNDLING_ASSESSMENT';
-              return (
-                <div
-                  key={pkg.id}
-                  className={`relative rounded-3xl bg-white p-8 flex flex-col justify-between border transition-all ${
-                    isPopular
-                      ? 'border-teal-500 shadow-xl ring-2 ring-teal-500/20'
-                      : 'border-slate-200 shadow-xs hover:border-slate-300'
-                  }`}
-                >
-                  {pkg.badge && (
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-teal-600 text-white tracking-wide shadow-xs">
-                      {pkg.badge}
-                    </div>
-                  )}
+          {/* Category Filter Tabs */}
+          {(() => {
+            const activePackages = packages.filter(p => p.isActive !== false);
+            const countAll = activePackages.length;
+            const countKonseling = activePackages.filter(p => p.category === 'KONSELING').length;
+            const countAsesmen = activePackages.filter(p => p.category === 'ASESMEN').length;
+            const countPsikoterapi = activePackages.filter(p => p.category === 'PSIKOTERAPI').length;
 
-                  <div>
-                    {/* Header Package */}
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-3 bg-teal-50 text-teal-700 rounded-2xl border border-teal-100">
-                        {pkg.type === 'OFFLINE_CLINIC' && <Calendar className="w-6 h-6" />}
-                        {pkg.type === 'BUNDLING_ASSESSMENT' && <FileCheck className="w-6 h-6" />}
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 leading-snug">{pkg.name}</h3>
-                        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-                          <Clock className="w-3.5 h-3.5" />
-                          <span>Durasi {pkg.durationMinutes} Menit</span>
-                        </div>
-                      </div>
-                    </div>
+            const displayedPackages = selectedPackageCategory === 'ALL'
+              ? activePackages
+              : activePackages.filter(p => p.category === selectedPackageCategory);
 
-                    <p className="text-xs text-slate-600 leading-relaxed mb-6">
-                      {pkg.description}
-                    </p>
-
-                    {/* Price */}
-                    <div className="mb-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                      <span className="text-xs text-slate-400 block font-medium">Biaya Investasi Diri</span>
-                      <div className="flex items-baseline gap-1">
-                        <span className="text-3xl font-extrabold text-slate-900">
-                          Rp {pkg.price.toLocaleString('id-ID')}
-                        </span>
-                        <span className="text-xs text-slate-500">/ sesi</span>
-                      </div>
-                    </div>
-
-                    {/* Benefits list */}
-                    <div className="space-y-3 mb-8">
-                      <div className="text-xs font-bold text-slate-700">Fasilitas Sesi:</div>
-                      {pkg.benefits.map((b, idx) => (
-                        <div key={idx} className="flex items-start gap-2.5 text-xs text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
-                          <span>{b}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
+            return (
+              <>
+                <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
                   <button
                     type="button"
-                    onClick={() => requireAuth(() => onSelectBooking(soloPsychologist?.userId, pkg.id), 'pemilihan paket')}
-                    className={`w-full py-3 px-4 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
-                      isPopular
-                        ? 'bg-teal-600 hover:bg-teal-700 text-white'
-                        : 'bg-slate-900 hover:bg-slate-800 text-white'
+                    onClick={() => setSelectedPackageCategory('ALL')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      selectedPackageCategory === 'ALL'
+                        ? 'bg-teal-700 text-white shadow-md'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
                     }`}
                   >
-                    <span>Pilih Paket Ini</span>
-                    <ArrowRight className="w-4 h-4" />
+                    Semua Layanan ({countAll})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPackageCategory('KONSELING')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      selectedPackageCategory === 'KONSELING'
+                        ? 'bg-teal-700 text-white shadow-md'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Konseling ({countKonseling})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPackageCategory('ASESMEN')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      selectedPackageCategory === 'ASESMEN'
+                        ? 'bg-teal-700 text-white shadow-md'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Paket Asesmen ({countAsesmen})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPackageCategory('PSIKOTERAPI')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      selectedPackageCategory === 'PSIKOTERAPI'
+                        ? 'bg-teal-700 text-white shadow-md'
+                        : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    Psikoterapi ({countPsikoterapi})
                   </button>
                 </div>
-              );
-            })}
-          </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
+                  {displayedPackages.map(pkg => {
+                    const isPopular = pkg.badge === 'Paling Populer' || pkg.badge === 'Rekomendasi Klinis' || pkg.badge === 'Termasuk Laporan Resmi';
+                    return (
+                      <div
+                        key={pkg.id}
+                        className={`relative rounded-3xl bg-white p-6 sm:p-7 flex flex-col justify-between border transition-all ${
+                          isPopular
+                            ? 'border-teal-500 shadow-xl ring-2 ring-teal-500/20'
+                            : 'border-slate-200 shadow-xs hover:border-slate-300'
+                        }`}
+                      >
+                        {pkg.badge && (
+                          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[11px] font-extrabold bg-teal-600 text-white tracking-wide shadow-xs whitespace-nowrap">
+                            {pkg.badge}
+                          </div>
+                        )}
+
+                        <div>
+                          {/* Header Package */}
+                          <div className="flex items-start gap-3 mb-4">
+                            <div className="p-3 bg-teal-50 text-teal-700 rounded-2xl border border-teal-100 shrink-0">
+                              {pkg.category === 'KONSELING' && (pkg.type === 'ONLINE_TELE' ? <Video className="w-5 h-5" /> : <Users className="w-5 h-5" />)}
+                              {pkg.category === 'ASESMEN' && <ClipboardCheck className="w-5 h-5" />}
+                              {pkg.category === 'PSIKOTERAPI' && <Sparkles className="w-5 h-5" />}
+                              {!pkg.category && <ClipboardCheck className="w-5 h-5" />}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">
+                                {pkg.category || 'LAYANAN KLINIS'}
+                              </span>
+                              <h3 className="text-base font-bold text-slate-900 leading-snug">{pkg.name}</h3>
+                              <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium mt-0.5">
+                                <Clock className="w-3.5 h-3.5 shrink-0" />
+                                <span>Durasi {pkg.durationMinutes} Menit</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <p className="text-xs text-slate-600 leading-relaxed mb-5">
+                            {pkg.description}
+                          </p>
+
+                          {/* Price Display: Hidden for Guest, Shown after Sign In */}
+                          {currentUser && currentRole === 'PATIENT' ? (
+                            <div className="mb-5 p-4 bg-teal-50/70 rounded-2xl border border-teal-100 space-y-1">
+                              <span className="text-[11px] font-bold text-teal-700 block uppercase tracking-wider">
+                                Biaya Investasi Diri
+                              </span>
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl font-black text-slate-900">
+                                  Rp {pkg.price.toLocaleString('id-ID')}
+                                </span>
+                                <span className="text-xs text-slate-500 font-medium">/ paket</span>
+                              </div>
+                              {pkg.notes && (
+                                <p className="text-[11px] text-teal-800/90 mt-1 font-medium leading-relaxed bg-white/70 p-2 rounded-xl border border-teal-100">
+                                  📌 {pkg.notes}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="mb-5 p-4 bg-slate-50 rounded-2xl border border-dashed border-slate-300 space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                  Rincian Tarif & Jadwal
+                                </span>
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-800 bg-teal-100/90 px-2 py-0.5 rounded-full">
+                                  <Lock className="w-3 h-3 text-teal-700" />
+                                  Masuk Akun
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-600 leading-snug">
+                                Tarif resmi dan kuota jadwal sesi dapat diakses setelah Anda masuk akun & melengkapi data diri pasien.
+                              </p>
+                              {pkg.notes && (
+                                <p className="text-[10px] text-slate-500 italic mt-0.5">
+                                  * {pkg.notes}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Benefits list */}
+                          <div className="space-y-2 mb-6">
+                            <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Fasilitas Layanan:</div>
+                            {pkg.benefits.map((b, idx) => (
+                              <div key={idx} className="flex items-start gap-2 text-xs text-slate-600">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                                <span className="leading-snug">{b}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => requireAuth(() => onSelectBooking(soloPsychologist?.userId, pkg.id), 'pemilihan paket')}
+                          className={`w-full py-3 px-4 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-xs cursor-pointer ${
+                            isPopular
+                              ? 'bg-teal-600 hover:bg-teal-700 text-white'
+                              : 'bg-slate-900 hover:bg-slate-800 text-white'
+                          }`}
+                        >
+                          {currentUser && currentRole === 'PATIENT' ? (
+                            <>
+                              <span>Pilih Paket Ini</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>Masuk untuk Reservasi</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            );
+          })()}
         </div>
       </section>
 
       {/* 4. INFORMASI LOKASI RUANG PRAKTIK */}
-      <section className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="clinic-address" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           <div className="lg:col-span-5 space-y-6">
             <div>
@@ -583,7 +732,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
       </section>
 
       {/* 5. TESTIMONI & ULASAN PASIEN */}
-      <section className="py-20 bg-white border-t border-slate-200">
+      <section id="reviews" className="py-20 bg-white border-t border-slate-200 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
             <div>
@@ -678,8 +827,47 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
         </div>
       </section>
 
-      {/* 6. FAQ & PERTANYAAN UMUM (PALING BAWAH SEBELUM CTA FOOTER) */}
-      <section className="py-20 bg-slate-50 border-t border-slate-200">
+      {/* 6. CONSENT & PRIVACY */}
+      <section id="privacy-consent" className="py-16 bg-slate-50 border-t border-slate-200 scroll-mt-24">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {[
+              {
+                title: 'Informed Consent',
+                text: 'Pasien menyetujui proses konsultasi, penggunaan data pre-test untuk persiapan sesi, dan batas layanan sesuai praktik psikologi.'
+              },
+              {
+                title: 'Privasi Data',
+                text: 'Data profil, keluhan, jadwal, pembayaran, dan riwayat konsultasi hanya digunakan untuk operasional layanan dan dijaga kerahasiaannya.'
+              },
+              {
+                title: 'Bukan Diagnosis Otomatis',
+                text: 'Pre-test hanya membantu psikolog memahami kondisi awal. Kesimpulan klinis hanya diberikan melalui sesi konsultasi profesional.'
+              }
+            ].map(item => (
+              <div key={item.title} className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center mb-3">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-slate-900">{item.title}</h3>
+                <p className="text-xs text-slate-600 leading-relaxed mt-1.5">{item.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center mt-6">
+            <button
+              type="button"
+              onClick={() => setIsPrivacyModalOpen(true)}
+              className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+            >
+              Baca Ringkasan Persetujuan & Privasi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 7. FAQ & PERTANYAAN UMUM (PALING BAWAH SEBELUM CTA FOOTER) */}
+      <section id="faq" className="py-20 bg-slate-50 border-t border-slate-200 scroll-mt-24">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <span className="text-xs font-bold text-teal-600 uppercase tracking-wider flex items-center justify-center gap-1.5">
@@ -690,7 +878,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
               Pertanyaan yang Sering Diajukan (FAQ)
             </h2>
             <p className="text-sm text-slate-500 mt-2">
-              Jawaban seputar privasi data, mekanisme booking, kebijakan DP 50%, dan alur konsultasi klinis.
+              Jawaban seputar privasi data, mekanisme booking, DP administrasi Rp 100.000, dan alur konsultasi klinis.
             </p>
           </div>
 
@@ -698,11 +886,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
             {[
               {
                 q: 'Apakah sesi konsultasi di JiwaSehat dijamin kerahasiaannya?',
-                a: 'Ya, 100% rahasia medis klinis. Seluruh data, catatan klinis, dan riwayat sesi Anda dilindungi penuh oleh Kode Etik Psikologi Indonesia (HIMPSI) dan prinsip informed consent legal. Informasi Anda tidak akan pernah dibagikan kepada pihak ketiga tanpa izin tertulis dari Anda.'
+                a: 'Ya, 100% rahasia medis klinis. Seluruh data, catatan klinis, dan riwayat sesi Anda dilindungi prinsip kerahasiaan praktik psikologi dan informed consent. Informasi Anda tidak akan pernah dibagikan kepada pihak ketiga tanpa izin tertulis dari Anda.'
               },
               {
                 q: 'Bagaimana sistem pembayaran dan reservasi jadwal?',
-                a: 'Untuk mengunci slot waktu pada jadwal dokter, pasien melakukan pembayaran uang muka (DP) sebesar 50% melalui transfer bank resmi. Sisa pelunasan 50% dapat diselesaikan setelah sesi konsultasi tatap muka selesai di klinik.'
+                a: 'Untuk mengunci slot waktu pada jadwal psikolog, pasien membayar DP administrasi flat Rp 100.000 melalui transfer bank resmi. Sisa biaya paket dilunasi saat hadir di klinik atau setelah sesi selesai sesuai arahan administrasi.'
               },
               {
                 q: 'Apakah saya bisa mengajukan perubahan jadwal (reschedule)?',
@@ -749,8 +937,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
         </div>
       </section>
 
-      {/* 7. CALL TO ACTION (CTA) FOOTER */}
-      <section className="bg-slate-900 text-white py-16">
+      {/* TOP SVG WAVE TRANSITION TO DARK CTA SECTION */}
+      <div className="w-full overflow-hidden leading-none bg-slate-50 -mb-1 pointer-events-none">
+        <svg
+          className="relative block w-full h-12 sm:h-16 lg:h-20 text-slate-900"
+          viewBox="0 0 1200 120"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M0,45 C300,115 550,15 750,75 C950,135 1100,25 1200,65 L1200,120 L0,120 Z"
+            fill="currentColor"
+          />
+        </svg>
+      </div>
+
+      {/* 8. CALL TO ACTION (CTA) FOOTER */}
+      <section id="cta" className="bg-slate-900 text-white py-16 scroll-mt-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
@@ -772,11 +975,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
 
               <button
                 type="button"
-                onClick={() => requireAuth(onTakeTest, 'memulai tes psikologi DASS-21')}
+                onClick={() => requireAuth(() => onSelectBooking(soloPsychologist?.userId), 'mengisi pre-test dan memilih jadwal')}
                 className="px-8 py-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 font-bold text-sm transition-all flex items-center gap-2 cursor-pointer"
               >
-                <FileCheck className="w-4 h-4 text-amber-300" />
-                Mulai Tes DASS-21 Mandiri
+                <ClipboardCheck className="w-4 h-4 text-amber-300" />
+                Isi Pre-Test Profiling
               </button>
             </div>
           </div>
@@ -784,19 +987,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
       </section>
 
       {/* 7. MODAL DETAIL BIO DOKTER */}
-      {isBioModalOpen && (
+      {isBioModalOpen && typeof document !== 'undefined' && createPortal(
         <div
           onClick={() => setIsBioModalOpen(false)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 cursor-pointer animate-in fade-in duration-150"
+          className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-3 sm:p-4 cursor-pointer animate-in fade-in duration-150 overflow-y-auto"
         >
           <div
             onClick={e => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto custom-scrollbar cursor-default space-y-4"
+            className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto custom-scrollbar cursor-default space-y-4 my-auto"
           >
             <div className="flex items-start justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">
-                <div className="w-14 h-14 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
-                  <Stethoscope className="w-7 h-7" />
+                <div className="w-16 h-16 rounded-2xl bg-teal-50 border-2 border-teal-200 text-teal-700 flex items-center justify-center shrink-0 overflow-hidden">
+                  {soloPsychologist?.avatarUrl || soloUser?.avatar ? (
+                    <img
+                      src={soloPsychologist?.avatarUrl || soloUser?.avatar}
+                      alt={soloUser?.name || 'Psikolog'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <Stethoscope className="w-8 h-8" />
+                  )}
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">{soloUser?.name}</h3>
@@ -835,7 +1046,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
               <button
                 type="button"
                 onClick={() => setIsBioModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50"
+                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Tutup
               </button>
@@ -845,14 +1056,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking, onTak
                   setIsBioModalOpen(false);
                   requireAuth(() => onSelectBooking(soloPsychologist?.userId), 'reservasi jadwal');
                 }}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5"
+                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Calendar className="w-3.5 h-3.5" />
                 Reservasi Jadwal
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {isPrivacyModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="pb-4 border-b border-slate-100">
+              <h3 className="text-lg font-black text-slate-900">Ringkasan Persetujuan & Privasi</h3>
+              <p className="text-xs text-slate-500 mt-1">Dokumen lengkap akan dipetakan ke halaman kebijakan backend/CMS saat produksi.</p>
+            </div>
+            <div className="space-y-3 text-xs text-slate-700 leading-relaxed">
+              <p><strong>Persetujuan layanan:</strong> pasien memahami bahwa sesi konsultasi dilakukan oleh psikolog/pengelola berizin sesuai jadwal yang dikonfirmasi.</p>
+              <p><strong>Penggunaan data:</strong> data diri, pre-test, pembayaran, dan riwayat sesi digunakan untuk administrasi, persiapan sesi, dan pelaporan internal pemilik praktik.</p>
+              <p><strong>Batas pre-test:</strong> pre-test adalah profiling awal, bukan diagnosis otomatis atau pengganti konsultasi profesional.</p>
+              <p><strong>Kerahasiaan:</strong> data klinis tidak ditampilkan ke publik dan hanya dapat diakses role yang berwenang.</p>
+            </div>
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsPrivacyModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold cursor-pointer"
+              >
+                Saya Mengerti
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );

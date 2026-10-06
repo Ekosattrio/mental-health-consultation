@@ -1,11 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Appointment,
   ConsultationPackage,
   IntakeForm,
   PsychologistProfile,
   ScheduleSlot,
-  User
+  User,
+  PackageCategory
 } from '../../../types';
 import {
   Calendar,
@@ -20,7 +22,13 @@ import {
   ClipboardCheck,
   UserCheck,
   Building,
-  Check
+  Check,
+  Lock,
+  Edit2,
+  Sparkles,
+  Video,
+  Users,
+  X
 } from 'lucide-react';
 import {
   loadScheduleSettings,
@@ -40,6 +48,7 @@ interface BookingTabProps {
   existingIntake?: IntakeForm;
   bookAppointment: (data: any) => Promise<{ success: boolean; appointment?: Appointment; message?: string }>;
   submitIntakeForm?: (form: Omit<IntakeForm, 'id' | 'completedAt'>) => void;
+  updateUserProfile?: (userId: string, data: Partial<User>) => void;
   onNavigateTab: (tabId: 'history' | 'overview') => void;
 }
 
@@ -57,14 +66,59 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   existingIntake,
   bookAppointment,
   submitIntakeForm,
+  updateUserProfile,
   onNavigateTab
 }) => {
-  // Wizard Step: 1 = Pilih Jadwal & Paket, 2 = Isi Pre-Test, 3 = Pembayaran DP 50%
+  // Wizard Step: 1 = Pilih Jadwal & Paket, 2 = Isi Pre-Test, 3 = Pembayaran DP Administrasi
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
+  // Active packages filter (ignore legacy inactive packages)
+  const activePackages = useMemo(() => {
+    return packages.filter(pkg => pkg.isActive !== false);
+  }, [packages]);
+
+  // Profile Completeness Guard
+  const isProfileComplete = Boolean(
+    currentUser?.isProfileComplete ||
+    (currentUser?.birthDate && currentUser?.gender && currentUser?.city && currentUser?.emergencyContact && currentUser?.phone)
+  );
+
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileFormData, setProfileFormData] = useState({
+    name: currentUser?.name || '',
+    phone: currentUser?.phone || '',
+    birthDate: currentUser?.birthDate || '1996-06-15',
+    gender: (currentUser?.gender as 'Laki-laki' | 'Perempuan') || 'Laki-laki',
+    city: currentUser?.city || 'Jakarta Selatan',
+    occupation: currentUser?.occupation || 'Karyawan Swasta',
+    emergencyContact: currentUser?.emergencyContact || ''
+  });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileFormData(prev => ({
+        ...prev,
+        name: currentUser.name || prev.name,
+        phone: currentUser.phone || prev.phone,
+        birthDate: currentUser.birthDate || prev.birthDate,
+        gender: currentUser.gender || prev.gender,
+        city: currentUser.city || prev.city,
+        occupation: currentUser.occupation || prev.occupation,
+        emergencyContact: currentUser.emergencyContact || prev.emergencyContact
+      }));
+    }
+  }, [currentUser]);
+
+  // Category Filter for Step 1
+  const [selectedCategory, setSelectedCategory] = useState<'ALL' | PackageCategory>('ALL');
+
   // Step 1 State: Package & Schedule
-  const [selectedPkgId, setSelectedPkgId] = useState(selectedBookingPackageId || packages[0]?.id || '');
-  const [selectedPsychologistId, setSelectedPsychologistId] = useState(selectedBookingPsychologistId || psychologists[0]?.userId || 'user-psy-1');
+  const [selectedPkgId, setSelectedPkgId] = useState(
+    selectedBookingPackageId || activePackages[0]?.id || ''
+  );
+  const [selectedPsychologistId, setSelectedPsychologistId] = useState(
+    selectedBookingPsychologistId || psychologists[0]?.userId || 'user-psy-1'
+  );
   const [selectedDate, setSelectedDate] = useState(MIN_BOOKING_DATE);
   const [selectedSlotId, setSelectedSlotId] = useState('');
   const [selectedSlotTime, setSelectedSlotTime] = useState({ startTime: '', endTime: '' });
@@ -72,10 +126,10 @@ export const BookingTab: React.FC<BookingTabProps> = ({
 
   // Step 2 State: Pre-Test Form
   const [intakeData, setIntakeData] = useState({
-    occupation: existingIntake?.occupation || 'Profesional Swasta',
-    emergencyName: existingIntake?.emergencyContact?.name || 'Keluarga Pasien',
+    occupation: existingIntake?.occupation || currentUser?.occupation || 'Profesional Swasta',
+    emergencyName: existingIntake?.emergencyContact?.name || currentUser?.emergencyContact?.split('-')[0]?.trim() || 'Keluarga Pasien',
     emergencyRel: existingIntake?.emergencyContact?.relationship || 'Orang Tua / Pasangan',
-    emergencyPhone: existingIntake?.emergencyContact?.phone || '0812-3344-5566',
+    emergencyPhone: existingIntake?.emergencyContact?.phone || currentUser?.emergencyContact?.match(/08\d+/)?.[0] || '0812-3344-5566',
     primaryConcerns: existingIntake?.primaryConcerns || ['Kecemasan Berlebih (Anxiety)'],
     concernDescription: existingIntake?.concernDescription || '',
     currentStressLevel: existingIntake?.currentStressLevel || 6,
@@ -83,17 +137,27 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     goals: existingIntake?.goals || 'Mendapatkan wawasan klinis dan strategi koping adaptif.'
   });
 
-  // Step 3 State: Payment DP
+  // Step 3 State: Payment DP Administrasi (Flat Rp 100.000)
+  const [transferSenderName, setTransferSenderName] = useState(currentUser?.name || '');
+  const [paymentReference, setPaymentReference] = useState('');
   const [proofName, setProofName] = useState('');
+  const [consentAgreed, setConsentAgreed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successApt, setSuccessApt] = useState<Appointment | null>(null);
 
-  const currentPackage = packages.find(pkg => pkg.id === selectedPkgId) || packages[0];
+  const currentPackage = activePackages.find(pkg => pkg.id === selectedPkgId) || activePackages[0] || packages[0];
   const psychologist = psychologists.find(psy => psy.userId === selectedPsychologistId) || psychologists[0];
   const psychologistUser = users.find(user => user.id === selectedPsychologistId);
 
-  const dpAmount = Math.ceil((currentPackage?.price || 0) * 0.5);
+  // Kebijakan Pembayaran Baru: Wajib DP Rp 100.000 untuk biaya administrasi
+  const dpAmount = 100000;
   const finalAmount = Math.max((currentPackage?.price || 0) - dpAmount, 0);
+
+  // Filtered packages for display in Step 1
+  const displayedPackages = useMemo(() => {
+    if (selectedCategory === 'ALL') return activePackages;
+    return activePackages.filter(p => p.category === selectedCategory);
+  }, [activePackages, selectedCategory]);
 
   // Dynamic slot calculation from psychologist weekly settings and package duration
   const scheduleSettings = loadScheduleSettings();
@@ -136,9 +200,40 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     });
   };
 
+  // Handle clicking package card
+  const handleSelectPackage = (pkgId: string) => {
+    if (!isProfileComplete) {
+      setIsProfileModalOpen(true);
+      return;
+    }
+    setSelectedPkgId(pkgId);
+  };
+
+  // Save patient profile
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (updateUserProfile && currentUser?.id) {
+      updateUserProfile(currentUser.id, {
+        name: profileFormData.name.trim(),
+        phone: profileFormData.phone.trim(),
+        birthDate: profileFormData.birthDate,
+        gender: profileFormData.gender,
+        city: profileFormData.city.trim(),
+        occupation: profileFormData.occupation.trim(),
+        emergencyContact: profileFormData.emergencyContact.trim(),
+        isProfileComplete: true
+      });
+    }
+    setIsProfileModalOpen(false);
+  };
+
   // Move from Step 1 to Step 2
   const handleProceedToPreTest = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!isProfileComplete) {
+      setIsProfileModalOpen(true);
+      return;
+    }
     if (!selectedSlotId || !selectedSlotTime.startTime) {
       alert('Silakan pilih salah satu slot jam konsultasi yang tersedia terlebih dahulu.');
       return;
@@ -153,8 +248,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     if (submitIntakeForm) {
       submitIntakeForm({
         patientId,
-        birthDate: '1996-06-15',
-        gender: 'Laki-laki',
+        birthDate: profileFormData.birthDate || '1996-06-15',
+        gender: profileFormData.gender || 'Laki-laki',
         occupation: intakeData.occupation,
         emergencyContact: {
           name: intakeData.emergencyName,
@@ -175,15 +270,28 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Final Submit Booking
+  // Final Submit Booking with flat DP 100rb & Transfer Sender Name
   const handleFinalSubmitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!transferSenderName.trim()) {
+      alert('Mohon cantumkan nama pemilik rekening pengirim yang melakukan transfer.');
+      return;
+    }
+    if (!proofName.trim()) {
+      alert('Mohon unggah bukti pembayaran transfer DP administrasi.');
+      return;
+    }
+    if (!consentAgreed) {
+      alert('Mohon setujui informed consent dan kebijakan privasi sebelum mengirim booking.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const res = await bookAppointment({
         patientId,
-        patientName: currentUser?.name || 'Pasien',
+        patientName: profileFormData.name || currentUser?.name || 'Pasien',
         patientEmail: currentUser?.email || 'pasien@jiwasehat.id',
         psychologistId: selectedPsychologistId,
         packageId: selectedPkgId,
@@ -191,7 +299,12 @@ export const BookingTab: React.FC<BookingTabProps> = ({
         slotId: selectedSlotId,
         startTime: selectedSlotTime.startTime,
         endTime: selectedSlotTime.endTime,
-        paymentMethod: 'TRANSFER_BANK_DP_50'
+        paymentMethod: 'TRANSFER_BANK_DP_ADMIN_100K',
+        paymentChannelDetail: 'BCA - 8830-1122-3344',
+        dpAmount: 100000,
+        transferSenderName: transferSenderName.trim(),
+        paymentReference: paymentReference.trim(),
+        paymentProofUrl: proofName.trim()
       });
 
       if (res.success && res.appointment) {
@@ -206,6 +319,155 @@ export const BookingTab: React.FC<BookingTabProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* MODAL LENGKAPI DATA DIRI PASIEN */}
+      {isProfileModalOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[999999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
+                  <UserCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Lengkapi Data Diri Pasien</h3>
+                  <p className="text-[11px] text-slate-500">Wajib diisi sebelum dapat memilih paket & jadwal konsultasi</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProfile} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nama Lengkap Pasien <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={profileFormData.name}
+                  onChange={e => setProfileFormData({ ...profileFormData, name: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                  placeholder="Nama lengkap sesuai KTP"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Nomor WhatsApp / HP <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileFormData.phone}
+                    onChange={e => setProfileFormData({ ...profileFormData, phone: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                    placeholder="0812-xxxx-xxxx"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Jenis Kelamin <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={profileFormData.gender}
+                    onChange={e => setProfileFormData({ ...profileFormData, gender: e.target.value as any })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                  >
+                    <option value="Laki-laki">Laki-laki</option>
+                    <option value="Perempuan">Perempuan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Tanggal Lahir <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={profileFormData.birthDate}
+                    onChange={e => setProfileFormData({ ...profileFormData, birthDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Kota / Domisili <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileFormData.city}
+                    onChange={e => setProfileFormData({ ...profileFormData, city: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                    placeholder="Contoh: Jakarta Selatan"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pekerjaan / Profesi <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileFormData.occupation}
+                    onChange={e => setProfileFormData({ ...profileFormData, occupation: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                    placeholder="Contoh: Karyawan Swasta"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Kontak Darurat (Kerabat) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={profileFormData.emergencyContact}
+                    onChange={e => setProfileFormData({ ...profileFormData, emergencyContact: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                    placeholder="Contoh: Rina (Istri) - 0812-xxx"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md cursor-pointer flex items-center gap-1.5"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Simpan & Buka Pilihan Paket</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* SUCCESS CONFIRMATION SCREEN */}
       {successApt ? (
         <div className="bg-white rounded-3xl border border-slate-200/80 p-6 sm:p-10 shadow-xs space-y-6 animate-fadeIn">
@@ -221,7 +483,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               Booking Berhasil Dibuat!
             </h2>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Terima kasih. Pengajuan booking dan formulir pre-test Anda telah kami terima untuk diverifikasi oleh admin.
+              Terima kasih. Pengajuan jadwal konsultasi, data diri pasien, dan bukti pembayaran DP administrasi Anda telah kami terima untuk diverifikasi admin klinik.
             </p>
           </div>
 
@@ -229,6 +491,10 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-400 font-medium">KODE BOOKING</span>
               <strong className="font-bold text-slate-900 text-sm">{successApt.bookingCode}</strong>
+            </div>
+            <div className="flex justify-between py-1 border-b border-slate-200">
+              <span className="text-slate-400 font-medium">NAMA PASIEN</span>
+              <strong className="text-slate-900">{successApt.patientName}</strong>
             </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
               <span className="text-slate-400 font-medium">PAKET LAYANAN</span>
@@ -242,9 +508,18 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               <span className="text-slate-400 font-medium">LOKASI PRAKTIK</span>
               <strong className="text-slate-900">{successApt.meetingLocation}</strong>
             </div>
+            <div className="flex justify-between py-1 border-b border-slate-200 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
+              <div>
+                <span className="text-emerald-950 font-bold block">DP BIAYA ADMINISTRASI</span>
+                <span className="text-[10px] text-emerald-800">Nama Rekening Pengirim: {transferSenderName || 'Terlampir'}</span>
+              </div>
+              <strong className="text-emerald-900 font-black text-sm">
+                Rp {dpAmount.toLocaleString('id-ID')} (Menunggu Verifikasi)
+              </strong>
+            </div>
             <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-400 font-medium">TAGIHAN DP 50%</span>
-              <strong className="text-emerald-700 font-bold text-sm">Rp {dpAmount.toLocaleString('id-ID')} (Menunggu Verifikasi)</strong>
+              <span className="text-slate-400 font-medium">SISA PELUNASAN DI KLINIK</span>
+              <strong className="text-slate-900 font-bold">Rp {finalAmount.toLocaleString('id-ID')}</strong>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400 font-medium">STATUS PRE-TEST</span>
@@ -267,9 +542,9 @@ export const BookingTab: React.FC<BookingTabProps> = ({
           </div>
         </div>
       ) : (
-        /* WIZARD FLOW (NEXT - NEXT - PRETEST - BOOKING) */
+        /* WIZARD FLOW */
         <div className="bg-white rounded-3xl border border-slate-200/80 p-5 sm:p-8 shadow-xs space-y-6">
-          {/* Wizard Step Breadcrumbs Header */}
+          {/* Breadcrumbs Header */}
           <div className="border-b border-slate-100 pb-5">
             <div className="flex items-center justify-between max-w-xl mx-auto text-xs">
               {/* Step 1 */}
@@ -282,7 +557,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                   1
                 </div>
                 <span className={`font-bold ${currentStep === 1 ? 'text-slate-900' : 'text-slate-400'}`}>
-                  Jadwal & Paket
+                  Data Diri & Paket
                 </span>
               </div>
 
@@ -314,7 +589,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                   3
                 </div>
                 <span className={`font-bold ${currentStep === 3 ? 'text-slate-900' : 'text-slate-400'}`}>
-                  DP 50% & Kirim
+                  DP Administrasi
                 </span>
               </div>
             </div>
@@ -324,80 +599,235 @@ export const BookingTab: React.FC<BookingTabProps> = ({
           {currentStep === 1 && (
             <form onSubmit={handleProceedToPreTest} className="space-y-6">
               <div>
-                <h3 className="text-xl font-black text-slate-900">Langkah 1: Pilih Paket & Waktu Konsultasi</h3>
+                <h3 className="text-xl font-black text-slate-900">Langkah 1: Lengkapi Data Diri & Pilih Paket</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Tentukan jenis paket konsultasi dan jadwal sesi temu. Pemesanan wajib minimal H+1.
+                  Pasien wajib melengkapi data diri terlebih dahulu sebelum memilih paket konsultasi dan jam praktik.
                 </p>
               </div>
 
-              {/* Paket Selector Cards */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">Pilih Paket Layanan:</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {packages.map(pkg => {
+              {/* DATA DIRI STATUS BANNER */}
+              {!isProfileComplete ? (
+                <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-950 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 bg-amber-200 rounded-xl text-amber-900 shrink-0">
+                      <AlertCircle className="w-5 h-5" />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-sm text-amber-950">
+                        Data Diri Pasien Belum Lengkap
+                      </h4>
+                      <p className="text-xs text-amber-900/90 mt-1 leading-relaxed">
+                        Sesuai ketentuan standar praktik psikolog, Anda wajib mengisi data diri pasien terlebih dahulu sebelum dapat memilih paket konsultasi. Pilihan paket saat ini dikunci.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="pt-2 border-t border-amber-200 flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-[11px] font-bold text-amber-800">
+                      Status: 🔒 Terkunci (Perlu Pengisian Profil)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileModalOpen(true)}
+                      className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Isi & Lengkapi Data Diri Pasien</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between flex-wrap gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-1.5 rounded-xl bg-emerald-200/80 text-emerald-800">
+                      <CheckCircle2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-emerald-950 block">
+                        Data Diri Pasien: {profileFormData.name || currentUser?.name} (Terverifikasi)
+                      </span>
+                      <span className="text-[11px] text-emerald-800">
+                        No. HP: {profileFormData.phone || currentUser?.phone} • Domisili: {profileFormData.city || currentUser?.city}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileModalOpen(true)}
+                    className="px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-emerald-800 hover:bg-emerald-100 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                    <span>Ubah Data Diri</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Paket Selector Cards with Category Filter */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Pilih Paket Layanan Resmi:
+                  </label>
+
+                  {/* Filter kategori */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('ALL')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        selectedCategory === 'ALL'
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Semua ({activePackages.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('KONSELING')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        selectedCategory === 'KONSELING'
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Konseling ({activePackages.filter(p => p.category === 'KONSELING').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('ASESMEN')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        selectedCategory === 'ASESMEN'
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Asesmen ({activePackages.filter(p => p.category === 'ASESMEN').length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCategory('PSIKOTERAPI')}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        selectedCategory === 'PSIKOTERAPI'
+                          ? 'bg-emerald-700 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Psikoterapi ({activePackages.filter(p => p.category === 'PSIKOTERAPI').length})
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {displayedPackages.map(pkg => {
                     const isSelected = selectedPkgId === pkg.id;
+
                     return (
                       <div
                         key={pkg.id}
-                        onClick={() => setSelectedPkgId(pkg.id)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                          isSelected
-                            ? 'bg-emerald-50/70 border-emerald-600 ring-2 ring-emerald-500 shadow-xs'
+                        onClick={() => handleSelectPackage(pkg.id)}
+                        className={`relative p-4 rounded-2xl border transition-all cursor-pointer ${
+                          !isProfileComplete
+                            ? 'bg-slate-50 border-slate-200 opacity-70 hover:opacity-90'
+                            : isSelected
+                            ? 'bg-emerald-50/80 border-emerald-600 ring-2 ring-emerald-500 shadow-xs'
                             : 'bg-white border-slate-200 hover:bg-slate-50'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-900 text-sm">{pkg.name}</span>
-                          {pkg.badge && (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                              {pkg.badge}
+                        {!isProfileComplete && (
+                          <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[10px] font-bold flex items-center gap-1">
+                            <Lock className="w-3 h-3" />
+                            Terkunci
+                          </div>
+                        )}
+
+                        <div className="flex items-start justify-between gap-2 pr-12">
+                          <div>
+                            <span className="text-[10px] font-bold text-teal-700 uppercase tracking-wider block">
+                              {pkg.category || 'LAYANAN'}
                             </span>
-                          )}
+                            <h4 className="font-bold text-slate-900 text-xs sm:text-sm leading-snug">{pkg.name}</h4>
+                          </div>
                         </div>
-                        <div className="text-emerald-700 font-black text-sm mt-1">
+
+                        {pkg.badge && (
+                          <span className="inline-block mt-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                            {pkg.badge}
+                          </span>
+                        )}
+
+                        <div className="text-emerald-700 font-black text-sm mt-1.5">
                           Rp {pkg.price.toLocaleString('id-ID')}
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2">{pkg.description}</p>
+
+                        <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          <span>Durasi {pkg.durationMinutes} Menit</span>
+                        </div>
+
+                        <p className="text-[11px] text-slate-600 mt-2 line-clamp-2 leading-relaxed">
+                          {pkg.description}
+                        </p>
+
+                        {pkg.notes && (
+                          <div className="text-[10px] text-amber-800 bg-amber-50/80 p-1.5 rounded-lg border border-amber-200 mt-2 leading-tight">
+                            * {pkg.notes}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Tanggal Konsultasi */}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">
-                  Tanggal Konsultasi (Minimal H+1):
-                </label>
-                <input
-                  type="date"
-                  min={MIN_BOOKING_DATE}
-                  value={selectedDate}
-                  onChange={e => handleDateChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
-                />
-                {dateNotice && (
-                  <p className="text-xs text-rose-600 font-medium flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    {dateNotice}
-                  </p>
-                )}
-              </div>
-
-              {/* Dynamic Slots Grid */}
-              <div className="space-y-2.5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Pilih Jam Praktik Tersedia ({currentPackage?.durationMinutes || 60} Menit):
-                  </label>
-                  {!dynamicSchedule.isHoliday && (
-                    <div className="flex items-center gap-2 text-[11px]">
-                      <span className="font-semibold text-slate-500">
-                        Sisa Kuota Hari Ini: <strong className="text-slate-900">{dynamicSchedule.remainingQuota} dari {dynamicSchedule.maxPatients} Pasien</strong>
-                      </span>
+              {/* Tanggal & Slot Konsultasi */}
+              <div className="rounded-3xl border border-slate-200 bg-white shadow-2xs overflow-hidden">
+                <div className="p-4 sm:p-5 border-b border-slate-100 bg-slate-50/70">
+                  <div className="grid grid-cols-1 lg:grid-cols-[minmax(220px,280px)_1fr] gap-4 lg:items-end">
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold text-slate-700">
+                        Tanggal Konsultasi <span className="text-slate-400">(Minimal H+1)</span>
+                      </label>
+                      <input
+                        type="date"
+                        min={MIN_BOOKING_DATE}
+                        value={selectedDate}
+                        onChange={e => handleDateChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden bg-white"
+                      />
+                      {dateNotice && (
+                        <p className="text-xs text-rose-600 font-medium flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          {dateNotice}
+                        </p>
+                      )}
                     </div>
-                  )}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-black block">Durasi Paket</span>
+                        <strong className="text-sm text-slate-900">{currentPackage?.durationMinutes || 60} Menit</strong>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-black block">Sisa Kuota</span>
+                        <strong className="text-sm text-slate-900">{dynamicSchedule.remainingQuota} / {dynamicSchedule.maxPatients} Pasien</strong>
+                      </div>
+                      <div className="p-3 rounded-2xl bg-white border border-slate-200 col-span-2 sm:col-span-1">
+                        <span className="text-[10px] uppercase tracking-wider text-slate-400 font-black block">Paket Dipilih</span>
+                        <strong className="text-sm text-slate-900 line-clamp-1">{currentPackage?.name || 'Paket Konsultasi'}</strong>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
+                <div className="p-4 sm:p-5 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="block text-xs font-bold text-slate-700">
+                      Pilih Jam Praktik Tersedia
+                    </label>
+                    <span className="hidden sm:inline-flex text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2.5 py-1">
+                      {dynamicSchedule.slots.filter(slot => slot.isAvailable).length} slot tersedia
+                    </span>
+                  </div>
 
                 {dynamicSchedule.isHoliday ? (
                   <div className="p-4 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-bold flex items-center gap-2">
@@ -414,7 +844,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                     Tidak ada slot waktu pada tanggal ini. Silakan pilih tanggal lain.
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2">
                     {dynamicSchedule.slots.map(slot => {
                       const isSelected = selectedSlotId === slot.id;
                       return (
@@ -423,7 +853,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                           type="button"
                           disabled={!slot.isAvailable}
                           onClick={() => handleSelectSlot(slot)}
-                          className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
+                          className={`min-h-[58px] p-2.5 rounded-2xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
                             isSelected
                               ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                               : slot.isAvailable
@@ -431,8 +861,22 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                               : 'bg-slate-100 border-slate-200 text-slate-400 opacity-60 cursor-not-allowed'
                           }`}
                         >
-                          <div className="text-xs font-bold">{slot.startTime} - {slot.endTime}</div>
-                          <span className={`text-[10px] uppercase font-semibold ${isSelected ? 'text-emerald-100' : 'text-slate-400'}`}>
+                          <div className="min-w-0">
+                            <div className="text-xs font-black whitespace-nowrap">{slot.startTime} - {slot.endTime}</div>
+                            <span className={`text-[10px] uppercase font-semibold ${isSelected ? 'text-emerald-100' : 'text-slate-400'}`}>
+                              {slot.isAvailable ? slot.label : 'Penuh'}
+                            </span>
+                          </div>
+                          <span className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 ${
+                            isSelected
+                              ? 'bg-white text-emerald-700 border-white'
+                              : slot.isAvailable
+                              ? 'border-slate-200 text-transparent'
+                              : 'border-slate-200 text-slate-300'
+                          }`}>
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                          </span>
+                          <span className="sr-only">
                             {slot.isAvailable ? slot.label : 'Penuh'}
                           </span>
                         </button>
@@ -440,12 +884,13 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                     })}
                   </div>
                 )}
+                </div>
               </div>
 
               <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button
                   type="submit"
-                  disabled={!selectedSlotId}
+                  disabled={!selectedSlotId || !isProfileComplete}
                   className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
                 >
                   <span>Lanjut: Isi Pre-Test (Langkah 2)</span>
@@ -455,7 +900,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             </form>
           )}
 
-          {/* STEP 2: ISI PRE-TEST (SEBELUM KIRIM BOOKING) */}
+          {/* STEP 2: ISI PRE-TEST */}
           {currentStep === 2 && (
             <form onSubmit={handleProceedToPayment} className="space-y-5">
               <div>
@@ -581,25 +1026,29 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                   type="submit"
                   className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
                 >
-                  <span>Lanjut: Pembayaran DP 50% (Langkah 3)</span>
+                  <span>Lanjut: Pembayaran DP Administrasi (Langkah 3)</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 3: KONFIRMASI RINCIAN & PEMBAYARAN DP 50% */}
+          {/* STEP 3: KONFIRMASI RINCIAN & PEMBAYARAN DP ADMINISTRASI (FLAT 100RB) */}
           {currentStep === 3 && (
             <form onSubmit={handleFinalSubmitBooking} className="space-y-6">
               <div>
-                <h3 className="text-xl font-black text-slate-900">Langkah 3: Konfirmasi Rincian & DP 50%</h3>
+                <h3 className="text-xl font-black text-slate-900">Langkah 3: Konfirmasi Rincian & DP Administrasi</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Periksa rincian pesanan dan selesaikan pembayaran DP 50% di awal sebelum mengirim booking.
+                  Wajib membayar DP flat sebesar Rp 100.000 untuk biaya administrasi & mengunci jadwal, mencantumkan nama yang transfer, dan mengunggah bukti pembayaran.
                 </p>
               </div>
 
               {/* Rincian Pesanan Card */}
               <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 text-xs">
+                <div className="flex justify-between py-1 border-b border-slate-200">
+                  <span className="text-slate-400 font-bold uppercase">Nama Pasien</span>
+                  <strong className="text-slate-900">{profileFormData.name || currentUser?.name}</strong>
+                </div>
                 <div className="flex justify-between py-1 border-b border-slate-200">
                   <span className="text-slate-400 font-bold uppercase">Psikolog</span>
                   <strong className="text-slate-900">{psychologistUser?.name || 'dr. Sarah Jenkins, M.Psi.'}</strong>
@@ -614,23 +1063,30 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200">
                   <span className="text-slate-400 font-bold uppercase">Lokasi Praktik</span>
-                  <strong className="text-slate-900">JiwaSehat Clinic Center (Tatap Muka)</strong>
+                  <strong className="text-slate-900">
+                    {currentPackage?.type === 'ONLINE_TELE'
+                      ? 'Telekonseling Video Call Online (Google Meet)'
+                      : 'Ruang Praktik JiwaSehat Senopati Lt. 3 (Tatap Muka)'}
+                  </strong>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-200">
                   <span className="text-slate-400 font-bold uppercase">Total Biaya Paket</span>
                   <span className="font-bold text-slate-900">Rp {(currentPackage?.price || 0).toLocaleString('id-ID')}</span>
                 </div>
-                <div className="flex justify-between py-1 border-b border-slate-200 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200">
+
+                {/* DP ADMINISTRASI HIGHLIGHT */}
+                <div className="flex justify-between py-2 border-b border-slate-200 bg-emerald-50/90 p-3 rounded-xl border border-emerald-200">
                   <div>
-                    <span className="text-emerald-950 font-black block">DP 50% (Bayar Sekarang)</span>
-                    <span className="text-[10px] text-emerald-800">Menjadi syarat konfirmasi booking jadwal</span>
+                    <span className="text-emerald-950 font-black block">DP Wajib Biaya Administrasi (Bayar Sekarang)</span>
+                    <span className="text-[10px] text-emerald-800">Sebagai syarat mengunci jadwal dan persiapan berkas</span>
                   </div>
                   <strong className="text-emerald-900 font-black text-base">
                     Rp {dpAmount.toLocaleString('id-ID')}
                   </strong>
                 </div>
-                <div className="flex justify-between py-1 text-slate-500">
-                  <span>Pelunasan 50% (Setelah Konsultasi Selesai):</span>
+
+                <div className="flex justify-between py-1 text-slate-600">
+                  <span>Sisa Pelunasan di Klinik (Saat Hadir / Selesai Sesi):</span>
                   <span className="font-bold text-slate-900">Rp {finalAmount.toLocaleString('id-ID')}</span>
                 </div>
               </div>
@@ -638,7 +1094,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               {/* Bank Account Info Card */}
               <div className="p-4 rounded-2xl bg-white border border-emerald-200 shadow-2xs space-y-2 text-xs">
                 <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                  Rekening Resmi Pembayaran DP Klinik:
+                  Rekening Resmi Pembayaran DP Administrasi Klinik:
                 </span>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                   <div>
@@ -651,35 +1107,83 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 </div>
               </div>
 
-              {/* Upload Bukti Transfer DP */}
+              {/* INPUT NAMA YANG TRANSFER (WAJIB) */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-800">
+                  Nama Pengirim / Pemilik Rekening Transfer <span className="text-rose-600">*</span>:
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={transferSenderName}
+                  onChange={e => setTransferSenderName(e.target.value)}
+                  placeholder="Ketik nama lengkap sesuai rekening pengirim m-banking..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Wajib dicantumkan agar bagian administrasi klinik dapat memvalidasi mutasi bank Anda dengan cepat.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-800">
+                  Nomor Referensi / Kode Transaksi:
+                </label>
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={e => setPaymentReference(e.target.value)}
+                  placeholder="Opsional, isi jika ada di bukti transfer..."
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Nomor referensi membantu admin mencocokkan bukti pembayaran dengan mutasi bank.
+                </p>
+              </div>
+
+              {/* UPLOAD BUKTI TRANSFER DP 100RB (WAJIB) */}
               <div className="space-y-2">
-                <label className="block text-xs font-bold text-slate-700">
-                  Upload Bukti Transfer DP 50%:
+                <label className="block text-xs font-bold text-slate-800">
+                  Upload Bukti Pembayaran DP Administrasi (Rp 100.000) <span className="text-rose-600">*</span>:
                 </label>
                 <div className="p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center space-y-2 bg-slate-50/50">
                   <Upload className="w-6 h-6 text-slate-400 mx-auto" />
                   <div className="text-xs text-slate-600">
-                    Unggah tangkapan layar struk / bukti transfer bank
+                    Unggah tangkapan layar struk / bukti transfer bank flat Rp 100.000
                   </div>
                   <input
                     type="text"
                     required
                     value={proofName}
                     onChange={e => setProofName(e.target.value)}
-                    placeholder="Ketik nama file bukti transfer (misal: transfer_bca_dp.jpg)..."
+                    placeholder="Ketik nama file bukti transfer (misal: transfer_bca_100rb.jpg)..."
                     className="w-full max-w-sm mx-auto px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
                   />
                   <div className="flex justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setProofName('struk_dp_bca_02okt.jpg')}
+                      onClick={() => setProofName('struk_dp_bca_100rb.jpg')}
                       className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[10px] font-bold hover:bg-emerald-200 cursor-pointer"
                     >
-                      Gunakan File Simulasi Demo
+                      Gunakan File Simulasi Demo (struk_dp_bca_100rb.jpg)
                     </button>
                   </div>
                 </div>
               </div>
+
+              <label className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200 flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={consentAgreed}
+                  onChange={e => setConsentAgreed(e.target.checked)}
+                  className="w-4 h-4 accent-sky-600 mt-0.5 shrink-0"
+                />
+                <span className="text-xs text-slate-700 leading-relaxed">
+                  <strong className="text-slate-900">Saya menyetujui informed consent & kebijakan privasi.</strong>
+                  <br />
+                  Data pre-test digunakan untuk profiling awal dan persiapan sesi konsultasi, bukan diagnosis otomatis. Data saya diproses sesuai prinsip kerahasiaan praktik psikologi.
+                </span>
+              </label>
 
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <button
@@ -693,7 +1197,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
 
                 <button
                   type="submit"
-                  disabled={isSubmitting || !proofName}
+                  disabled={isSubmitting || !proofName || !transferSenderName.trim() || !consentAgreed}
                   className="px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-black text-xs shadow-md transition-all cursor-pointer flex items-center gap-2"
                 >
                   {isSubmitting ? (

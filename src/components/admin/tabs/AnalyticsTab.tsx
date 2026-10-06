@@ -99,11 +99,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
 
   const totalCashIn = paidTransactions.reduce((acc, a) => {
     if (a.paymentStatus === 'PAID') return acc + (a.totalAmount || 0);
-    return acc + Math.ceil((a.totalAmount || 0) * 0.5);
+    return acc + (a.dpAmount || 100000);
   }, 0);
 
   const potentialPendingCash = pendingVerificationTransactions.reduce((acc, a) => {
-    return acc + Math.ceil((a.totalAmount || 0) * 0.5);
+    return acc + (a.dpAmount || 100000);
   }, 0);
 
   const avgPerSession = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
@@ -117,10 +117,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       const nominalMasuk = isPaid
         ? a.totalAmount
         : isDpPaid
-        ? Math.ceil(a.totalAmount * 0.5)
+        ? (a.dpAmount || 100000)
         : 0;
-      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%';
-      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP 50% Diterima' : 'Verifikasi';
+      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Administrasi (Rp 100.000)' : 'Menunggu DP (Rp 100.000)';
+      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Rp 100rb Diterima' : 'Verifikasi DP';
 
       return [
         `"${a.date}"`,
@@ -164,7 +164,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   }, [filteredAppointments, currentPage]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full max-w-full min-w-0">
       {/* 1. Header & Filter Periode Modern SaaS yang Stabil */}
       <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3.5">
         <div>
@@ -177,7 +177,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </span>
           </div>
           <p className="text-xs font-medium text-slate-500 mt-0.5">
-            Pencatatan uang masuk dari pembayaran DP 50% dan pelunasan sesi konsultasi pasien.
+            Pencatatan uang masuk dari pembayaran DP Administrasi Rp 100.000 dan pelunasan sesi konsultasi pasien.
           </p>
         </div>
 
@@ -353,8 +353,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+          <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="bg-slate-50/70 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
                 <th className="py-2.5 px-4">Tanggal & Kode</th>
@@ -379,7 +379,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   const nominalMasuk = isPaid
                     ? apt.totalAmount
                     : isDpPaid
-                    ? Math.ceil(apt.totalAmount * 0.5)
+                    ? (apt.dpAmount || 100000)
                     : 0;
 
                   return (
@@ -398,7 +398,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                       </td>
 
                       <td className="py-2.5 px-4 whitespace-nowrap font-medium text-slate-600">
-                        {isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%'}
+                        {isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Administrasi (Rp 100.000)' : 'Menunggu DP (Rp 100.000)'}
                       </td>
 
                       <td className="py-2.5 px-4 font-black text-slate-900 whitespace-nowrap text-xs">
@@ -412,11 +412,11 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                           </span>
                         ) : isDpPaid ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 font-bold text-[10px]">
-                            DP 50% Diterima
+                            DP Rp 100rb Diterima
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-[10px]">
-                            Verifikasi
+                            Verifikasi DP
                           </span>
                         )}
                       </td>

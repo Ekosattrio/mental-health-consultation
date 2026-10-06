@@ -103,7 +103,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
   const totalCashIn = useMemo(() => {
     return paidTransactions.reduce((acc, a) => {
       if (a.paymentStatus === 'PAID') return acc + (a.totalAmount || 0);
-      return acc + Math.ceil((a.totalAmount || 0) * 0.5);
+      return acc + (a.dpAmount ?? 100000);
     }, 0);
   }, [paidTransactions]);
 
@@ -147,10 +147,10 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
       const nominalMasuk = isPaid
         ? a.totalAmount
         : isDpPaid
-        ? Math.ceil(a.totalAmount * 0.5)
+        ? (a.dpAmount ?? 100000)
         : 0;
-      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%';
-      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP 50% Diterima' : 'Verifikasi Bukti';
+      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Admin Diterima' : 'Verifikasi Bukti';
 
       return [
         idx + 1,
@@ -196,7 +196,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-150 print:p-0 print:bg-white print:static print:z-auto">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-150 print:p-0 print:bg-white print:static print:z-auto">
       <div
         onClick={e => e.stopPropagation()}
         className="bg-white rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[95vh] overflow-y-auto custom-scrollbar flex flex-col justify-between print:border-none print:shadow-none print:p-0 print:max-h-none print:w-full print:max-w-none"
@@ -468,7 +468,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                       const nominalMasuk = isPaid
                         ? a.totalAmount
                         : isDpPaid
-                        ? Math.ceil(a.totalAmount * 0.5)
+                        ? (a.dpAmount ?? 100000)
                         : 0;
 
                       return (
@@ -489,7 +489,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                             {a.packageName}
                           </td>
                           <td className="py-1.5 px-3 border-r border-slate-200 text-slate-600 whitespace-nowrap">
-                            {isPaid ? 'Lunas 100%' : isDpPaid ? 'DP 50%' : 'Menunggu DP'}
+                            {isPaid ? 'Lunas 100%' : isDpPaid ? 'DP Admin' : 'Menunggu DP'}
                           </td>
                           <td className="py-1.5 px-3 text-right font-black text-slate-900 border-r border-slate-200 whitespace-nowrap">
                             {nominalMasuk > 0 ? `Rp ${nominalMasuk.toLocaleString('id-ID')}` : '-'}

@@ -17,7 +17,7 @@ const FAQS_DATA: FaqItem[] = [
   {
     category: 'RESERVASI',
     question: 'Bagaimana cara menjadwalkan konsultasi tatap muka?',
-    answer: 'Pilih paket konsultasi di tab Booking, pilih tanggal (minimal H+1), isi formulir pre-test keluhan, lalu bayar DP 50% dan unggah bukti transfer. Admin kami akan segera memverifikasi jadwal Anda.'
+    answer: 'Pilih paket konsultasi di tab Booking, pilih tanggal (minimal H+1), isi formulir pre-test keluhan, lalu bayar DP administrasi Rp 100.000 dan unggah bukti transfer. Admin kami akan segera memverifikasi jadwal Anda.'
   },
   {
     category: 'RESERVASI',
@@ -26,13 +26,13 @@ const FAQS_DATA: FaqItem[] = [
   },
   {
     category: 'PEMBAYARAN',
-    question: 'Mengapa sistem memberlakukan pembayaran DP 50%?',
-    answer: 'DP 50% diberlakukan untuk mengunci slot jadwal secara eksklusif agar tidak diisi oleh pasien lain, serta menghindarkan antrean dari pembatalan mendadak tanpa konfirmasi.'
+    question: 'Mengapa sistem memberlakukan DP administrasi Rp 100.000?',
+    answer: 'DP administrasi Rp 100.000 diberlakukan untuk mengunci slot jadwal secara eksklusif agar tidak diisi oleh pasien lain, sekaligus membantu proses administrasi berkas konsultasi.'
   },
   {
     category: 'PEMBAYARAN',
-    question: 'Kapan pelunasan sisa 50% biaya konsultasi dilakukan?',
-    answer: 'Pelunasan sisa 50% dilakukan di meja registrasi klinik setelah sesi tatap muka selesai, baik melalui transfer bank maupun tunai/QRIS.'
+    question: 'Kapan pelunasan sisa biaya konsultasi dilakukan?',
+    answer: 'Pelunasan sisa biaya paket dilakukan di meja registrasi klinik saat pasien hadir atau setelah sesi tatap muka selesai, baik melalui transfer bank, tunai, QRIS, maupun EDC sesuai arahan administrasi.'
   },
   {
     category: 'JADWAL',
@@ -85,7 +85,7 @@ export const FaqTab: React.FC<FaqTabProps> = ({ patientCms, onNavigateTab }) => 
               Pertanyaan yang Sering Diajukan (FAQ)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Temukan jawaban cepat seputar reservasi sesi tatap muka, DP 50%, jadwal, dan kebijakan kerahasiaan klinik.
+              Temukan jawaban cepat seputar reservasi sesi tatap muka, DP administrasi Rp 100.000, jadwal, dan kebijakan kerahasiaan klinik.
             </p>
           </div>
 

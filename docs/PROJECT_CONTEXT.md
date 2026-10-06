@@ -42,60 +42,84 @@ Membangun sistem yang mendukung:
 
 ### Booking
 
-- Pasien wajib mengisi pre-test sebelum booking.
-- Booking tidak bisa dilakukan untuk hari yang sama.
-- Reschedule tidak bisa dilakukan untuk hari yang sama.
-- Slot yang sudah digunakan harus mengurangi ketersediaan slot.
+- Pasien wajib melengkapi data diri (`isProfileComplete`) sebelum diizinkan memilih paket konsultasi.
+- Pasien wajib mengisi formulir keluhan pre-test sebelum reservasi jadwal.
+- Booking tidak bisa dilakukan untuk hari yang sama (minimal H+1).
+- Reschedule tidak bisa dilakukan untuk hari yang sama (minimal H-1 / 24 jam sebelum sesi).
+- Slot yang sudah digunakan harus mengurangi ketersediaan slot secara dinamis.
 - Sistem harus mencegah double booking pada slot yang tidak tersedia.
 - Psikolog dapat menentukan hari libur yang otomatis menutup booking.
-- Psikolog dapat menentukan jam kerja.
-- Psikolog dapat menentukan batas jumlah pertemuan per hari.
+- Psikolog dapat menentukan jam kerja dan kuota pasien tanggal tertentu (*Custom Date Override*).
 
 ### Pre-Test
 
-- Pre-test menjadi pengganti intake form terpisah.
-- Hasil pre-test tersimpan di database.
-- Hasil pre-test bisa diakses sesuai hak akses.
-- Test/assessment tambahan dari psikolog masih perlu dikonfirmasi ke client.
+- Pre-test keluhan terintegrasi langsung dalam wizard pemesanan konsultasi.
+- Scope tes saat ini hanya **pre-test profiling** untuk membantu psikolog memahami keluhan awal pasien. Tidak ada test psikolog tambahan/DASS-21 yang aktif di portal pasien.
+- Hasil pre-test hanya bisa diakses oleh psikolog penanggung jawab.
 
 ### Pembayaran
 
-- Pasien mengunggah bukti pembayaran.
-- Admin melihat dan memverifikasi bukti pembayaran.
-- Skema pembayaran adalah DP 50% di awal dan 50% setelah konsultasi selesai.
-- Riwayat pembayaran tersimpan di database.
+- Pasien wajib mengunggah bukti pembayaran transfer.
+- Pasien wajib mencantumkan nama pemilik rekening pengirim (`transferSenderName`).
+- Admin melihat dan memverifikasi bukti transfer dan nama pengirim.
+- Skema pembayaran resmi: **Wajib DP Flat Rp 100.000** sebagai biaya administrasi penguncian jadwal, dan sisa biaya paket dilunasi saat hadir di klinik tatap muka.
+- Riwayat pembayaran dan mutasi kas tersimpan di sistem.
+- Sistem membutuhkan invoice/kwitansi yang memuat DP Rp 100.000, sisa pelunasan, metode bayar, channel bank/QRIS/cash, nama pengirim, nomor referensi, dan bukti pembayaran.
 
-### Landing Page
+### Paket Multi-Sesi
 
-- Landing page menampilkan informasi layanan dan psikolog.
-- Hindari klaim organisasi/lembaga yang belum valid, misalnya klaim resmi Kemenkes jika tidak ada dasar legal.
-- Section pengalaman konseling dibuat carousel, sekitar 10 item, bisa bergerak otomatis dan manual.
-- Footer perlu memuat Instagram atau media sosial lain.
+- Paket berkelanjutan memakai halaman khusus **Paket Berjalan / Rencana Terapi** di portal psikolog.
+- Isi minimum halaman: pasien, nama paket, total sesi, sesi selesai, sesi berikutnya, tombol jadwalkan sesi berikutnya, dan status aktif/selesai/dihentikan.
+- Sesi ke-2 dan seterusnya dijadwalkan oleh psikolog/pengelola, bukan dibuat sekaligus saat pasien membeli paket.
+- Psikolog/pengelola berwenang menandai sesi selesai, tidak hadir, dibatalkan, atau menghentikan paket.
+
+### Notifikasi
+
+- Notifikasi WhatsApp/email adalah tanggung jawab backend produksi.
+- Event yang perlu didukung: booking pending, pembayaran dikonfirmasi, jadwal sesi, reschedule, dan reminder jadwal harian psikolog.
+- Reminder ke psikolog perlu berisi nama pasien, jam mulai-selesai, keluhan/profil ringkas dari pre-test, dan tautan ke halaman detail di web.
+
+### Consent, Privacy, dan Backup Data
+
+- Pasien wajib menyetujui informed consent dan kebijakan privasi sebelum booking dikirim.
+- Sistem perlu halaman consent/privacy yang menjelaskan kerahasiaan data, penggunaan pre-test untuk profiling awal, dan disclaimer bahwa pre-test bukan diagnosis otomatis.
+- Backup/export data klinis diperlukan untuk owner/psikolog dan harus role-protected.
+
+### Landing Page & Footer
+
+- Landing page menampilkan informasi 15 paket resmi, profil kredensial psikolog, dan biografi.
+- **Penyembunyian Tarif Awal**: Nominal harga paket disembunyikan untuk pengunjung yang belum sign in akun.
+- Section pengalaman konseling dibuat carousel sekitar 10 item, bisa bergerak otomatis dan manual.
+- **Kondisional Footer**: Komponen Footer hanya ditampilkan pada Landing Page (`GUEST`), dan disembunyikan sepenuhnya saat user masuk ke akun dashboard mana pun.
 
 ### Dashboard Pasien
 
-- Fokus pada booking, pre-test, status booking, upload pembayaran, reschedule, riwayat, dan review.
-- Tidak ada ruang chat konsultasi online di web.
-- UI/UX harus lebih nyaman untuk pengguna mobile.
+- Panduan alur konseling dan FAQ interaktif.
+- Verifikasi kelengkapan profil data diri sebelum memilih paket konsultasi.
+- Pemesanan jadwal konsultasi dengan formulir keluhan pre-test dan upload DP Flat Rp 100.000.
+- Jadwal & Riwayat Konsultasi berformat Data Table rapi dengan modal detail janji temu.
+- Pengajuan reschedule mandiri minimal H-1 dengan validasi slot.
+- Pemberian review ulasan setelah sesi konsultasi selesai.
 
 ### Dashboard Psikolog / Pengelola
 
-- Mengelola jadwal, hari libur, jam kerja, dan kapasitas harian.
-- Melihat analytics keuntungan/keuangan.
-- Mengelola CMS.
-- Melihat data booking dan kebutuhan operasional praktik.
+- Upload dan ganti foto profil wajah psikolog yang tampil di seluruh platform.
+- Manajemen Paket Konsultasi (`PackagesTab`) dinamis (CRUD paket, kategori, sesi tunggal vs rawat jalan berkelanjutan).
+- Mengelola jadwal mingguan, hari libur praktik, jam kerja, dan kuota tanggal tertentu.
+- Melihat laporan keuangan uang masuk / arus kas dan ekspor dokumen kop dinas resmi (PDF & Excel).
+- Mengelola CMS landing page dan kop surat resmi.
+- Rekam medis pasien terstandarisasi (`PatientDetailModal`).
+- Halaman khusus Paket Berjalan untuk memantau rencana terapi/paket multi-sesi.
+- Export data klinis pasien untuk owner/psikolog dengan perlindungan role.
 - Tidak ada ruang chat konsultasi online di web.
 
 ### Dashboard Admin
 
-- Memantau user.
-- Melihat dan memantau booking.
-- Membantu booking pasien yang datang langsung.
-- Membantu reschedule pasien.
-- Verifikasi bukti pembayaran.
-- Mengubah status booking dari `PENDING` ke `CONFIRMED`.
-- Mengubah status booking dari `CONFIRMED` ke `COMPLETED`.
-- Moderasi review.
+- Memantau akun pengguna secara strictly **Read-Only Monitoring** (tanpa wewenang edit/blokir akun user).
+- Melayani pembuatan walk-in booking bagi pasien yang hadir langsung ke klinik.
+- Verifikasi bukti transfer DP Flat Rp 100.000 dan nama pengirim transfer.
+- Mengubah status booking dari `PENDING` ke `CONFIRMED`; status `COMPLETED` ditandai oleh psikolog/pengelola setelah sesi selesai.
+- Moderasi ulasan pasien dengan antarmuka card metrik skor terpadu.
 
 ## Kondisi Project Saat Ini
 

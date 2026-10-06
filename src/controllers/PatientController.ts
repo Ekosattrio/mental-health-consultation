@@ -26,7 +26,7 @@ export interface PatientStateCallbacks {
 /**
  * PatientController (OOP Controller)
  * Orchestrates patient workflows: appointment reservations with concurrency guards,
- * pre-test submission, DASS-21 psychological test taking, booking, payments, and reviews.
+ * pre-test profiling submission, booking, payments, and reviews.
  */
 export class PatientController extends BaseController {
   private callbacks: PatientStateCallbacks;
@@ -77,7 +77,7 @@ export class PatientController extends BaseController {
 
       this.notify(
         'Pengajuan Booking Terkirim',
-        `Booking ${appointment.bookingCode} menunggu verifikasi admin atas bukti DP 50%.`,
+        `Booking ${appointment.bookingCode} menunggu verifikasi admin atas bukti DP Rp 100.000.`,
         'success'
       );
 

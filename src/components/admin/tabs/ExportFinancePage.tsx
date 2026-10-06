@@ -167,7 +167,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
   const totalCashIn = useMemo(() => {
     return paidTransactions.reduce((acc, a) => {
       if (a.paymentStatus === 'PAID') return acc + (a.totalAmount || 0);
-      return acc + Math.ceil((a.totalAmount || 0) * 0.5);
+      return acc + (a.dpAmount ?? 100000);
     }, 0);
   }, [paidTransactions]);
 
@@ -281,9 +281,9 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
         const nominalMasuk = isPaid
           ? a.totalAmount
           : isDpPaid
-          ? Math.ceil(a.totalAmount * 0.5)
+          ? (a.dpAmount ?? 100000)
           : 0;
-        const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%';
+        const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
         const status = isPaid ? 'Lunas Terverifikasi' : isDpPaid ? 'DP Diterima' : 'Verifikasi Bukti';
 
         return `
@@ -394,10 +394,10 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
       const nominalMasuk = isPaid
         ? a.totalAmount
         : isDpPaid
-        ? Math.ceil(a.totalAmount * 0.5)
+        ? (a.dpAmount ?? 100000)
         : 0;
-      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%';
-      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP 50% Diterima' : 'Verifikasi Bukti';
+      const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
+      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Admin Diterima' : 'Verifikasi Bukti';
 
       return [
         idx + 1,
@@ -961,9 +961,9 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                                 const nominalMasuk = isPaid
                                   ? item.totalAmount
                                   : isDpPaid
-                                  ? Math.ceil(item.totalAmount * 0.5)
+                                  ? (item.dpAmount ?? 100000)
                                   : 0;
-                                const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%';
+                                const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
 
                                 return (
                                   <tr key={item.id} className="hover:bg-slate-50/60">
@@ -1157,9 +1157,9 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                         const nominalMasuk = isPaid
                           ? item.totalAmount
                           : isDpPaid
-                          ? Math.ceil(item.totalAmount * 0.5)
+                          ? (item.dpAmount ?? 100000)
                           : 0;
-                        const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP (50%)' : 'Menunggu DP 50%';
+                        const skema = isPaid ? 'Lunas (100%)' : isDpPaid ? 'DP Admin Rp100.000' : 'Menunggu DP Admin';
                         const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Diterima' : 'Verifikasi';
 
                         return (

@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { HeartHandshake, Instagram, MapPin, Phone, Mail, Clock } from 'lucide-react';
 
 export const Footer: React.FC = () => {
-  const { setViewMode, switchRole } = useApp();
+  const { setIsLoginModalOpen } = useApp();
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-12 print:hidden">
@@ -27,60 +27,37 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick Links Role Switch */}
+          {/* Quick Navigation Links */}
           <div>
-            <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Simulasi Peran</h4>
+            <h4 className="text-xs font-bold text-white uppercase tracking-wider mb-4">Navigasi</h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <button
-                  onClick={() => {
-                    switchRole('GUEST');
-                    setViewMode('PLATFORM');
-                  }}
-                  className="hover:text-white transition-colors"
-                >
-                  Tamu / Landing Page
-                </button>
+                <a href="#hero" className="text-slate-400 hover:text-white transition-colors">
+                  Beranda Praktik
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => {
-                    switchRole('PATIENT');
-                    setViewMode('PLATFORM');
-                  }}
-                  className="hover:text-teal-400 transition-colors"
-                >
-                  Dashboard Pasien (Klien)
-                </button>
+                <a href="#packages" className="text-slate-400 hover:text-teal-400 transition-colors">
+                  Paket Layanan
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => {
-                    switchRole('PSYCHOLOGIST');
-                    setViewMode('PLATFORM');
-                  }}
-                  className="hover:text-sky-400 transition-colors"
-                >
-                  Dashboard Psikolog & EMR
-                </button>
+                <a href="#about" className="text-slate-400 hover:text-teal-400 transition-colors">
+                  Profil Psikolog
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => {
-                    switchRole('ADMIN');
-                    setViewMode('PLATFORM');
-                  }}
-                  className="hover:text-purple-400 transition-colors"
-                >
-                  Panel Administrator
-                </button>
+                <a href="#faq" className="text-slate-400 hover:text-teal-400 transition-colors">
+                  Panduan Pasien & FAQ
+                </a>
               </li>
               <li className="pt-2">
                 <button
-                  onClick={() => setViewMode('BLUEPRINT')}
-                  className="text-indigo-400 hover:text-indigo-300 font-bold"
+                  type="button"
+                  onClick={() => setIsLoginModalOpen(true)}
+                  className="text-teal-400 hover:text-teal-300 font-bold transition-colors cursor-pointer"
                 >
-                  Blueprint Arsitektur & RBAC →
+                  Masuk ke Portal Akun →
                 </button>
               </li>
             </ul>
@@ -93,8 +70,8 @@ export const Footer: React.FC = () => {
               <li>Booking Konsultasi H+1</li>
               <li>Pre-Test Sebelum Konsultasi</li>
               <li>Sesi Praktik Terjadwal</li>
-              <li>Assessment Tambahan Jika Ditugaskan</li>
-              <li>Upload Bukti DP 50%</li>
+              <li>Pre-Test Profiling untuk Persiapan Sesi</li>
+              <li>Upload Bukti DP Rp 100.000 (Administrasi)</li>
               <li>Riwayat dan Review Sesi</li>
             </ul>
           </div>

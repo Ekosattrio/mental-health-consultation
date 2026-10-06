@@ -15,12 +15,13 @@ Catatan penting: psikolog adalah pemilik/pengelola utama company/praktik. Admin 
 Boleh:
 
 - melihat landing page
-- melihat daftar psikolog dan paket yang tampil publik
-- membuka login/register SSO Google
+- melihat daftar psikolog dan paket layanan resmi (nominal tarif disembunyikan sebelum sign in akun)
+- membuka modal login (email & kata sandi / Google SSO demo) dan pendaftaran akun baru
 
 Tidak boleh:
 
-- membuat booking final
+- melihat nominal tarif paket sebelum masuk akun
+- memilih paket konsultasi atau membuat booking final
 - mengakses dashboard pasien/psikolog/admin
 - melihat data klinis
 
@@ -29,25 +30,26 @@ Tidak boleh:
 Boleh:
 
 - melihat dashboard pasien
-- mengisi general info saat mendaftar
-- mengisi pre-test sebelum booking
-- melakukan booking konsultasi setelah pre-test lengkap
-- melihat status booking miliknya
-- mengunggah bukti pembayaran
-- melihat status pembayaran miliknya
-- mengajukan reschedule sesuai aturan minimal H+1
-- meminta bantuan admin untuk reschedule melalui form jika tidak paham alurnya
+- melengkapi data diri pasien (Nama, No HP/WA, Tanggal Lahir, Gender, Domisili, Pekerjaan, Kontak Darurat)
+- memilih paket konsultasi setelah data diri terverifikasi lengkap (`isProfileComplete: true`)
+- mengisi formulir keluhan pre-test sebelum reservasi jadwal
+- melakukan booking konsultasi dengan membayar DP Flat Rp 100.000 (biaya administrasi)
+- mencantumkan nama pemilik rekening pengirim transfer (`transferSenderName`), nomor referensi, dan mengunggah bukti transfer
+- menyetujui informed consent & kebijakan privasi sebelum booking
+- melihat invoice/kwitansi pembayaran miliknya
+- melihat status booking dan riwayat mutasi pembayaran miliknya
+- mengajukan reschedule mandiri minimal H-1 (24 jam sebelum sesi)
 - melihat riwayat konsultasi miliknya
-- memberi review sesuai aturan sistem
+- memberi review ulasan setelah sesi konsultasi selesai
 
 Tidak boleh:
 
-- booking untuk hari yang sama
+- memilih paket jika data diri belum lengkap (status locked)
+- booking untuk hari yang sama (minimal H+1)
 - reschedule langsung untuk hari yang sama
 - mengambil slot yang sudah tidak tersedia
 - melihat data pasien lain
 - melihat catatan klinis internal psikolog
-- mengakses ruang chat konsultasi online, karena konsultasi online via web tidak masuk scope saat ini
 - mengakses dashboard admin atau psikolog
 
 ## PSYCHOLOGIST / SUPER ADMIN / PENGELOLA
@@ -55,15 +57,18 @@ Tidak boleh:
 Boleh:
 
 - melihat dashboard psikolog/pengelola
-- melihat analytics dan keuntungan keuangan
-- mengelola profil psikolog/praktik
-- mengatur hari libur agar tidak bisa dibooking
-- mengatur jam kerja
-- mengatur batas jumlah pertemuan per hari
-- melihat dan mengelola jadwal konsultasi
-- melihat appointment yang terkait dengan layanan/praktik
+- mengunggah dan mengganti foto profil wajah psikolog
+- mengelola paket konsultasi (CRUD paket, kategori, sesi tunggal vs rawat jalan berkelanjutan)
+- melihat analytics dan laporan uang masuk/arus kas
+- mengelola profil praktik (STR, SIP, biografi, pendekatan terapi)
+- mengatur jadwal mingguan, hari libur praktik, dan jam kerja
+- mengatur kuota kapasitas harian dan kuota khusus tanggal tertentu (*custom date override*)
+- melihat seluruh data rekam medis pasien (triage risiko, pre-test, profil pasien, riwayat booking)
+- mengelola Paket Berjalan / Rencana Terapi untuk paket multi-sesi
+- menjadwalkan sesi lanjutan, menandai sesi selesai, tidak hadir, batal, atau menghentikan paket berjalan
+- export/backup data klinis dengan perlindungan role dan audit log
+- mencetak jadwal dan rekapitulasi keuangan ber-Kop Surat Dinas Resmi (PDF & Excel)
 - mengelola CMS landing page dan konten sistem
-- menentukan atau menugaskan assessment/test lanjutan untuk pasien jika fitur ini disetujui
 
 Tidak boleh:
 
@@ -74,22 +79,24 @@ Tidak boleh:
 
 Boleh:
 
-- memantau user
-- melihat data booking
-- membantu booking pasien yang datang langsung
-- membantu pasien mengajukan reschedule
-- memverifikasi bukti pembayaran
-- mengubah status pembayaran berdasarkan hasil verifikasi
+- memantau akun user secara strictly **Read-Only Monitoring** (melihat nama, kontak, dan status registrasi)
+- melihat seluruh data reservasi janji temu
+- melayani pendaftaran reservasi pasien langsung yang datang ke klinik (walk-in booking)
+- membantu pasien melakukan verifikasi bukti transfer DP Rp 100.000 dan pencatatan mutasi
 - mengubah status booking dari `PENDING` ke `CONFIRMED`
-- mengubah status booking dari `CONFIRMED` ke `COMPLETED`
-- memoderasi review
+- memantau status `COMPLETED` setelah psikolog menandai sesi selesai
+- memoderasi ulasan pasien (menyetujui atau menolak ulasan)
 
 Tidak boleh:
 
 - menjadi role tertinggi di sistem
-- mengelola CMS utama jika kewenangan tersebut sudah ditetapkan untuk psikolog/pengelola
-- mengelola analytics keuntungan sebagai owner
-- mengakses data klinis di luar kebutuhan pemantauan yang diizinkan
+- membuat, mengedit, menghapus, atau memblokir akun pengguna (admin dilarang melakukan modifikasi akun user di luar reservasi walk-in)
+- menandai konsultasi selesai; status selesai hanya dilakukan oleh psikolog/pengelola setelah sesi selesai
+- membatalkan, menghapus, menandai no-show, menghentikan paket, atau mengubah reservasi di luar aksi konfirmasi pembayaran
+- mencetak jadwal operasional/rekap dinas resmi
+- mengelola CMS utama praktik psikolog
+- mengubah analytics keuntungan / arus kas sebagai owner praktik
+- mengakses data klinis sensitif di luar kebutuhan pemantauan operasional yang diizinkan
 
 ## Catatan Akses
 

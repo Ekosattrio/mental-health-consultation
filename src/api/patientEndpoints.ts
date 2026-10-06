@@ -20,6 +20,11 @@ export interface BookAppointmentPayload {
   paymentMethod?: string;
   startTime?: string;
   endTime?: string;
+  dpAmount?: number;
+  transferSenderName?: string;
+  paymentProofUrl?: string;
+  paymentChannelDetail?: string;
+  paymentReference?: string;
 }
 
 export class PatientEndpoints {
@@ -100,7 +105,11 @@ export class PatientEndpoints {
         const targetPsychologist = users.find(u => u.id === payload.psychologistId);
         const bookingCode = `JS-${payload.date.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
         const appointmentId = `apt-${Date.now()}`;
+        const treatmentPlanId = selectedPkg.isContinuousCare
+          ? `tp-${payload.patientId}-${Date.now()}`
+          : undefined;
 
+        const isFullPayment = Boolean(payload.paymentMethod?.includes('FULL'));
         const appointment: Appointment = {
           id: appointmentId,
           bookingCode,
@@ -116,11 +125,33 @@ export class PatientEndpoints {
           startTime: slot.startTime,
           endTime: slot.endTime,
           status: 'PENDING',
-          paymentStatus: 'DP_PENDING_VERIFICATION',
+          paymentStatus: isFullPayment ? 'PAID' : 'DP_PENDING_VERIFICATION',
           totalAmount: selectedPkg.price,
-          meetingLocation: 'Ruang Praktik JiwaSehat - detail dikirim setelah admin confirmed',
+          dpAmount: payload.dpAmount ?? 100000,
+          remainingAmount: isFullPayment ? 0 : Math.max(selectedPkg.price - (payload.dpAmount ?? 100000), 0),
+          paymentMethod: payload.paymentMethod?.includes('BANK_TRANSFER') || payload.paymentMethod?.includes('TRANSFER_BANK')
+            ? 'BANK_TRANSFER'
+            : payload.paymentMethod?.includes('QRIS')
+            ? 'QRIS'
+            : payload.paymentMethod?.includes('EDC')
+            ? 'EDC'
+            : payload.paymentMethod?.includes('OTHER')
+            ? 'OTHER'
+            : payload.paymentMethod?.includes('CASH')
+            ? 'CASH'
+            : undefined,
+          paymentChannelDetail: payload.paymentChannelDetail || '',
+          transferSenderName: payload.transferSenderName || '',
+          paymentReference: payload.paymentReference || '',
+          paymentProofUrl: payload.paymentProofUrl || '',
+          treatmentPlanId,
+          continuousSessionNumber: selectedPkg.isContinuousCare ? 1 : undefined,
+          continuousSessionTotal: selectedPkg.isContinuousCare ? selectedPkg.sessionCount || 1 : undefined,
+          meetingLocation: selectedPkg.type === 'ONLINE_TELE'
+            ? 'Telelayanan Daring Video Call (Tautan Google Meet dikirim via WhatsApp)'
+            : 'Ruang Praktik JiwaSehat Lt. 3, Jl. Senopati No. 42',
           hasIntakeForm: !!intakeForms[payload.patientId],
-          hasTestResult: testResults.some(r => r.patientId === payload.patientId),
+          hasTestResult: false,
           createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
         };
 

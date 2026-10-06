@@ -187,7 +187,12 @@ export class AdminController extends BaseController {
       const adjustedAppointments = response.data.map(apt => {
         if (apt.id !== aptId) return apt;
         if (status === 'CONFIRMED') {
-          return { ...apt, paymentStatus: 'DP_PAID' as Appointment['paymentStatus'] };
+          return {
+            ...apt,
+            paymentStatus: apt.paymentStatus === 'PAID'
+              ? 'PAID'
+              : 'DP_PAID' as Appointment['paymentStatus']
+          };
         }
         if (status === 'COMPLETED') {
           return { ...apt, paymentStatus: 'PAID' as Appointment['paymentStatus'] };

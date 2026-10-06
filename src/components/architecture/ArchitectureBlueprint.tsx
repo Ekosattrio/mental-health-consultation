@@ -131,16 +131,15 @@ export const ArchitectureBlueprint: React.FC = () => {
                   {[
                     { module: 'Melihat Profil Psikolog, Lokasi & Kontak', guest: true, pat: true, psy: true, adm: true },
                     { module: 'Melihat Testimoni & Review Publik Terverifikasi', guest: true, pat: true, psy: true, adm: true },
-                    { module: 'Mengerjakan Tes Psikologi Mandiri (DASS-21)', guest: true, pat: true, psy: false, adm: false },
                     { module: 'Mengisi Pre-Test & General Info sebelum booking', guest: false, pat: true, psy: false, adm: false },
-                    { module: 'Reservasi Jadwal H+1 dan Unggah Bukti DP 50%', guest: false, pat: true, psy: false, adm: false },
+                    { module: 'Reservasi Jadwal H+1 dan Unggah Bukti DP Rp 100.000', guest: false, pat: true, psy: false, adm: false },
                     { module: 'Mengajukan Reschedule H+1 melalui form bantuan admin', guest: false, pat: true, psy: false, adm: true },
                     { module: 'Memberikan Rating & Ulasan Pasca-Sesi', guest: false, pat: true, psy: false, adm: false },
                     { module: 'Mengelola Profil Praktik, CMS, dan Konten Landing', guest: false, pat: false, psy: true, adm: false },
                     { module: 'Manajemen Jam Kerja, Hari Libur, dan Kapasitas Harian', guest: false, pat: false, psy: true, adm: false },
-                    { module: 'Melihat Hasil Tes & Pre-Test Pasien Bimbingan', guest: false, pat: false, psy: true, adm: false, note: 'Protected EMR' },
-                    { module: 'Menulis Catatan Perkembangan Klinis (SOAP Notes)', guest: false, pat: false, psy: true, adm: false },
-                    { module: 'Verifikasi DP 50%, Konfirmasi Booking, dan Tandai Completed', guest: false, pat: false, psy: false, adm: true },
+                    { module: 'Melihat Pre-Test Profiling Pasien Bimbingan', guest: false, pat: false, psy: true, adm: false, note: 'Protected EMR' },
+                    { module: 'Menulis Catatan Perkembangan Klinis', guest: false, pat: false, psy: true, adm: false },
+                    { module: 'Verifikasi DP Rp 100.000 dan Konfirmasi Booking', guest: false, pat: false, psy: false, adm: true },
                     { module: 'Moderasi Review Pasien (Approve/Reject)', guest: false, pat: false, psy: false, adm: true },
                     { module: 'Monitoring User dan Booking', guest: false, pat: false, psy: false, adm: true },
                     { module: 'Analytics Keuangan dan Laporan Export', guest: false, pat: false, psy: true, adm: false }
@@ -247,7 +246,7 @@ export const ArchitectureBlueprint: React.FC = () => {
                 },
                 {
                   table: 'tests',
-                  desc: 'Instrumen asesmen psikologi (DASS-21)',
+                  desc: 'Legacy instrumen asesmen psikologi, tidak aktif pada scope booking-first saat ini',
                   cols: ['id (UUID, PK)', 'code (VARCHAR, UNIQUE)', 'title (VARCHAR)', 'scoring_formula (TEXT)', 'questions (JSONB)', 'is_active (BOOLEAN)']
                 },
                 {
@@ -257,7 +256,7 @@ export const ArchitectureBlueprint: React.FC = () => {
                 },
                 {
                   table: 'clinical_notes',
-                  desc: 'Rekam medis EMR SOAP format',
+                  desc: 'Catatan perkembangan klinis pasca-sesi',
                   cols: ['id (UUID, PK)', 'appointment_id (UUID, FK, UNIQUE)', 'patient_id (UUID, FK)', 'psychologist_id (UUID, FK)', 'subjective (TEXT)', 'objective (TEXT)', 'assessment (TEXT)', 'plan (TEXT)', 'prognosis (VARCHAR)']
                 },
                 {
@@ -392,13 +391,13 @@ CREATE TABLE clinical_notes (
                   method: 'POST',
                   endpoint: '/api/v1/patient/assessments/submit',
                   auth: 'requireRole([PATIENT])',
-                  desc: 'Mengirimkan jawaban tes psikologi DASS-21, menghitung skor otomatis, & mengikat ke rekam medis'
+                  desc: 'Endpoint legacy asesmen mandiri, tidak aktif pada scope booking-first saat ini'
                 },
                 {
                   method: 'POST',
                   endpoint: '/api/v1/appointments/reserve',
                   auth: 'requireRole([PATIENT])',
-                  desc: 'Eksekusi booking H+1 dengan pre-test, bukti DP 50%, dan transaksi locking'
+                  desc: 'Eksekusi booking H+1 dengan pre-test, bukti DP Rp 100.000, dan transaksi locking'
                 },
                 {
                   method: 'POST',
@@ -422,13 +421,13 @@ CREATE TABLE clinical_notes (
                   method: 'POST',
                   endpoint: '/api/v1/psychologist/emr/clinical-notes',
                   auth: 'requireRole([PSYCHOLOGIST])',
-                  desc: 'Menulis atau memperbarui catatan perkembangan klinis SOAP pasca-sesi'
+                  desc: 'Menulis atau memperbarui catatan perkembangan klinis pasca-sesi'
                 },
                 {
                   method: 'PATCH',
                   endpoint: '/api/v1/admin/appointments/:id/verify-dp',
                   auth: 'requireRole([ADMIN])',
-                  desc: 'Verifikasi bukti DP 50% lalu mengubah booking PENDING menjadi CONFIRMED'
+                  desc: 'Verifikasi bukti DP Rp 100.000 lalu mengubah booking PENDING menjadi CONFIRMED'
                 },
                 {
                   method: 'PATCH',
@@ -620,14 +619,14 @@ export async function reserveAppointmentWithConflictLock(params: {
         slot.start_time,
         slot.end_time,
         params.totalAmount,
-        params.totalAmount * 0.5
+        params.dpAmount || 100000
       ]
     );
 
     await client.query(
       \`INSERT INTO payment_proofs (appointment_id, phase, amount, file_url)
        VALUES ($1, 'DP', $2, $3)\`,
-      [newAppointment.rows[0].id, params.totalAmount * 0.5, params.dpProofUrl]
+      [newAppointment.rows[0].id, params.dpAmount || 100000, params.dpProofUrl]
     );
 
     // Kunci slot sehingga tidak bisa dipilih pasien lain
@@ -656,7 +655,7 @@ export async function reserveAppointmentWithConflictLock(params: {
                   2. Verifikasi DP Admin & Perubahan Status Booking
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Admin memverifikasi DP 50% untuk mengubah booking dari PENDING menjadi CONFIRMED.
+                  Admin memverifikasi DP Rp 100.000 untuk mengubah booking dari PENDING menjadi CONFIRMED.
                 </p>
               </div>
               <button
@@ -784,8 +783,8 @@ export async function verifyDpAndConfirmAppointment(params: {
                 </p>
                 <ul className="text-xs text-indigo-900 space-y-1.5 font-mono">
                   <li>• <strong className="text-slate-900">AuthController</strong> (Login & Registrasi)</li>
-                  <li>• <strong className="text-slate-900">PatientController</strong> (Booking & Tes)</li>
-                  <li>• <strong className="text-slate-900">PsychologistController</strong> (Jadwal & SOAP)</li>
+                  <li>• <strong className="text-slate-900">PatientController</strong> (Booking & Pre-Test)</li>
+                  <li>• <strong className="text-slate-900">PsychologistController</strong> (Jadwal & Catatan Klinis)</li>
                   <li>• <strong className="text-slate-900">AdminController</strong> (Moderasi & Paket)</li>
                   <li>• <strong className="text-slate-900">BaseController</strong> (Error & Toast)</li>
                 </ul>
@@ -854,10 +853,10 @@ class Admin extends User {
   public calculateAnalytics(appointments, users, reviews): AnalyticsSummary;
 }
 
-// 5. PSYCHOLOGICAL ASSESSMENT ENGINE (Lovibond DASS-21)
-class Dass21Scorer {
-  public static calculateScores(answers: Record<number, number>): Dass21ScoreBreakdown;
-  public static createTestResult(patientId, name, test, answers): TestResult;
+// 5. PRE-TEST PROFILING ENGINE
+class PreTestProfiler {
+  public static summarizeRisk(intake: IntakeForm): RiskSummary;
+  public static attachToBooking(patientId, appointmentId, intake): IntakeForm;
 }`}</pre>
             </div>
           </div>

@@ -12,19 +12,23 @@ import {
   PanelLeftOpen,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Layers,
+  ClipboardList
 } from 'lucide-react';
 
 import { OverviewTab } from './tabs/OverviewTab';
 import { ScheduleTab } from './tabs/ScheduleTab';
+import { PackagesTab } from './tabs/PackagesTab';
 import { PatientsTab } from './tabs/PatientsTab';
 import { HistoryTab } from './tabs/HistoryTab';
+import { TreatmentPlansTab } from './tabs/TreatmentPlansTab';
 import { ProfileTab } from './tabs/ProfileTab';
 import { AnalyticsTab } from '../admin/tabs/AnalyticsTab';
 import { CmsTab } from '../admin/tabs/CmsTab';
 import { ExportFinancePage } from '../admin/tabs/ExportFinancePage';
 
-type PsychologistTabId = 'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile';
+type PsychologistTabId = 'overview' | 'schedule' | 'packages' | 'treatmentPlans' | 'patients' | 'finance' | 'cms' | 'history' | 'profile';
 
 export const PsychologistDashboard: React.FC = () => {
   const {
@@ -38,7 +42,6 @@ export const PsychologistDashboard: React.FC = () => {
     reviews,
     analytics,
     schedules,
-    testResults,
     intakeForms,
     clinicalNotes,
     landingCms,
@@ -53,11 +56,17 @@ export const PsychologistDashboard: React.FC = () => {
     toggleSlotAvailability,
     addScheduleSlot,
     deleteScheduleSlot,
-    saveClinicalNotes
+    saveClinicalNotes,
+    savePackage,
+    deletePackage,
+    togglePackageStatus,
+    updateAppointmentStatus,
+    scheduleNextContinuousSession,
+    isSidebarCollapsed,
+    setIsSidebarCollapsed
   } = useApp();
 
   const [selectedPatientId, setSelectedPatientId] = useState<string>('user-pat-1');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isExportFinanceActive, setIsExportFinanceActive] = useState(false);
 
@@ -79,6 +88,8 @@ export const PsychologistDashboard: React.FC = () => {
     { id: 'overview', label: 'Ringkasan Praktik', icon: Activity },
     { id: 'finance', label: 'Keuangan & Uang Masuk', icon: BarChart3 },
     { id: 'schedule', label: 'Jadwal & Hari Praktik', icon: Calendar },
+    { id: 'packages', label: 'Manajemen Paket', icon: Layers, badge: packages.length },
+    { id: 'treatmentPlans', label: 'Paket Berjalan', icon: ClipboardList, badge: myAppointments.filter(a => (a.continuousSessionTotal || 1) > 1).length },
     { id: 'patients', label: 'Data Pasien & Pre-Test', icon: FileText },
     { id: 'cms', label: 'CMS Konten', icon: LayoutTemplate },
     { id: 'history', label: 'Riwayat Sesi', icon: History, badge: myAppointments.length }
@@ -86,7 +97,7 @@ export const PsychologistDashboard: React.FC = () => {
 
   if (isExportFinanceActive) {
     return (
-      <div className="fixed inset-0 z-50 bg-slate-100 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible">
+      <div className="fixed inset-0 z-[999999] bg-slate-100 overflow-y-auto print:static print:p-0 print:m-0 print:bg-white print:overflow-visible">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 print:p-0 print:m-0 print:max-w-none">
           <ExportFinancePage
             appointments={appointments}
@@ -100,63 +111,10 @@ export const PsychologistDashboard: React.FC = () => {
   const currentTabObj = tabs.find(t => t.id === activePsychologistTab) || tabs[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
-
-      {/* MOBILE COLLAPSIBLE DRAWER NAV BAR */}
-      <div className="lg:hidden mb-6">
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-2.5 shadow-2xs">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 px-2">
-              <currentTabObj.icon className="w-4 h-4 text-sky-600" />
-              <span className="text-xs font-bold text-slate-800">{currentTabObj.label}</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsMobileMenuOpen(prev => !prev)}
-              className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              {isMobileMenuOpen ? <X className="w-3.5 h-3.5" /> : <Menu className="w-3.5 h-3.5" />}
-              <span>{isMobileMenuOpen ? 'Tutup' : 'Pilih Menu'}</span>
-              <ChevronDown className={`w-3 h-3 transition-transform ${isMobileMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-          </div>
-
-          {isMobileMenuOpen && (
-            <div className="pt-3 mt-2 border-t border-slate-100 grid grid-cols-2 gap-2 animate-fadeIn">
-              {tabs.map(tab => {
-                const Icon = tab.icon;
-                const isActive = activePsychologistTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => handleNavigateTab(tab.id)}
-                    className={`p-3 rounded-xl border text-left flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-sky-50 border-sky-500 text-sky-950 shadow-2xs'
-                        : 'bg-slate-50 border-slate-200/80 text-slate-700 hover:bg-white'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-sky-600' : 'text-slate-400'}`} />
-                      <span className="truncate">{tab.label}</span>
-                    </div>
-                    {!!tab.badge && (
-                      <span className="px-1.5 py-0.5 rounded-full text-[10px] font-black bg-sky-100 text-sky-800 shrink-0">
-                        {tab.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </div>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 w-full max-w-full">
 
       {/* DESKTOP SIDEBAR + CONTENT */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 items-start w-full max-w-full min-w-0">
         {/* DESKTOP SIDEBAR */}
         <aside className={`hidden lg:block ${isSidebarCollapsed ? 'w-20' : 'w-64'} shrink-0 transition-all duration-200`}>
           <nav className="p-2 bg-slate-100/90 rounded-3xl border border-slate-200/80 flex flex-col gap-1.5 sticky top-24 shadow-2xs">
@@ -216,7 +174,7 @@ export const PsychologistDashboard: React.FC = () => {
         </aside>
 
         {/* MAIN TAB CONTENT */}
-        <main className="flex-1 min-w-0 w-full space-y-6">
+        <main className="flex-1 min-w-0 w-full max-w-full space-y-6 overflow-hidden">
           {activePsychologistTab === 'overview' && (
             <OverviewTab
               myAppointments={myAppointments}
@@ -254,6 +212,15 @@ export const PsychologistDashboard: React.FC = () => {
             />
           )}
 
+          {activePsychologistTab === 'packages' && (
+            <PackagesTab
+              packages={packages}
+              savePackage={savePackage}
+              deletePackage={deletePackage}
+              togglePackageStatus={togglePackageStatus}
+            />
+          )}
+
           {activePsychologistTab === 'cms' && (
             <CmsTab
               cmsConfig={landingCms}
@@ -274,7 +241,6 @@ export const PsychologistDashboard: React.FC = () => {
               appointments={appointments}
               intakeForms={intakeForms}
               clinicalNotes={clinicalNotes}
-              testResults={testResults}
               psychologistId={psychologistId}
               selectedPatientId={selectedPatientId}
               setSelectedPatientId={setSelectedPatientId}
@@ -282,9 +248,20 @@ export const PsychologistDashboard: React.FC = () => {
             />
           )}
 
+          {activePsychologistTab === 'treatmentPlans' && (
+            <TreatmentPlansTab
+              appointments={myAppointments}
+              onScheduleNextSession={scheduleNextContinuousSession}
+            />
+          )}
+
           {activePsychologistTab === 'history' && (
             <HistoryTab
               myAppointments={myAppointments}
+              onCompleteAppointment={(appointmentId) => updateAppointmentStatus(appointmentId, 'COMPLETED')}
+              onMarkNoShow={(appointmentId) => updateAppointmentStatus(appointmentId, 'NO_SHOW')}
+              onCancelAppointment={(appointmentId) => updateAppointmentStatus(appointmentId, 'CANCELLED')}
+              onScheduleNextSession={scheduleNextContinuousSession}
             />
           )}
 

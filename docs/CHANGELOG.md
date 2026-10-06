@@ -1,5 +1,126 @@
 # Changelog
 
+## 2026-10-06
+
+- Penyesuaian scope booking-first sesuai arahan terbaru:
+  - menghapus jalur UI test psikolog tambahan dari portal pasien; pre-test sekarang diposisikan sebagai profiling awal untuk booking
+  - menambahkan consent & privacy pada alur booking dan section informasi consent/privacy di landing page
+  - menambahkan tab psikolog **Paket Berjalan** untuk memantau paket multi-sesi, progres sesi, sesi berikutnya, dan tombol jadwalkan sesi lanjutan
+  - menambahkan aksi psikolog untuk `COMPLETED`, `NO_SHOW`, dan `CANCELLED`; admin tetap hanya konfirmasi pembayaran
+  - menambahkan invoice/kwitansi pasien dengan DP Rp 100.000, sisa pelunasan, metode/channel bayar, nama pengirim, nomor referensi, status, dan bukti pembayaran
+  - menambahkan input nomor referensi pembayaran pada booking pasien dan walk-in admin
+  - menambahkan export data klinis pasien pada dashboard psikolog
+  - laporan finance disesuaikan dari DP 50% menjadi DP Admin Rp 100.000
+  - dokumentasi diperbarui untuk notifikasi WhatsApp/email backend, consent/privacy, no-show/cancel, invoice, dan backup/export klinis
+- UI Paket Berjalan psikolog diubah dari card-grid menjadi tabel operasional agar lebih mudah untuk managing banyak pasien multi-sesi dalam satu layar.
+
+- Penyempurnaan logic paket multi-sesi:
+  - menambahkan konsep `treatmentPlanId` pada appointment mock
+  - appointment paket berkelanjutan dibuat bertahap per sesi, bukan semua sesi langsung dibuat di awal
+  - psikolog dapat menjadwalkan sesi lanjutan dari Riwayat Sesi setelah sesi sebelumnya selesai
+  - aksi psikolog pada tabel diubah menjadi icon button modern dengan tooltip
+  - dokumentasi backend diperjelas dengan aturan `treatment_plans`, idempotency key, transaction, unique constraint, dan index anti double booking
+
+## 2026-10-05
+
+- Revisi alur operasional:
+  - layout pemilihan tanggal dan jam praktik di booking pasien dibuat lebih ringkas
+  - walk-in booking admin diberi rincian metode pembayaran Cash/Bank/QRIS/EDC
+  - admin hanya dapat konfirmasi pembayaran/booking; aksi batal/hapus/selesai dicabut dari tabel admin
+  - psikolog menandai sesi selesai manual dari Riwayat Sesi
+  - form fasilitas/manfaat paket psikolog diubah menjadi add/remove item
+  - pilihan jumlah sesi konsultasi berkelanjutan dirapikan dan progres sesi ditampilkan pada tabel
+
+- **Integrasi 15 Paket Layanan Resmi dari Klien (`docs/paket untuk website.pdf`)**:
+  - Mengintegrasikan 15 paket resmi: 5 Konseling (Offline, Telelayanan, Anak/Remaja, Dewasa, Pasangan/Keluarga), 9 Asesmen (Dasar, Lengkap include laporan resmi SIP, Tes IQ, Kepribadian Standar/Lengkap, Asesmen Anak/Remaja Standar/Lengkap, Asesmen Dewasa Standar/Lengkap), dan 1 Psikoterapi Intensif 4 Sesi.
+  - Paket lama dinonaktifkan (`isActive: false`) demi integritas data relasi historis.
+- **Penyembunyian Harga Nominal di Awal Laman (Landing Page)**:
+  - Sesuai permintaan keluarga psikolog/klien, nominal harga disembunyikan untuk pengunjung yang belum sign in dan digantikan banner informasi tarif tersedia setelah masuk akun.
+  - Ditambahkan filter tab kategori (Semua, Konseling, Asesmen, Psikoterapi).
+- **Penguncian Pemilihan Paket Berbasis Kelengkapan Data Diri Pasien (`isProfileComplete`)**:
+  - Pasien wajib melengkapi data diri (Nama, No HP/WA, Tanggal Lahir, Jenis Kelamin, Domisili, Pekerjaan, Kontak Darurat) sebelum diizinkan memilih paket.
+  - Kartu paket berstatus terkunci dan akan memicu modal pengisian data diri jika belum lengkap.
+- **Transisi ke Sistem Pembayaran DP Flat Rp 100.000 (Biaya Administrasi)**:
+  - Mengubah skema DP dari persentase 50% menjadi DP Flat Rp 100.000 untuk penguncian jadwal reservasi klinik.
+  - Menambahkan input wajib: Nama Pemilik Rekening Pengirim (`transferSenderName`) dan unggah bukti transfer DP Rp 100.000. Sisa biaya paket dilunasi saat pasien hadir di klinik.
+- **Resolusi Bug Layar Bisa Digeser ke Samping (Horizontal Overflow)**:
+  - Memasang `overflow-x: hidden` pada `index.css` dan membungkus seluruh tabel dengan scrollbar kontainer lokal responsif.
+- **Rekonstruksi & Standarisasi Manajemen Paket (`PackagesTab.tsx`)**:
+  - Menyelesaikan SyntaxError ekspor modul pada `PackagesTab.tsx`.
+  - Membangun antarmuka Data Table manajemen paket lengkap dengan filter pencarian, kategori, jenis konsultasi (Sesi Tunggal vs Perawatan Berkelanjutan/Rawat Jalan), switch on/off status, modal preview kartu paket, dan modal form tambah/edit paket dinamis.
+- **Standarisasi Templating Cetak Kop Dinas Resmi (`OfficialPrintModal.tsx`)**:
+  - Membangun komponen cetak resmi universal berkop surat klinik, garis ganda dinas, dan kolom tanda tangan penanggung jawab.
+- **Redesain Jadwal & Riwayat Pasien Menjadi Format Tabel (`HistoryTab.tsx`)**:
+  - Mengubah tampilan kartu besar menjadi tabel rapi dengan modal detail janji temu.
+- **Redesain Modal Pasien Berstandar Rekam Medis Modern (`PatientDetailModal.tsx`)**:
+  - Mengatasi SyntaxError export `PatientDetailModal.tsx` dan merombak modal rekam medis pasien dengan triage risiko visual, kontak darurat, chips keluhan, quote deskripsi, skor DASS-21, dan riwayat konsultasi.
+- **Alur Walk-In Booking Langsung Admin (`ReservationsTab.tsx`)**:
+  - Mengaktifkan modal formulir walk-in reservasi pasien langsung untuk admin operasional.
+- **Rombak Desain Seluruh Modal ke *Modern Simple Light***:
+  - Mengeliminasi seluruh modal ber-header gradient gelap pekat (`slate-900`, `sky-950`, `purple-950`).
+  - Mengganti menjadi gaya Modern Simple Light: header putih bersih, kontainer ikon soft pastel teal, tipografi tebal minimalis, tombol aksi terstandarisasi warna teal.
+- **Eliminasi Total Blueprint Mode & Switcher Akun Demo, Transisi ke Tombol Sidebar Collapse Global**:
+  - Menghapus menu titik 3 demo dan mode blueprint dari Navbar.
+  - Mengganti switcher navbar dengan tombol **Sidebar Collapse Toggle** (`PanelLeftClose`/`PanelLeftOpen`) yang tersinkronisasi dua arah via `AppContext`, dan otomatis tidak tampil pada Landing Page Guest.
+- **Pembatasan Hak Akses Admin (Strict Read-Only User Monitoring) & Redesain Moderasi Ulasan**:
+  - Admin dilarang melakukan operasi Create, Update, Delete di luar reservasi walk-in pasien; tombol blokir/edit user dihapus dari `UsersTab`.
+  - Redesain bagian ringkasan ulasan di `ReviewsTab` menjadi Card Metrik Terpadu: Skor 4.7/5.0, progress bar distribusi bintang 5-1 interaktif, dan filter pills status.
+- **Fitur Unggah & Edit Foto Profil Wajah Psikolog (`ProfileTab.tsx`)**:
+  - Menambahkan input upload dan ganti foto wajah psikolog (`FileReader` DataURL) yang tersimpan ke `PsychologistProfile.avatarUrl` dan tampil di Live Preview Card, Overview Dashboard, Landing Page, dan Avatar Navbar.
+- **Kondisional Footer (Landing Page Saja) & Akses Cepat Login Testing (`App.tsx`, `Footer.tsx`, `LoginModal.tsx`)**:
+  - Komponen Footer disembunyikan sepenuhnya saat user berada di dalam dashboard (`currentRole !== 'GUEST'`), hanya tampil di Landing Page.
+  - Footer dibersihkan dari opsi peran demo dan tautan blueprint lama.
+  - Pada Modal Login, ditambahkan tombol chip Akses Cepat Testing (`[🩺 Psikolog]`, `[🛡️ Admin]`, `[👤 Pasien]`) yang sekali klik otomatis mengisi email & sandi resmi pengujian.
+- **Navbar Sticky dengan Animasi Transisi & Tombol Hamburger Sidebar Collapse (`Navbar.tsx`)**:
+  - Navbar dianimasikan dengan scroll listener (`isScrolled`), memberikan efek elevasi bayangan halus (`shadow-md shadow-slate-900/5`) dan penyesuaian tinggi otomatis.
+  - Mengubah tombol toggle sidebar menjadi ikon **Hamburger** (`Menu` dari `lucide-react`) yang rapi dan seragam.
+  - Mendukung penayangan logo JiwaSehat kustom dari CMS (`landingCms.logoUrl`) dengan fallback ikon `HeartHandshake`.
+- **Standarisasi Universal Tata Letak Tabel & Paginasi (`UsersTab.tsx`, `ReservationsTab.tsx`, `PackagesTab.tsx`, `HistoryTab.tsx`)**:
+  - Seluruh tabel di sistem kini terstandarisasi: Search di Kiri, Filter di Kanan, dan Pagination bar modern di Bawah.
+  - Menghindari penumpukan baris tabel data besar dengan membatasi 6-8 item per halaman lengkap dengan kontrol halaman Previous, Next, dan nomor halaman.
+- **Pencabutan Hak Cetak Jadwal dari Admin & Pembatasan Aksi Booking (`ReservationsTab.tsx`)**:
+  - Hapus tombol cetak jadwal dan `OfficialPrintModal` dari dashboard Admin (Admin dilarang/tidak perlu mencetak jadwal).
+  - Admin hanya boleh melakukan verifikasi/konfirmasi pembayaran booking. Aksi pembatalan, penghapusan, dan penandaan selesai konsultasi dicabut dari tabel reservasi admin.
+- **Pembersihan Banner Profil Dokter di Overview Psikolog & Eliminasi SOAP (`OverviewTab.tsx`, `HistoryTab.tsx`)**:
+  - Menghapus kartu banner dokter ("Praktik Mandiri Aktif... SIP... dr. Sarah Jenkins... Status Layanan: Siap Melayani Pasien") di atas dashboard Psikolog.
+  - Seluruh kata dan istilah SOAP dibersihkan dari tombol dan tabel riwayat, diganti menjadi "Rekam Medis Pasien".
+- **CMS Media & Gambar Branding Website (`CmsTab.tsx`)**:
+  - Menambahkan Accordion 4 "Media & Gambar Branding Website" pada CMS Landing Page untuk pengelolaan gambar: Logo JiwaSehat, Banner Hero, Foto Fasilitas Ruang Klinik, dan Barcode QRIS Pembayaran DP Rp 100.000, lengkap dengan tombol preset sampel gambar dan pratinjau langsung.
+- **Perbaikan Lapisan Z-Index Tooltip Universal & Transisi ke React Portal (`Tooltip.tsx`)**:
+  - Komponen Tooltip dirombak total menggunakan `createPortal(..., document.body)` dengan posisi `fixed` dinamis (`getBoundingClientRect()`) dan `z-index: 999999`.
+  - Tooltip 100% bebas dari risiko terpotong oleh container tabel `overflow-x: auto` atau tertutup elemen lain.
+- **Penghapusan Card Mobile "Pilih Menu ▾" di Seluruh Dashboard & Integrasi Hamburger Navbar (`Navbar.tsx`, `AdminDashboard.tsx`, `PsychologistDashboard.tsx`, `PatientDashboard.tsx`)**:
+  - Menghapus blok card dropdown mobile `[Pilih Menu ▾]` dari ketiga dashboard.
+  - Tombol Hamburger di Navbar kini membuka slide-down Mobile Navigation Drawer yang rapi, menampilkan daftar tab menu peran aktif (Admin, Psikolog, Pasien) lengkap dengan ikon dan badge.
+- **Perbaikan Sticky Navbar & Efek Animasi Scrolling (`App.tsx`, `index.css`, `Navbar.tsx`)**:
+  - Menghapus `overflow-x-hidden` dari container root di `src/App.tsx`, dan menerapkan `overflow-x: clip` pada `html, body` di `src/index.css`.
+  - Header Navbar dinaikkan ke level `z-[60]` dengan animasi transisi yang mulus: tinggi mengecil dari `h-16` ke `h-14`, background `bg-white/95 backdrop-blur-md`, border teal halus, dan garis indikator glow dinamis.
+- **Alur Autentikasi Email Tunggal di Landing Page (Tanpa Tab Register) (`LoginModal.tsx`, `AppContext.tsx`)**:
+  - Form pendaftaran kata sandi terpisah dihapus total (*"gaada register"*). Autentikasi disederhanakan murni berbasis input Alamat Email (dan opsi Google SSO).
+  - Sistem mengecek email: jika sudah terdaftar, langsung masuk ke akun; jika belum, otomatis dibuatkan akun pasien baru dengan status `isProfileComplete: false`.
+- **Modal Form Data Diri Pasien Wajib (`PatientMandatoryProfileModal.tsx`)**:
+  - Pasien baru atau pasien yang belum melengkapi data diri (`isProfileComplete !== true`) wajib mengisi modal ini terlebih dahulu (*"harus melakukan isi form itu baru bisa ngapa ngapain"*).
+  - Modal terkunci dan tidak bisa ditutup sebelum disimpan. Field memuat: Nama Lengkap, Nomor WhatsApp, Tanggal Lahir, Jenis Kelamin, Kota Domisili, Pekerjaan, dan Kontak Darurat Kerabat.
+  - Setelah disimpan, profil diperbarui ke `isProfileComplete: true` dan pasien langsung diarahkan ke pemilihan paket/booking.
+- **Halaman Penuh Khusus Form Data Diri Pasien Baru (`PatientProfileCompletionPage.tsx`)**:
+  - Pasien baru dialihkan langsung ke Halaman Khusus Data Diri yang berada di luar sidebar menu dashboard pasien. Menu drawer di Navbar dinonaktifkan hingga seluruh identitas diri berhasil disimpan.
+  - Dilengkapi fitur helper pengujian *"Isi Otomatis Data Sampel"* untuk mempercepat testing.
+- **Standarisasi Universal Seluruh Modal Menggunakan React Portal & Elevasi Z-Index `z-[999999]`**:
+  - Seluruh modal sistem (`PatientDetailModal`, `LoginModal`, `ProfileModal`, `BioModal`, `ReservationsTab`, `ReviewsTab`, `PackagesTab`, `HistoryTab`, `RescheduleModal`, `OfficialPrintModal`, `BookingTab`, dan `ExportFinanceModal`) di-portal ke `document.body` dengan `z-[999999]`.
+  - Mengatasi total keluhan modal tertutup/tertabrak oleh sticky Navbar (`z-[60]`).
+- **Pembersihan Biaya Awal / Nominal DP dari Kartu Profil Landing Page Publik**:
+  - Menghapus tampilan biaya awal / nominal uang ("DP Awal 50% Rp 187.500") dari kartu profil psikolog publik di Landing Page sebelum login, digantikan status operasional *"Praktik Tatap Muka Terjadwal"*.
+- **Perbaikan Bug Asinkron Autentikasi Email Pengguna Baru (`loginWithEmail`)**:
+  - Mengirimkan `nextUsers` langsung ke `loginAs('PATIENT', newId, nextUsers)` sehingga closure React state tidak tertinggal dan login email baru tidak lagi memicu error 404 *"Pengguna tidak ditemukan dalam sistem"*.
+- **Penyembunyian Tombol Hamburger Navbar di Layar Besar (`Navbar.tsx`)**:
+  - Tombol hamburger di samping profil akun disembunyikan pada layar besar (`lg:hidden`) karena fungsi kecual/perluas menu sudah terintegrasi di dalam sidebar dashboard masing-masing.
+  - Tombol hamburger langsung muncul saat resolusi layar mengecil (`< lg`) untuk membuka slide-down Mobile Navigation Drawer.
+- **Ornamen SVG Wave Pembatas Section di Landing Page (`LandingPage.tsx`)**:
+  - Menambahkan gelombang SVG Wave lengkung pada batas bawah Hero section (ke `bg-slate-50`) dan batas atas CTA footer (ke `bg-slate-900`) untuk tampilan visual modern yang menenangkan.
+  - Memastikan antarmuka landing page tetap bersih, ringan, dan bebas dari scroll dock yang tidak perlu (*"wave aja cukup"*).
+- **Integrasi Foto Profil Dinamis Psikolog di Landing Page (`LandingPage.tsx`, `mockData.ts`)**:
+  - Kartu Hero dan Modal Bio Dokter kini menayangkan foto resmi psikolog dr. Sarah Jenkins secara dinamis (`soloPsychologist?.avatarUrl || soloUser?.avatar`), siap tersambung ke backend API Laravel.
+
 ## 2026-10-02
 
 - Refactor navigasi sidebar dan drawer mobile pada Dashboard Pasien, Admin, dan Psikolog:

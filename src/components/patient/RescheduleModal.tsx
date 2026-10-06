@@ -99,7 +99,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div
         onClick={e => e.stopPropagation()}
         className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[92vh] overflow-y-auto custom-scrollbar flex flex-col justify-between animate-in zoom-in-95 duration-200"
@@ -208,7 +208,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-950">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <div className="text-[11px] leading-relaxed">
-                <strong>Kebijakan Praktik:</strong> Pengajuan perubahan jadwal minimal H-1 (24 jam sebelum sesi dimulai). Uang muka (DP 50%) atau biaya pelunasan Anda otomatis dialihkan 100% ke jadwal baru tanpa biaya administrasi.
+                <strong>Kebijakan Praktik:</strong> Pengajuan perubahan jadwal minimal H-1 (24 jam sebelum sesi dimulai). DP administrasi Rp 100.000 atau biaya pelunasan yang sudah tercatat otomatis dialihkan 100% ke jadwal baru tanpa biaya administrasi tambahan.
               </div>
             </div>
 

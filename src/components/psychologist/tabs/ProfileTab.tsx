@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PsychologistProfile, User } from '../../../types';
 import {
   Stethoscope,
@@ -8,7 +8,11 @@ import {
   MapPin,
   Save,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  Camera,
+  Upload,
+  Trash2,
+  User as UserIcon
 } from 'lucide-react';
 
 interface ProfileTabProps {
@@ -24,6 +28,8 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
   psychologistId,
   updatePsychologistProfile
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatarUrl || currentUser?.avatar || '');
   const [profileTitle, setProfileTitle] = useState(profile?.title || 'Psikolog Klinis Dewasa & Hubungan Interpersonal');
   const [profileSipNumber, setProfileSipNumber] = useState(profile?.sipNumber || 'SIP.503/042-DPMPTSP/2022');
   const [profileStrNumber, setProfileStrNumber] = useState(profile?.strNumber || 'STR-PSI-2021-09842');
@@ -56,6 +62,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
 
   useEffect(() => {
     if (profile) {
+      if (profile.avatarUrl) {
+        setAvatarUrl(profile.avatarUrl);
+      } else if (currentUser?.avatar) {
+        setAvatarUrl(currentUser.avatar);
+      }
       setProfileTitle(profile.title);
       setProfileSipNumber(profile.sipNumber);
       setProfileStrNumber(profile.strNumber);
@@ -73,11 +84,42 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       setProfileFeeOnline(profile.consultationFeeOnline);
       setProfileFeeOffline(profile.consultationFeeOffline);
     }
-  }, [profile]);
+  }, [profile, currentUser]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Harap pilih file gambar yang valid (JPG, PNG, WebP).');
+      return;
+    }
+
+    if (file.size > 4 * 1024 * 1024) {
+      alert('Ukuran file foto maksimal adalah 4MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setAvatarUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    setAvatarUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     updatePsychologistProfile({
+      avatarUrl: avatarUrl.trim(),
       title: profileTitle,
       sipNumber: profileSipNumber,
       strNumber: profileStrNumber,
@@ -124,6 +166,65 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
         {/* Left: Comprehensive Form (7 cols) */}
         <form onSubmit={handleSaveProfile} className="xl:col-span-7 space-y-6">
+          {/* Section 0: Foto Wajah & Identitas Visual Profil */}
+          <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <Camera className="w-4 h-4 text-teal-600" />
+              <h4 className="text-sm font-bold text-slate-900">Foto Profil Wajah Psikolog</h4>
+            </div>
+
+            <div className="flex flex-col sm:flex-row items-center gap-5">
+              <div className="relative group shrink-0">
+                <div className="w-24 h-24 rounded-3xl bg-teal-50 border-2 border-teal-200/80 text-teal-700 flex items-center justify-center overflow-hidden shadow-sm">
+                  {avatarUrl ? (
+                    <img
+                      src={avatarUrl}
+                      alt="Foto Wajah Psikolog"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <UserIcon className="w-10 h-10 text-teal-600/70" />
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2 text-xs flex-1 text-center sm:text-left">
+                <p className="text-slate-600 leading-relaxed">
+                  Unggah foto wajah profesional berlatar rapi. Foto ini akan tampil di kartu profil publik, overview jadwal konsultasi, serta navigasi dashboard pasien.
+                </p>
+
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="psychologist-photo-upload"
+                  />
+                  <label
+                    htmlFor="psychologist-photo-upload"
+                    className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{avatarUrl ? 'Ganti Foto Profil' : 'Unggah Foto Wajah'}</span>
+                  </label>
+
+                  {avatarUrl && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveAvatar}
+                      className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold flex items-center gap-1.5 transition-colors cursor-pointer border border-rose-200"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Hapus Foto</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Section 1: Legalitas & Kredensial Resmi */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
@@ -373,8 +474,16 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
           {/* Public Psychologist Card Preview */}
           <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-sm space-y-5">
             <div className="flex items-start gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-sky-50 border-2 border-sky-300 text-sky-700 flex items-center justify-center shadow-xs shrink-0">
-                <Stethoscope className="w-8 h-8" />
+              <div className="w-16 h-16 rounded-2xl bg-teal-50 border-2 border-teal-300 text-teal-700 flex items-center justify-center shadow-xs shrink-0 overflow-hidden">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Foto Profil"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Stethoscope className="w-8 h-8 text-teal-600" />
+                )}
               </div>
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-bold mb-1">

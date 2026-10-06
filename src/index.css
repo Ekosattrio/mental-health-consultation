@@ -7,6 +7,11 @@
 }
 
 /* Standarisasi Mutlak: Seluruh Elemen, Form, Tipografi Menggunakan Plus Jakarta Sans */
+html,
+body {
+  overflow-x: clip;
+}
+
 *,
 *::before,
 *::after,

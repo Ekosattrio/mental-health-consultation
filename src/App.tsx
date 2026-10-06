@@ -6,26 +6,27 @@ import { LandingPage } from './components/landing/LandingPage';
 import { PatientDashboard } from './components/patient/PatientDashboard';
 import { PsychologistDashboard } from './components/psychologist/PsychologistDashboard';
 import { AdminDashboard } from './components/admin/AdminDashboard';
-import { ArchitectureBlueprint } from './components/architecture/ArchitectureBlueprint';
 import { ToastContainer } from './components/common/ToastContainer';
 import { LoginModal } from './components/auth/LoginModal';
+import { PatientProfileCompletionPage } from './components/patient/PatientProfileCompletionPage';
 
 const AppContent: React.FC = () => {
-  const { currentRole, viewMode, startBookingFlow, startTestFlow } = useApp();
+  const { currentRole, currentUser, startBookingFlow } = useApp();
+
+  const isPendingProfileCompletion = currentRole === 'PATIENT' && currentUser && !currentUser.isProfileComplete;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-teal-100 selection:text-teal-900">
+    <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 selection:bg-teal-100 selection:text-teal-900 w-full max-w-full">
       <Navbar />
 
-      <main className="flex-1">
-        {viewMode === 'BLUEPRINT' ? (
-          <ArchitectureBlueprint />
+      <main className="flex-1 w-full max-w-full">
+        {isPendingProfileCompletion ? (
+          <PatientProfileCompletionPage />
         ) : (
           <>
             {currentRole === 'GUEST' && (
               <LandingPage
                 onSelectBooking={(psychologistId, packageId) => startBookingFlow(psychologistId, packageId)}
-                onTakeTest={() => startTestFlow()}
               />
             )}
             {currentRole === 'PATIENT' && <PatientDashboard />}
@@ -35,7 +36,7 @@ const AppContent: React.FC = () => {
         )}
       </main>
 
-      <Footer />
+      {currentRole === 'GUEST' && <Footer />}
       <ToastContainer />
       <LoginModal />
     </div>

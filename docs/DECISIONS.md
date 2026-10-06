@@ -82,10 +82,127 @@
   - Memperbarui relasi ulasan `rev-3` di mock data agar merujuk ke `user-psy-1` sebagai entitas psikolog resmi.
   - Memastikan seluruh akun demo di sistem 100% sinkron dan terhubung nyata ke data pengguna aktif (`user-pat-1`, `user-pat-2`, `user-psy-1`, `user-adm-1`).
 
+## 2026-10-05
+
+- **58. Restrukturisasi Paket Layanan Resmi dari Dokumen Klien (`docs/paket untuk website.pdf`)**:
+  - Mengintegrasikan 15 paket resmi:
+    1. **Konseling (5 paket)**: Konsultasi Offline (Rp 900.000 / 60m), Konsultasi Telelayanan (Rp 750.000 / 60m), Konsultasi Anak & Remaja (Rp 900.000 / 60m), Konsultasi Dewasa (Rp 900.000 / 60m), Konsultasi Pasangan & Keluarga (Rp 1.500.000 / 60m). Catatan: Kelebihan waktu dihitung prorata 25% per 15 menit, surat laporan terpisah Rp 200.000.
+    2. **Asesmen (9 paket)**: Asesmen Psikologis Dasar (Rp 350.000 / 90m), Asesmen Psikologis Lengkap (Rp 1.500.000 / 180m pengerjaan tes 2-4 jam include laporan resmi bertanda tangan SIP), Tes Intelegensi IQ (Rp 750.000 / 90m), Tes Kepribadian Standar (Rp 500.000) & Lengkap (Rp 900.000), Asesmen Anak & Remaja Standar (Rp 500.000) & Lengkap (Rp 900.000), Asesmen Dewasa Standar (Rp 500.000) & Lengkap (Rp 900.000).
+    3. **Psikoterapi (1 paket)**: Paket Psikoterapi Intensif 4 Sesi (Rp 2.000.000 = Rp 500.000 per sesi, 60 menit per sesi).
+  - Paket lama dinonaktifkan (`isActive: false`) demi menjaga integritas data demo historis tanpa merusak relasi `packageId`.
+- **59. Penyembunyian Harga di Awal Laman (Landing Page) & Pembatasan Akses Pasien**:
+  - Sesuai permintaan keluarga psikolog / klien, di awal laman (Landing Page publik) hanya menampilkan nama paket, deskripsi, durasi, dan fasilitas. Nominal harga disembunyikan untuk pengunjung yang belum sign in.
+  - Kartu paket menampilkan banner informatif: `🔒 Rincian Tarif & Jadwal Tersedia setelah Sign In Akun`.
+  - Tombol CTA mengarahkan pengunjung ke modal Sign In / Pendaftaran. Setelah pasien masuk akun, nominal harga resmi ditampilkan.
+  - Ditambahkan filter tab kategori (Semua, Konseling, Asesmen, Psikoterapi) di Landing Page dan Portal Pasien.
+- **60. Penguncian Pemilihan Paket Berbasis Kelengkapan Data Diri Pasien (`isProfileComplete`)**:
+  - Pasien yang belum mengisi data diri lengkap (Nama, No HP/WA, Tanggal Lahir, Jenis Kelamin, Domisili/Kota, Pekerjaan, Kontak Darurat) dilarang memilih paket.
+  - Kartu paket berstatus terkunci (`locked`), dan mengklik kartu paket akan membuka modal "Lengkapi Data Diri Pasien".
+  - Setelah data diri diisi dan disimpan via `updateUserProfile`, status profil terverifikasi lengkap (`isProfileComplete: true`), paket otomatis terbuka (unlocked), dan pasien dapat memilih paket serta jadwal konsultasi.
+- **61. Transisi ke Sistem Pembayaran DP Flat Rp 100.000 (Biaya Administrasi) & Nama Pengirim Wajib**:
+  - Skema pembayaran DP diubah dari persentase 50% menjadi **DP Flat Rp 100.000** sebagai biaya administrasi dan penguncian jadwal reservasi klinik.
+  - Sisa pembayaran (`harga paket - 100.000`) dilunasi saat pasien hadir di klinik / setelah sesi konsultasi.
+  - Menambahkan input wajib: Nama Pemilik Rekening / Nama yang Transfer (`transferSenderName`) dan unggah bukti transfer DP Rp 100.000 (`paymentProofUrl`) untuk memudahkan rekonsiliasi mutasi rekening bank oleh tim administrasi.
+- **62. Resolusi Tuntas Bug Horizontal Overflow Lebar Halaman Dashboard Psikolog**:
+  - Memasang `html, body { overflow-x: hidden; max-width: 100vw; width: 100%; }` pada `index.css`.
+- **63. Rombak Desain Seluruh Modal Menjadi Modern Simple Light**:
+  - Mengeliminasi seluruh modal ber-header gradient gelap pekat (`slate-900`, `sky-950`, `purple-950`) yang kaku dan dinilai jelek oleh user.
+  - Menerapkan desain **Modern Simple Light**: header putih bersih (`bg-white border-b border-slate-100`), kontainer ikon soft pastel (`bg-teal-50 text-teal-600`), tipografi tebal minimalis, tombol aksi terstandarisasi warna teal, dan form input bersih.
+  - Berlaku pada: Form Tambah/Edit Paket (`PackagesTab`), Pratinjau Kartu Paket, Detail Pasien & Rekam Pre-test (`PatientDetailModal`), Modal Cetak Kop Resmi (`OfficialPrintModal`), Form Booking Walk-In (`ReservationsTab`), dan Modal Baca Ulasan (`ReviewsTab`).
+- **64. Eliminasi Total Blueprint & Menu Switcher Akun Demo, Penggantian Menjadi Tombol Sidebar Collapse Global**:
+  - Menghapus menu titik 3 ("Pilih Akun Demo (Testing)") dan Blueprint Mode.
+  - Otentikasi dialihkan ke login nyata (Email/Username dan Password) serta simulasi Google SSO OAuth siap Laravel Socialite.
+  - Tombol switcher di Navbar diganti menjadi tombol **Sidebar Collapse Toggle** (`PanelLeftClose`/`PanelLeftOpen`) yang tersinkronisasi global melalui `AppContext` (`isSidebarCollapsed`, `toggleSidebar`), dan secara otomatis **TIDAK DITAMPILKAN** di Landing Page (Guest).
+- **65. Pembatasan Ketat Hak Akses Admin (Strict Read-Only User Monitoring) & Redesain Moderasi Ulasan**:
+  - Admin dilarang melakukan operasi Create, Update, Delete data di luar reservasi pelanggan yang walk-in.
+  - Tombol blokir / buka blokir / modifikasi akun pasien dan dokter di `UsersTab` dihapus; admin hanya memiliki hak pemantauan *Read-Only Monitoring*.
+  - Redesain bagian ringkasan ulasan di `ReviewsTab`: menghadirkan Card Metrik Terpadu (Skor 4.7/5.0, progress bar distribusi rating 5-1 bintang interaktif, dan filter pills status Menunggu/Disetujui yang rapi).
+- **66. Fitur Unggah & Edit Foto Wajah Profil Psikolog**:
+  - Menyediakan input upload foto wajah (`FileReader` DataURL) di `ProfileTab.tsx` lengkap dengan tombol ganti dan hapus foto.
+  - Foto wajah psikolog terhubung ke `PsychologistProfile.avatarUrl` dan `User.avatar`, serta ditampilkan di seluruh sistem: Live Preview Card, Overview Dashboard, Landing Page, dan Avatar Navbar.
+- **67. Eliminasi Footer pada Seluruh Dashboard Masuk & Penyediaan Akses Cepat Login**:
+  - Komponen `<Footer />` kini hanya dirender pada Landing Page publik (`currentRole === 'GUEST'`), sehingga area dashboard Pasien, Psikolog, dan Admin tampil bersih, luas, dan profesional tanpa distraksi footer di bawah.
+  - Pada `LoginModal.tsx`, selain mendukung input email/password riil dan Google SSO, disediakan chip **Akses Cepat Testing** (`[🩺 Psikolog]`, `[🛡️ Admin]`, `[👤 Pasien]`) yang sekali klik otomatis mengisi kredensial resmi pengujian.
+- **68. Navbar Sticky dengan Animasi Transisi & Tombol Hamburger Sidebar Collapse**:
+  - Menambahkan event listener scroll window untuk mendeteksi `isScrolled` (> 15px) dengan elevasi bayangan halus (`shadow-md shadow-slate-900/5`), transisi tinggi/padding mulus, dan latar belakang blur semitransparan.
+  - Mengubah tombol toggle collapse sidebar di Navbar dari ikon panel menjadi **Hamburger Icon** (`Menu` dari `lucide-react`) dengan rotasi halus saat aktif.
+- **69. Standarisasi Universal Tata Letak Tabel & Paginasi (Search di Kiri, Filter di Kanan, Pagination di Bawah)**:
+  - Seluruh tabel di seluruh peran (`UsersTab`, `ReservationsTab`, `PackagesTab`, `HistoryTab` Psikolog, `HistoryTab` Pasien) distandarisasi secara seragam:
+    - Sisi Kiri: Input teks pencarian fleksibel dengan ikon Search.
+    - Sisi Kanan: Segmented pills status / dropdown filter kategori.
+    - Sisi Bawah: Baris navigasi pagination yang menampilkan nomor item, tombol Previous/Next, dan nomor halaman.
+- **70. Penghapusan Hak Cetak Jadwal dari Admin & Pembatasan Aksi Booking Admin**:
+  - Hak cetak jadwal operasional dinas resmi dicabut dari dashboard Admin; Admin dilarang/tidak perlu mencetak jadwal (hanya boleh diekspor oleh Psikolog/Pengelola).
+  - Admin hanya boleh melakukan verifikasi/konfirmasi pembayaran booking. Aksi pembatalan, penghapusan, dan penandaan selesai konsultasi dicabut dari tabel reservasi admin.
+- **71. Pembersihan Banner Profil Dokter di Overview Psikolog & Terminologi SOAP**:
+  - Menghapus kartu banner identitas dokter ("Praktik Mandiri Aktif... SIP... dr. Sarah Jenkins... Status Layanan: Siap Melayani Pasien") di bagian atas `OverviewTab.tsx` agar dashboard psikolog langsung menampilkan ringkasan data dan KPI operasional.
+  - Seluruh terminologi medis SOAP dibersihkan dari sistem dan diganti menjadi "Rekam Medis Pasien".
+- **72. Penyiapan CMS Media & Gambar Branding Website (Logo JiwaSehat, Banner Hero, Foto Klinik, QRIS DP)**:
+  - Menambahkan Accordion 4 pada CMS Landing Page (`CmsTab.tsx`) untuk pengelolaan gambar branding: Logo Website JiwaSehat (terhubung ke Navbar dengan fallback ikon HeartHandshake), Gambar Hero Banner, Foto Ruang Fasilitas Klinik, dan Barcode QRIS Pembayaran DP Rp 100.000, lengkap dengan tombol preset sampel gambar dan pratinjau instan.
+- **73. Perbaikan Z-Index Tooltip Universal**:
+  - Memastikan popover Tooltip menggunakan `z-[99999]` dan kontainer hover menggunakan `hover:z-[9999]` agar tooltip tidak pernah tertutup oleh baris tabel, modal, atau kartu lain.
+
+- **74. Eliminasi Total Card Mobile "Pilih Menu ▾" di Seluruh Dashboard & Pemusatan Navigasi ke Hamburger Navbar**:
+  - Seluruh elemen card dropdown navigasi mobile (`[Pilih Menu ▾]`) pada `AdminDashboard.tsx`, `PsychologistDashboard.tsx`, dan `PatientDashboard.tsx` dihapus sepenuhnya.
+  - Navigasi mobile diintegrasikan langsung ke tombol Hamburger di Navbar atas. Saat di mobile (`< lg`), mengklik tombol hamburger akan memunculkan Mobile Navigation Drawer (slide-down) yang bersih, menampilkan daftar tab menu peran aktif (Admin, Psikolog, Pasien) lengkap dengan ikon dan badge. Saat di desktop (`>= lg`), tombol hamburger tetap mengontrol perluasan/pengecilan sidebar utama dashboard.
+- **75. Perbaikan Sticky Navbar & Animasi Scroll Transisi Halus**:
+  - Masalah terhentinya `position: sticky` Navbar akibat batasan W3C CSS stacking context diperbaiki dengan menghapus properti `overflow-x-hidden` dari container root di `src/App.tsx`, dan menerapkan aturan `overflow-x: clip` pada `html, body` di `src/index.css`.
+  - Header Navbar dinaikkan ke level elevasi `z-[60]` dengan animasi transisi yang mulus saat scrolling: tinggi mengecil dari `h-16` ke `h-14`, background `bg-white/95 backdrop-blur-md` dengan border teal lembut dan glow indicator line di dasar header.
+- **76. Pembaruan Komponen Tooltip Menggunakan React Portal & Fixed Positioning Anti-Clipping**:
+  - Komponen `src/components/common/Tooltip.tsx` dirombak total menggunakan `createPortal(..., document.body)` dengan koordinat `fixed` dinamis dari `getBoundingClientRect()` dan `z-index: 999999`.
+  - Hal ini menjamin bahwa tooltip tidak akan pernah terpotong (*clipped*) oleh kontainer tabel berkursif `overflow-x: auto` atau tertutup oleh elemen bertingkat stacking context manapun.
+- **77. Alur Autentikasi Email Tunggal di Landing Page (Tanpa Tab Register)**:
+  - Form pendaftaran kata sandi terpisah dihapus total (*"gaada register"*). Autentikasi disederhanakan murni berbasis input Alamat Email (dan opsi Google SSO).
+  - Alur cerdas pengecekan email:
+    - Jika email sudah terdaftar: langsung masuk ke akun (`loginAs`).
+    - Jika email belum terdaftar: otomatis dibuatkan akun pasien baru dengan status `isProfileComplete: false`, dan langsung login.
+- **78. Modal Pengisian Form Data Diri Pasien Wajib (`PatientMandatoryProfileModal`)**:
+  - Pasien baru atau pasien yang belum melengkapi data diri (`isProfileComplete !== true`) wajib mengisi data diri lengkap terlebih dahulu sebelum dapat memilih paket, memesan jadwal, atau mengikuti tes asesmen (*"harus melakukan isi form itu baru bisa ngapa ngapain"*).
+  - Modal ini bersifat imperatif dan tidak dapat ditutup sebelum seluruh form lengkap diisi (Nama Lengkap, Nomor HP/WhatsApp, Tanggal Lahir, Jenis Kelamin, Kota Domisili, Pekerjaan, dan Kontak Darurat Kerabat).
+  - Setelah data diri disimpan, profil diperbarui ke `isProfileComplete: true` dan pasien langsung diarahkan ke pemilihan paket/booking.
+- **79. Halaman Khusus Form Data Diri Pasien Baru (`PatientProfileCompletionPage.tsx`) Tanpa Sidebar**:
+  - Pasien baru atau pasien yang belum melengkapi profil (`!currentUser.isProfileComplete`) langsung diarahkan ke Halaman Penuh Khusus (*Dedicated Full-Width Page*) untuk melengkapi data diri (Nama Lengkap, WhatsApp, Tanggal Lahir, Jenis Kelamin, Kota Domisili, Pekerjaan, Kontak Darurat Kerabat).
+  - Halaman ini berada di luar sistem sidebar navigasi pasien dan drawer menu di Navbar disembunyikan sampai data diri tuntas disimpan, sehingga pengguna tidak dapat melewati alur ini sebelum melengkapi data.
+  - Disediakan tombol helper pengujian "Isi Otomatis Data Sampel" untuk mempermudah testing.
+- **80. Standarisasi Universal React Portal & Level Elevasi Z-Index Modal (`z-[999999]`)**:
+  - Semua modal dan overlay dialog di seluruh aplikasi (`PatientDetailModal`, `LoginModal`, modal edit profil di `Navbar`, modal bio di `LandingPage`, form walk-in `ReservationsTab`, modal review di `ReviewsTab`, seluruh modal di `PackagesTab`, modal detail & review di `HistoryTab`, `RescheduleModal`, `OfficialPrintModal`, modal profil cadangan di `BookingTab`, dan `ExportFinanceModal`) dibungkus menggunakan `createPortal(..., document.body)` dan dinaikkan ke level `z-[999999]`.
+  - Hal ini memecahkan masalah stacking context dan menjamin 100% modal tidak pernah tertabrak atau tertutup oleh sticky Navbar (`z-[60]`).
+- **81. Pembersihan Biaya Awal / Nominal DP dari Kartu Profil Publik di Landing Page**:
+  - Menghapus tampilan biaya awal ("DP Awal 50% Rp 187.500") dari kartu profil psikolog publik di Landing Page sebelum login.
+  - Digantikan dengan lencana status operasional ramah pasien: *"Praktik Tatap Muka Terjadwal"*.
+- **82. Resolusi Asinkron State Bug Login Pasien Baru (`loginWithEmail`)**:
+  - Memperbaiki masalah `setUsers` asinkron pada `AppContext.tsx` saat pasien baru mendaftar dengan email baru.
+  - Objek array pengguna terbaru (`nextUsers`) langsung dioper ke `loginAs('PATIENT', newId, nextUsers)` sehingga `authController.loginAs` tidak lagi melempar ApiError 404 (*"Pengguna tidak ditemukan dalam sistem"*).
+- **83. Visibilitas Responsif Tombol Hamburger Navbar (`lg:hidden`)**:
+  - Tombol hamburger navigasi di Navbar dihilangkan pada layar besar/desktop (`lg:hidden`) karena fungsi perkecil/perluas menu sudah tersedia langsung di dalam sidebar dashboard masing-masing.
+  - Pada layar kecil/mobile (`< lg`), tombol hamburger langsung ditampilkan untuk membuka slide-down Mobile Navigation Drawer.
+- **84. Ornamen SVG Wave Organik & Integrasi Foto Dinamis Psikolog di Landing Page**:
+  - Menambahkan ornamen gelombang SVG Wave lengkung pada batas bawah Hero section (transisi ke `bg-slate-50`) dan batas atas CTA footer (transisi ke `bg-slate-900`) untuk estetika visual organik, bersih, dan elegan khas layanan kesehatan mental.
+  - Sesuai instruksi developer/klien, fitur floating scroll bar dan auto-scroll dihilangkan agar antarmuka tetap simpel, ringan, dan tidak berlebihan (*"wave aja cukup"*).
+  - Mengintegrasikan penayangan foto psikolog resmi dr. Sarah Jenkins secara dinamis (`soloPsychologist?.avatarUrl || soloUser?.avatar`) di kartu Hero dan Modal Bio Dokter dengan bingkai elegan dan status dot aktif, siap tersinkronisasi dua arah ke backend Laravel.
+
+## 2026-10-06
+
+- Best Practice Paket Multi-Sesi / Treatment Plan:
+  - Paket berisi banyak sesi diputuskan memakai model `treatment_plan` sebagai induk program, bukan membuat seluruh appointment sekaligus di awal.
+  - Appointment dibuat bertahap per pertemuan. Pasien memulai dari sesi pertama, lalu psikolog menjadwalkan sesi berikutnya setelah sesi sebelumnya selesai atau sesuai keputusan klinis.
+  - Psikolog/pengelola menjadi satu-satunya role yang boleh menandai sesi `COMPLETED` dan menjadwalkan sesi lanjutan. Admin tetap hanya konfirmasi pembayaran/booking dan moderasi review.
+  - Backend wajib menggunakan transaction, unique constraint `(treatment_plan_id, continuous_session_number)`, index jadwal, dan idempotency key pada endpoint pembuatan sesi lanjutan untuk mencegah double booking/double click.
+  - Pembayaran paket multi-sesi tidak dihitung berulang di setiap appointment lanjutan; pembayaran melekat ke treatment plan/invoice, sementara appointment lanjutan hanya jadwal pertemuan dan rekam progres.
+- Scope tes dikunci menjadi **pre-test profiling** saja untuk kebutuhan booking dan persiapan sesi. Test psikolog tambahan/asesmen mandiri tidak aktif di portal pasien pada scope sekarang.
+- Psikolog/pengelola membutuhkan tab khusus **Paket Berjalan / Rencana Terapi** untuk memantau progres paket multi-sesi, sesi selesai, sesi berikutnya, dan status aktif/selesai/dihentikan.
+- Notifikasi WhatsApp/email diputuskan sebagai tanggung jawab backend produksi, termasuk reminder jadwal harian ke psikolog yang memuat jam sesi, nama pasien, ringkasan pre-test/profil, dan tautan detail web.
+- Invoice/kwitansi wajib memuat DP Rp 100.000, sisa pelunasan, metode/channel pembayaran, nama pengirim, nomor referensi, status pembayaran, dan bukti pembayaran.
+- Kebijakan no-show/telat/cancel dikelola oleh psikolog/pengelola. Admin tetap tidak boleh cancel, hapus, no-show, discontinue, atau menandai sesi selesai.
+- Consent & privacy perlu tersedia sebagai halaman/kebijakan dan harus disetujui pasien sebelum booking final. Pre-test wajib diberi disclaimer sebagai profiling awal, bukan diagnosis otomatis.
+- Backup/export data klinis diperlukan untuk owner/psikolog dengan role protection dan audit log.
+
 ## Pending Decisions
 
 - Backend stack final disepakati menggunakan Laravel 12++ API + React Vite SPA.
 - Database engine disarankan PostgreSQL 16+ / MySQL 8.0+.
 - Strategi Google SSO via Laravel Socialite.
-- Provider payment gateway (Midtrans / Xendit / Manual Transfer DP 50%).
+- Provider payment gateway (Midtrans / Xendit / Manual Transfer DP Flat Rp 100.000).
 - Deployment target (VPS Ubuntu / Laravel Forge / Shared Hosting Laragon).
+
+

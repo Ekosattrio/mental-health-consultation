@@ -83,10 +83,13 @@ interface AppContextType {
   // Navigation & View
   viewMode: 'PLATFORM' | 'BLUEPRINT';
   setViewMode: (mode: 'PLATFORM' | 'BLUEPRINT') => void;
-  activePatientTab: 'overview' | 'faq' | 'booking' | 'tests' | 'intake' | 'history' | 'profile';
-  setActivePatientTab: (tab: 'overview' | 'faq' | 'booking' | 'tests' | 'intake' | 'history' | 'profile') => void;
-  activePsychologistTab: 'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile';
-  setActivePsychologistTab: (tab: 'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile') => void;
+  isSidebarCollapsed: boolean;
+  setIsSidebarCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleSidebar: () => void;
+  activePatientTab: 'overview' | 'faq' | 'booking' | 'history' | 'profile';
+  setActivePatientTab: (tab: 'overview' | 'faq' | 'booking' | 'history' | 'profile') => void;
+  activePsychologistTab: 'overview' | 'schedule' | 'packages' | 'treatmentPlans' | 'patients' | 'finance' | 'cms' | 'history' | 'profile';
+  setActivePsychologistTab: (tab: 'overview' | 'schedule' | 'packages' | 'treatmentPlans' | 'patients' | 'finance' | 'cms' | 'history' | 'profile') => void;
   activeAdminTab: 'users' | 'reservations' | 'reviews';
   setActiveAdminTab: (tab: 'users' | 'reservations' | 'reviews') => void;
 
@@ -111,7 +114,8 @@ interface AppContextType {
   authModalTab: 'LOGIN' | 'REGISTER';
   setAuthModalTab: (tab: 'LOGIN' | 'REGISTER') => void;
   openAuthModal: (tab?: 'LOGIN' | 'REGISTER') => void;
-  loginAs: (role: UserRole, specificUserId?: string) => void;
+  loginAs: (role: UserRole, specificUserId?: string, userList?: UserEntity[]) => void;
+  loginWithEmail: (email: string) => { isNew: boolean; user: UserEntity };
   registerUser: (userData: {
     name: string;
     email: string;
@@ -126,6 +130,7 @@ interface AppContextType {
   switchPatientUser: (patientId: string) => void;
   showToast: (title: string, message: string, type?: 'success' | 'info' | 'error' | 'warning') => void;
   dismissToast: () => void;
+  updateUserProfile: (userId: string, data: Partial<UserEntity>) => void;
   bookAppointment: (data: {
     patientId: string;
     patientName: string;
@@ -137,6 +142,11 @@ interface AppContextType {
     paymentMethod?: string;
     startTime?: string;
     endTime?: string;
+    dpAmount?: number;
+    transferSenderName?: string;
+    paymentProofUrl?: string;
+    paymentChannelDetail?: string;
+    paymentReference?: string;
   }) => Promise<{ success: boolean; message: string; appointment?: Appointment }>;
 
   submitIntakeForm: (formData: Omit<IntakeForm, 'id' | 'completedAt'>) => Promise<IntakeForm | null>;
@@ -158,8 +168,15 @@ interface AppContextType {
   deleteScheduleSlot: (slotId: string) => void;
   savePackage: (pkg: ConsultationPackage) => void;
   deletePackage: (packageId: string) => void;
+  togglePackageStatus: (packageId: string) => void;
   saveTest: (test: PsychologicalTest) => void;
   updateAppointmentStatus: (aptId: string, status: Appointment['status']) => void;
+  scheduleNextContinuousSession: (
+    appointmentId: string,
+    date: string,
+    startTime: string,
+    endTime: string
+  ) => Promise<boolean>;
   rescheduleAppointment: (
     aptId: string,
     newDate: string,
@@ -205,12 +222,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toast, setToast] = useState<ToastNotification | null>(null);
 
   // Tab controllers
-  const [activePatientTab, setActivePatientTab] = useState<'overview' | 'faq' | 'booking' | 'tests' | 'intake' | 'history' | 'profile'>('overview');
-  const [activePsychologistTab, setActivePsychologistTab] = useState<'overview' | 'schedule' | 'patients' | 'finance' | 'cms' | 'history' | 'profile'>('overview');
+  const [activePatientTab, setActivePatientTab] = useState<'overview' | 'faq' | 'booking' | 'history' | 'profile'>('overview');
+  const [activePsychologistTab, setActivePsychologistTab] = useState<'overview' | 'schedule' | 'packages' | 'treatmentPlans' | 'patients' | 'finance' | 'cms' | 'history' | 'profile'>('overview');
   const [activeAdminTab, setActiveAdminTab] = useState<'users' | 'reservations' | 'reviews'>('reservations');
 
   // Current active user ID
   const [currentUserId, setCurrentUserId] = useState<string>('user-pat-1');
+
+  // Sidebar Collapse state (shared across dashboards & navbar)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const toggleSidebar = () => setIsSidebarCollapsed(prev => !prev);
 
   // Flow State
   const [selectedBookingPackageId, setSelectedBookingPackageId] = useState<string | undefined>();
@@ -371,16 +392,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (currentRole === 'GUEST' || !currentUser) {
       showToast(
         'Masuk Terlebih Dahulu',
-        'Silakan masuk atau daftar akun terlebih dahulu untuk mengikuti asesmen tes psikologi.',
+        'Silakan masuk atau daftar akun terlebih dahulu untuk mengisi pre-test dan booking konsultasi.',
         'info'
       );
       openAuthModal('LOGIN');
       return;
     }
 
-    setActivePatientTab('tests');
+    setActivePatientTab('booking');
     setViewMode('PLATFORM');
-    showToast('Asesmen DASS-21', 'Mulai pengisian tes psikologi mandiri 21 butir.', 'info');
+    showToast('Pre-Test Profiling', 'Lengkapi pre-test singkat di alur booking konsultasi.', 'info');
   };
 
   const updateLandingCms = (config: Partial<LandingPageCmsConfig>) => {
@@ -398,10 +419,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     showToast('CMS Halaman Dokter Diperbarui', 'Panduan klinis dan SOP dokter berhasil disimpan.', 'success');
   };
 
-  const loginAs = (role: UserRole, specificUserId?: string) => {
-    authController.loginAs(role, specificUserId, users);
+  const loginAs = (role: UserRole, specificUserId?: string, userList?: UserEntity[]) => {
+    const listToUse = userList || users;
+    authController.loginAs(role, specificUserId, listToUse);
     if (role === 'PATIENT' && (selectedBookingPackageId || selectedBookingPsychologistId)) {
       setActivePatientTab('booking');
+    }
+  };
+
+  const loginWithEmail = (email: string): { isNew: boolean; user: UserEntity } => {
+    const trimmed = email.trim().toLowerCase();
+    const existing = users.find(u => u.email.toLowerCase() === trimmed);
+    if (existing) {
+      loginAs(existing.role, existing.id);
+      setIsLoginModalOpen(false);
+      if (existing.role === 'PATIENT') {
+        if (existing.isProfileComplete) {
+          showToast('Selamat Datang Kembali!', `Halo ${existing.name}, Anda berhasil masuk ke akun.`, 'success');
+        } else {
+          showToast('Lengkapi Data Diri', 'Harap lengkapi formulir data diri pasien Anda untuk melanjutkan.', 'info');
+        }
+      }
+      return { isNew: false, user: existing };
+    } else {
+      const newId = `user-pat-${Date.now().toString().slice(-4)}`;
+      const newUser: UserEntity = {
+        id: newId,
+        email: email.trim(),
+        name: email.split('@')[0],
+        role: 'PATIENT',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        status: 'ACTIVE',
+        phone: '',
+        isVerified: true,
+        createdAt: new Date().toISOString().slice(0, 10),
+        isProfileComplete: false
+      };
+      const nextUsers = [newUser, ...users];
+      setUsers(nextUsers);
+      loginAs('PATIENT', newId, nextUsers);
+      setIsLoginModalOpen(false);
+      showToast('Akun Baru Dibuat', 'Silakan lengkapi data diri Anda pada formulir berikut.', 'info');
+      return { isNew: true, user: newUser };
     }
   };
 
@@ -426,7 +485,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const switchPatientUser = (patientId: string) => {
     setCurrentUserId(patientId);
     const targetUser = users.find(u => u.id === patientId);
-    showToast('Ganti Pasien', `Aktif sebagai ${targetUser?.name || 'Pasien'}. Data intake dan tes diperbarui.`);
+    showToast('Ganti Pasien', `Aktif sebagai ${targetUser?.name || 'Pasien'}. Data pre-test diperbarui.`);
+  };
+
+  const updateUserProfile = (userId: string, data: Partial<UserEntity>) => {
+    setUsers(prev => prev.map(u => (u.id === userId ? { ...u, ...data } : u)));
+    showToast('Profil Diperbarui', 'Data diri pasien berhasil disimpan.', 'success');
   };
 
   // -------------------------------------------------------------
@@ -443,6 +507,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paymentMethod?: string;
     startTime?: string;
     endTime?: string;
+    dpAmount?: number;
+    transferSenderName?: string;
+    paymentProofUrl?: string;
+    paymentChannelDetail?: string;
+    paymentReference?: string;
   }) => {
     return patientController.bookAppointment(
       data,
@@ -541,12 +610,126 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     adminController.deletePackage(packageId, packages);
   };
 
+  const togglePackageStatus = (packageId: string) => {
+    const pkg = packages.find(p => p.id === packageId);
+    if (!pkg) return;
+    const updated: ConsultationPackage = { ...pkg, isActive: pkg.isActive === false ? true : false };
+    adminController.savePackage(updated, packages);
+  };
+
   const saveTest = (test: PsychologicalTest) => {
     adminController.saveTest(test, tests);
   };
 
   const updateAppointmentStatus = (aptId: string, status: Appointment['status']) => {
     adminController.updateAppointmentStatus(aptId, status, appointments);
+  };
+
+  const scheduleNextContinuousSession = async (
+    appointmentId: string,
+    date: string,
+    startTime: string,
+    endTime: string
+  ): Promise<boolean> => {
+    const source = appointments.find(a => a.id === appointmentId);
+    if (!source) {
+      showToast('Gagal Menjadwalkan Sesi', 'Data sesi rujukan tidak ditemukan.', 'error');
+      return false;
+    }
+
+    const totalSessions = source.continuousSessionTotal || 1;
+    if (totalSessions <= 1) {
+      showToast('Bukan Paket Berkelanjutan', 'Sesi ini bukan bagian dari paket rawat jalan multi-sesi.', 'warning');
+      return false;
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    if (date <= today) {
+      showToast('Tanggal Tidak Valid', 'Sesi lanjutan harus dijadwalkan minimal H+1.', 'warning');
+      return false;
+    }
+
+    const toMinutes = (time: string) => {
+      const [hour, minute] = time.split(':').map(Number);
+      return hour * 60 + minute;
+    };
+
+    const startMinutes = toMinutes(startTime);
+    const endMinutes = toMinutes(endTime);
+    if (endMinutes <= startMinutes) {
+      showToast('Jam Tidak Valid', 'Jam selesai harus lebih besar dari jam mulai.', 'warning');
+      return false;
+    }
+
+    const activeStatuses: Appointment['status'][] = ['PENDING', 'CONFIRMED', 'IN_PROGRESS'];
+    const hasOverlap = appointments.some(apt => {
+      if (apt.id === source.id) return false;
+      if (apt.psychologistId !== source.psychologistId || apt.date !== date) return false;
+      if (!activeStatuses.includes(apt.status)) return false;
+      return startMinutes < toMinutes(apt.endTime) && endMinutes > toMinutes(apt.startTime);
+    });
+
+    if (hasOverlap) {
+      showToast('Bentrok Jadwal', 'Psikolog sudah punya jadwal aktif pada rentang jam tersebut.', 'error');
+      return false;
+    }
+
+    const planId = source.treatmentPlanId || `tp-${source.patientId}-${source.packageId}-${source.bookingCode}`;
+    const planAppointments = appointments.filter(apt => {
+      if (source.treatmentPlanId) return apt.treatmentPlanId === source.treatmentPlanId;
+      return (
+        apt.patientId === source.patientId &&
+        apt.psychologistId === source.psychologistId &&
+        apt.packageId === source.packageId &&
+        apt.continuousSessionTotal === source.continuousSessionTotal
+      );
+    });
+
+    const lastScheduledNumber = Math.max(
+      source.continuousSessionNumber || 1,
+      ...planAppointments.map(apt => apt.continuousSessionNumber || 1)
+    );
+    const nextSessionNumber = lastScheduledNumber + 1;
+
+    if (nextSessionNumber > totalSessions) {
+      showToast('Program Sudah Lengkap', `Seluruh ${totalSessions} sesi pada paket ini sudah dijadwalkan.`, 'info');
+      return false;
+    }
+
+    const nextAppointment: Appointment = {
+      ...source,
+      id: `apt-${Date.now()}-${nextSessionNumber}`,
+      bookingCode: `JS-${date.replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`,
+      date,
+      startTime,
+      endTime,
+      status: 'CONFIRMED',
+      treatmentPlanId: planId,
+      continuousSessionNumber: nextSessionNumber,
+      continuousSessionTotal: totalSessions,
+      totalAmount: 0,
+      dpAmount: 0,
+      remainingAmount: 0,
+      clinicalNotesId: undefined,
+      reviewId: undefined,
+      createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
+    };
+
+    setAppointments(prev => [
+      nextAppointment,
+      ...prev.map(apt => (
+        planAppointments.some(item => item.id === apt.id) && !apt.treatmentPlanId
+          ? { ...apt, treatmentPlanId: planId }
+          : apt
+      ))
+    ]);
+
+    showToast(
+      'Sesi Lanjutan Dijadwalkan',
+      `Sesi ${nextSessionNumber} dari ${totalSessions} berhasil dibuat pada ${date} pukul ${startTime} - ${endTime}.`,
+      'success'
+    );
+    return true;
   };
 
   const rescheduleAppointment = async (
@@ -668,6 +851,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updatePsychologistCms,
         viewMode,
         setViewMode,
+        isSidebarCollapsed,
+        setIsSidebarCollapsed,
+        toggleSidebar,
         activePatientTab,
         setActivePatientTab,
         activePsychologistTab,
@@ -686,12 +872,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setAuthModalTab,
         openAuthModal,
         loginAs,
+        loginWithEmail,
         registerUser,
         logout,
         switchRole,
         switchPatientUser,
         showToast,
         dismissToast,
+        updateUserProfile,
         bookAppointment,
         submitIntakeForm,
         submitTestResult,
@@ -706,8 +894,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deleteScheduleSlot,
         savePackage,
         deletePackage,
+        togglePackageStatus,
         saveTest,
         updateAppointmentStatus,
+        scheduleNextContinuousSession,
         rescheduleAppointment,
         resetAllToDefault
       }}

@@ -1,14 +1,22 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import laravel from 'laravel-vite-plugin';
+import { fileURLToPath, URL } from 'node:url';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [
+      laravel({
+        input: ['resources/js/main.tsx'],
+        refresh: ['resources/views/**', 'routes/**'],
+      }),
+      react(),
+      tailwindcss(),
+    ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': fileURLToPath(new URL('./resources/js', import.meta.url)),
       },
     },
     server: {
@@ -16,7 +24,7 @@ export default defineConfig(() => {
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
+      watch: process.env.DISABLE_HMR === 'true' ? { ignored: ['**/*'] } : undefined,
     },
   };
 });

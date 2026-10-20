@@ -1,0 +1,45 @@
+# F07 — Profiling dan riwayat pre-test
+## Latar belakang dan tujuan
+Memberi konteks awal per layanan kepada praktisi tanpa menimpa jawaban lama atau menyimpulkan diagnosis otomatis.
+## Aktor dan authorization
+Keputusan developer: profiling offline memakai kertas yang langsung diserahkan kepada Superadmin. Admin hanya mengurus pendataan administratif, jadwal dan pembayaran; tidak memasukkan, membaca, memindai atau mengunggah jawaban profiling kertas. Pasien/penanggung jawab mengisi profiling digital melalui akun sendiri untuk booking online; Admin hanya melihat status DRAFT/SUBMITTED/kelengkapan. Superadmin membaca jawaban digital berizin dan menerima kertas secara langsung. Tidak ada kewajiban menyalin kertas ke aplikasi.
+## Kolom/isian dan validasi
+| Isian | Wajib | Validasi |
+|---|---|---|
+| patient_id, template_version | Ya | pasien berizin, versi template aktif |
+| appointment_id | Saat booking berhasil | nullable pada draft |
+| chief_complaint, goals | Sesuai template | string terbatas |
+| duration, concerns, stress, sleep | Sesuai pertanyaan | enum/scale terdefinisi template |
+| previous_therapy, medications, risk answers | Hanya bila ditanyakan | null/absent jika belum dijawab; bukan false otomatis |
+| row_version, supersedes_id | Server | row_version untuk autosave; revisi submission memakai ID baru dan relasi, tidak overwrite jawaban lama |
+Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABASE_ARCHITECTURE.md). actor_id dan waktu keputusan diambil server, bukan dipercaya dari form.
+## Alur normal
+1. Buat draft mandiri sebelum reservasi; FK appointment boleh null.
+2. Autosave dengan expected_version=row_version agar dua tab tidak menimpa. Nomor versi template berbeda dari versi row draft.
+3. Submit memvalidasi hanya pertanyaan template; versi submitted immutable.
+4. Booking menghubungkan submission dalam transaction setelah appointment dibuat.
+5. Sesi berikutnya membuat submission baru; boleh menawarkan salinan yang harus dikonfirmasi ulang, bukan mengganti histori.
+6. Jawaban risiko menandai perhatian praktisi di dashboard; tidak menghasilkan diagnosis/layanan darurat otomatis.
+7. Booking offline oleh Admin dapat memakai appointments.profiling_mode=PAPER tanpa pretest_submission_id; pasien mengisi kertas dan menyerahkannya langsung ke Superadmin. Label “Profiling kertas — tidak tersimpan di aplikasi” berbeda dari SUBMITTED digital. Admin tidak menyatakan kelengkapan klinis kertas atau membuat submission kosong untuk meloloskan booking. Kelengkapan identitas, pembayaran, consent dan guard slot tetap berlaku.
+## Status dan transisi
+| Pemicu / aktor | Kondisi awal | Hasil dan efek |
+|---|---|---|
+| Save / pemilik | DRAFT + version cocok | DRAFT versi berikut |
+| Submit / pemilik | pertanyaan wajib lengkap | SUBMITTED immutable |
+| Correction / pemilik | SUBMITTED | submission versi baru, supersedes_id |
+| Bind booking / server | SUBMITTED belum terikat | appointment_id diisi satu kali |
+## Alur gagal dan pemulihan
+Autosave stale memberi 409. Submit template yang telah berubah memerlukan review pertanyaan baru. Tidak boleh memasangkan submission milik pasien lain. Draft yang ditinggal tidak mengunci slot atau membuat utang.
+## Function dan route web
+createDraft, saveDraft, submit, createRevision, getAuthorizedSubmission. POST /pretests; PATCH /pretests/{id}; POST /pretests/{id}/submit; POST /pretests/{id}/revisions (SUBMITTED ke DRAFT baru dengan supersedes_id, appointment/pasien asal tetap); GET /pretests/{id}. Penulisan jawaban digital hanya pasien/penanggung jawab berizin; role Admin tidak mendapat akses tulis jawaban melalui endpoint bantuan. Draft revisi hanya menggantikan jawaban efektif setelah SUBMITTED; histori versi lama tetap dapat ditelusuri, bukan dua sumber jawaban aktif. Revisi berantai linear: satu supersedes_id maksimal satu penerus; revisi berikutnya dari ujung rantai, draft yang masih ada dilanjutkan, bukan fork baru.
+Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+## Data, audit dan notifikasi
+Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
+Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
+## Acceptance criteria
+- Jawaban kunjungan pertama tetap terlihat di sesi pertama setelah kunjungan kedua.
+- Profiling tidak memuat DASS/scoring diagnosis pada scope aktif.
+- API Admin tidak mengembalikan answers JSON.
+- Pasien offline tanpa akun tetap bisa dibooking Admin dengan PAPER dan tanpa submission digital. Kertas tidak diunggah, tidak dinilai kelengkapannya oleh Admin, dan langsung ditangani Superadmin.
+## Hubungan fitur
+F03 profil, F06 binding, F15 consent/privacy.

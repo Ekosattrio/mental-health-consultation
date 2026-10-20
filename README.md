@@ -1,53 +1,40 @@
-# JiwaSehat - Platform Konsultasi Psikologi
+# JiwaSehat — Laravel, Inertia dan React
 
-JiwaSehat adalah aplikasi frontend React untuk platform booking konsultasi psikologi tatap muka. Aplikasi memiliki landing page, dashboard pasien, dashboard psikolog/pengelola, dan dashboard admin operasional.
+Satu proyek Laravel 13 + Inertia 3 + React 19/TypeScript. Routing halaman dan autentikasi dikelola Laravel melalui routes/web.php; React mengerjakan tampilan. Satu domain/deployment, tanpa backend REST terpisah untuk navigasi web.
 
-## Stack
+## Mulai membaca
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
-- LocalStorage sebagai persistence sementara
-- Mock data di `src/data/mockData.ts`
-- HTTP service layer siap untuk Laravel 12+ REST API dan MySQL 8+
+- [Perubahan arsitektur dan konteks untuk Eko](docs/PERUBAHAN_INERTIA_UNTUK_EKO_2026-10-20.md).
+- [Panduan menyeluruh Eko](docs/EKO_PROJECT_GUIDE.md) dan [indeks dokumentasi](docs/README.md).
+- [Setup lokal](docs/SETUP.md) dan [panduan kerja agent](docs/AGENTS.md).
+- [Aturan bisnis](docs/BUSINESS_RULES.md), [kontrak web](docs/WEB_CONTRACT.md), [hak akses](docs/ROLES_PERMISSIONS.md), dan [database](docs/DATABASE_ARCHITECTURE.md).
 
-## Struktur Dokumentasi
+## Struktur
 
-Dokumentasi proyek dikelola melalui vault Obsidian di `docs/Psikolog`. Dokumen utama berada di `docs/Psikolog/Live Docs/`:
-
-- `PROJECT_CONTEXT.md` - konteks produk dan ruang lingkup
-- `ARCHITECTURE.md` - struktur teknis dan alur aplikasi
-- `CODING_RULES.md` - aturan coding
-- `BUSINESS_RULES.md` - aturan bisnis
-- `WORKFLOW.md` - cara kerja developer dan AI
-- `DATABASE.md` - rancangan data dan persistence
-- `API.md` - kontrak API target
-- `ROLES_PERMISSIONS.md` - role dan izin
-- `FEATURES.md` - daftar fitur
-- `DECISIONS.md` - catatan keputusan teknis
-- `KNOWN_ISSUES.md` - isu yang sudah diketahui
-- `TODO.md` - daftar pekerjaan berikutnya
-- `CHANGELOG.md` - riwayat perubahan
-- `SESSION_HANDOFF.md` - catatan handoff sesi
-
-## Instalasi Lokal
-
-```bash
-npm ci
+```text
+app/                 Controller, request, middleware dan model Laravel
+bootstrap/           Bootstrap serta registrasi middleware
+config/              Konfigurasi Laravel/Inertia dan placeholder publik
+database/            Fondasi migration; schema domain masih target docs
+docs/                Dokumentasi proyek, fitur, pelaku, journey dan arsip
+public/              Document root web server dan hasil Vite
+resources/js/pages/  Halaman web Inertia serta preview lokal Eko
+resources/js/layouts/Layout web berbasis sesi Laravel
+resources/js/components/ Komponen tampilan Eko yang digunakan bertahap
+resources/js/legacy/ HTTP client terdahulu sebagai referensi, bukan jalur web
+resources/css/       Stylesheet Tailwind
+resources/views/     Blade pemuat Inertia/Vite
+routes/web.php       Route halaman dan action web
+storage/             File privat, log, sesi dan cache
+tests/               Kerangka pengujian, belum dijalankan dalam sesi ini
 ```
 
-## Script
+## Status implementasi
 
-```bash
-npm run dev
-npm run build
-npm run preview
-npm run lint
-```
+Fondasi sudah memuat beranda publik dari Laravel, form login email/password berbasis sesi, logout dan workspace dashboard dengan pembatasan role server. Login nyata memerlukan database/users yang sesuai; sesi ini tidak membuat database atau akun. Seluruh booking, ledger, upload, Google SSO, Baileys dan fitur klinis belum otomatis menjadi backend operasional.
 
-Catatan: jalankan script hanya saat memang diperlukan. Untuk sesi kerja AI saat ini, developer meminta AI tidak menjalankan `npm run dev` dan `npm run build`.
+Desain lengkap Eko tetap di resources/js, dapat dipratinjau melalui /preview/eko hanya pada lingkungan local dan flag aktif. Preview menggunakan mock/LocalStorage; aksi di sana tidak menyimpan transaksi ke database praktik. Halaman web utama tidak mengambil data dari AppContext mock.
 
-## Aturan Git
+Dependency terpasang dan pemeriksaan statis dijalankan; browser, dev server, build, test suite, migration/seeding tidak dijalankan. Tanpa aset Vite yang tersedia, halaman belum dapat ditampilkan. Langkah operator dan batas validasi ada di [SETUP](docs/SETUP.md).
 
-Git sepenuhnya dikelola oleh developer. AI tidak boleh menjalankan operasi Git seperti `git add`, `git commit`, `git push`, `git pull`, `git merge`, `git rebase`, `git reset`, `git checkout`, `git switch`, `git stash`, atau `git clean`.
+Git dikelola developer. Agent wajib mengikuti [AGENTS](docs/AGENTS.md); larangan dev server/build/test tanpa izin tetap berlaku.

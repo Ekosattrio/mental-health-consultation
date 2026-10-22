@@ -4,7 +4,7 @@ import { Appointment, Review } from '../../../types';
 import { useApp } from '../../../context/AppContext';
 import { RescheduleModal } from '../RescheduleModal';
 import { PaymentProofCorrection } from '../PaymentProofCorrection';
-import { FLAT_DP_AMOUNT, getTreatmentPlanBalance, resolveBillingAppointment } from '../../../utils/payments';
+import { FLAT_DP_AMOUNT, getTreatmentPlanBalance, resolveBillingAppointment, resolvePaymentAccount } from '../../../utils/payments';
 import { PaymentProgress } from '../../common/PaymentProgress';
 import { canRescheduleAppointment } from '../../../utils/reschedulePolicy';
 import { RescheduleAudit } from '../../common/RescheduleAudit';
@@ -167,10 +167,10 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   const currentDisplayRating = hoverRating !== null ? hoverRating : reviewRating;
   const getBillingAppointment = (appointment: Appointment) => {
     const latest = appointments.find(item => item.id === appointment.id) || appointment;
-    return resolveBillingAppointment(latest, appointments);
+    return resolvePaymentAccount(resolveBillingAppointment(latest, appointments), appointments);
   };
   const selectedBilling = selectedDetailApt ? getBillingAppointment(selectedDetailApt) : null;
-  const receiptBalance = receiptApt ? getTreatmentPlanBalance(receiptApt) : null;
+  const receiptBalance = receiptApt ? getTreatmentPlanBalance(receiptApt, appointments) : null;
 
   return (
     <div className="space-y-5">
@@ -292,7 +292,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                     : apt.paymentStatus === 'DP_PAID'
                     ? 'DP Terverifikasi'
                     : apt.paymentStatus === 'DP_PENDING_VERIFICATION'
-                    ? 'DP Dicek Admin'
+                    ? apt.initialPaymentRecord?.verifiedAt ? 'Menunggu Kekurangan DP' : 'DP Dicek Admin'
                     : 'Menunggu'}
                 </span>
                 {apt.continuousSessionTotal && apt.continuousSessionTotal > 1 && (
@@ -420,7 +420,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                             : apt.paymentStatus === 'DP_PAID'
                             ? 'DP Terverifikasi'
                             : apt.paymentStatus === 'DP_PENDING_VERIFICATION'
-                            ? 'DP Dicek Admin'
+                            ? apt.initialPaymentRecord?.verifiedAt ? 'Menunggu Kekurangan DP' : 'DP Dicek Admin'
                             : 'Pending'}
                         </span>
                       </td>
@@ -605,18 +605,20 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 </>
               )}
               <div className="flex justify-between py-1 bg-emerald-50/80 p-2.5 rounded-xl border border-emerald-200 text-emerald-900">
-                <span className="font-bold">{selectedBilling?.initialPaymentRecord?.kind === 'FULL' ? 'Pembayaran Langsung Lunas:' : 'DP yang Mengurangi Total:'}</span>
+                <span className="font-bold">{selectedBilling?.paymentAgreement ? 'Penerimaan Awal Rangkaian:' : selectedBilling?.initialPaymentRecord?.kind === 'FULL' ? 'Pembayaran Langsung Lunas:' : 'DP yang Mengurangi Total:'}</span>
                 <strong className="font-black">
-                  Rp {(selectedBilling?.initialPaymentRecord?.kind === 'FULL' ? selectedBilling.initialPaymentRecord.amount : selectedBilling?.dpAmount ?? FLAT_DP_AMOUNT).toLocaleString('id-ID')}{selectedBilling?.paymentStatus === 'DP_PAID' || selectedBilling?.paymentStatus === 'PAID' ? ' (Terbayar)' : ' (Menunggu Verifikasi)'}
+                  Rp {(selectedBilling?.initialPaymentRecord?.amount ?? selectedBilling?.dpAmount ?? FLAT_DP_AMOUNT).toLocaleString('id-ID')}{selectedBilling?.initialPaymentRecord?.verifiedAt || selectedBilling?.paymentStatus === 'DP_PAID' || selectedBilling?.paymentStatus === 'PAID' ? ' (Diterima)' : ' (Menunggu Verifikasi)'}
                 </strong>
               </div>
-              {selectedBilling && <PaymentProgress appointment={selectedBilling} />}
+              {selectedBilling && <PaymentProgress appointment={selectedBilling} appointments={appointments} />}
+              {selectedBilling?.initialRequirementMet === false && selectedBilling.initialPaymentRecord?.verifiedAt && <p className="text-xs text-amber-800">Pembayaran sudah diterima, tetapi minimum DP belum terpenuhi. Hubungi Admin untuk pencatatan kekurangannya.</p>}
               {selectedDetailApt.paymentProofState === 'REJECTED' && <PaymentProofCorrection key={`${selectedDetailApt.id}-${selectedDetailApt.paymentProofVersion || 0}`} appointment={selectedDetailApt} />}
               <RescheduleAudit appointment={selectedDetailApt} />
               {selectedDetailApt.rescheduleRequest && <div className="border-t border-slate-200 pt-3 text-xs leading-5">
-                <strong>Pengajuan reschedule: {selectedDetailApt.rescheduleRequest.status}</strong>
+                <strong>Pengajuan reschedule: {selectedDetailApt.rescheduleRequest.status === 'SLOT_SELECTION_REQUIRED' ? 'Pilih ulang jadwal' : selectedDetailApt.rescheduleRequest.status}</strong>
                 <p>{selectedDetailApt.rescheduleRequest.date}, {selectedDetailApt.rescheduleRequest.startTime} - {selectedDetailApt.rescheduleRequest.endTime} WIB</p>
                 {selectedDetailApt.rescheduleRequest.status === 'REQUESTED' && <p>Menunggu Admin. Jadwal lama tetap berlaku sampai perubahan disetujui.</p>}
+                {selectedDetailApt.rescheduleRequest.status === 'SLOT_SELECTION_REQUIRED' && <p>Pilih ulang melalui tombol reschedule. Pengajuan awal dan pembayaran tetap berlaku; jadwal aktif belum berubah.</p>}
                 {selectedDetailApt.rescheduleRequest.decisionReason && <p>{selectedDetailApt.rescheduleRequest.decisionReason}</p>}
               </div>}
             </div>
@@ -913,7 +915,9 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   <div className="p-3 text-right">Nominal</div>
                 </div>
                 <div className="grid grid-cols-3 border-t border-slate-100">
-                  <div className="p-3 col-span-2 font-bold text-slate-800">{receiptApt.packageName}{receiptApt.packageType === 'PSYCHOTHERAPY' ? ` - ${Math.max(receiptApt.continuousSessionTotal || 4, 4)} x Rp ${Math.round((receiptApt.subtotalAmount ?? receiptApt.totalAmount) / Math.max(receiptApt.continuousSessionTotal || 4, 4)).toLocaleString('id-ID')} / sesi` : ''}</div>
+                  <div className="p-3 col-span-2 font-bold text-slate-800">{receiptApt.packageName}{receiptApt.packageType === 'PSYCHOTHERAPY' ? receiptApt.billingMode === 'PER_SESSION'
+                    ? ` - Sesi ${receiptApt.continuousSessionNumber || 1} dari ${receiptApt.continuousSessionTotal || 4}`
+                    : ` - ${Math.max(receiptApt.continuousSessionTotal || 4, 4)} x Rp ${Math.round((receiptApt.subtotalAmount ?? receiptApt.totalAmount) / Math.max(receiptApt.continuousSessionTotal || 4, 4)).toLocaleString('id-ID')} / sesi` : ''}</div>
                   <div className="p-3 text-right font-bold">Rp {(receiptApt.subtotalAmount ?? receiptApt.totalAmount).toLocaleString('id-ID')}</div>
                 </div>
                 {!!receiptApt.discountAmount && receiptApt.discountAmount > 0 && (
@@ -926,32 +930,36 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   </div>
                 )}
                 <div className="grid grid-cols-3 border-t border-slate-100">
-                  <div className="p-3 col-span-2 font-bold text-slate-800">{receiptApt.packageType === 'PSYCHOTHERAPY' ? 'Proyeksi Rencana Awal Setelah Potongan' : 'Total Setelah Potongan'}</div>
+                  <div className="p-3 col-span-2 font-bold text-slate-800">{receiptApt.packageType === 'PSYCHOTHERAPY' ? receiptApt.billingMode === 'PER_SESSION' ? 'Total Tagihan Sesi Ini' : 'Proyeksi Rencana Awal Setelah Potongan' : 'Total Setelah Potongan'}</div>
                   <div className="p-3 text-right font-black text-slate-900">Rp {receiptApt.totalAmount.toLocaleString('id-ID')}</div>
                 </div>
                 <div className="grid grid-cols-3 border-t border-slate-100 bg-emerald-50/70">
                   <div className="p-3 col-span-2 font-bold text-emerald-900">
-                    {receiptApt.paymentStatus === 'DP_PAID' || receiptApt.paymentStatus === 'PAID'
+                    {receiptApt.initialPaymentRecord?.verifiedAt ? 'Penerimaan Awal Terverifikasi' : receiptApt.paymentStatus === 'DP_PAID' || receiptApt.paymentStatus === 'PAID'
                       ? receiptApt.initialPaymentRecord?.kind === 'FULL' ? 'Pembayaran Langsung Lunas' : 'DP Terbayar dan Diperhitungkan'
                       : 'DP Menunggu Verifikasi'}
                   </div>
-                  <div className="p-3 text-right font-black text-emerald-900">Rp {(receiptApt.initialPaymentRecord?.kind === 'FULL' ? receiptApt.initialPaymentRecord.amount : receiptApt.dpAmount ?? FLAT_DP_AMOUNT).toLocaleString('id-ID')}</div>
+                  <div className="p-3 text-right font-black text-emerald-900">Rp {(receiptApt.initialPaymentRecord?.amount ?? receiptApt.dpAmount ?? FLAT_DP_AMOUNT).toLocaleString('id-ID')}</div>
                 </div>
                 {receiptApt.finalPaymentRecords?.map((item, index) => (
                   <div key={item.id} className="grid grid-cols-3 border-t border-slate-100">
                     <div className="p-3 col-span-2 font-bold text-slate-800">
-                      Pembayaran {index + 1} setelah DP
+                      Penerimaan tambahan {index + 1}
                       <span className="block text-[10px] font-normal text-slate-500">{item.receivedAt || item.recordedAt} - {item.method}</span>
                     </div>
                     <div className="p-3 text-right font-bold">Rp {item.amount.toLocaleString('id-ID')}</div>
                   </div>
                 ))}
                 <div className="grid grid-cols-3 border-t border-slate-100">
-                  <div className="p-3 col-span-2 font-bold text-slate-800">Sisa Pembayaran</div>
+                  <div className="p-3 col-span-2 font-bold text-slate-800">{receiptApt.paymentAgreement ? 'Sisa Tagihan Sesi Pertama' : 'Sisa Pembayaran'}</div>
                   <div className="p-3 text-right font-bold">Rp {(receiptBalance?.remainingAmount ?? receiptApt.remainingAmount ?? 0).toLocaleString('id-ID')}</div>
                 </div>
               </div>
 
+              {receiptApt.paymentAgreement && <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <h4 className="mb-2 text-xs font-bold text-emerald-950">Pembayaran Rangkaian</h4>
+                <PaymentProgress appointment={receiptApt} appointments={appointments} />
+              </div>}
               <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div>

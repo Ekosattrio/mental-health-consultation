@@ -20,8 +20,9 @@ export const calculateInitialDp = (totalAmount: number): number => {
 
 export const getRecordedCashIn = (appointment: Appointment | CashInReportRow): number => {
   if ('cashInAmount' in appointment) return Math.max(appointment.cashInAmount, 0);
+  if (appointment.paymentAgreement && appointment.id !== appointment.paymentAgreement.accountAppointmentId) return 0;
   if (appointment.initialPaymentRecord) {
-    if (!appointment.initialPaymentRecord.verifiedAt || !['DP_PAID', 'PAID'].includes(appointment.paymentStatus)) return 0;
+    if (!appointment.initialPaymentRecord.verifiedAt) return 0;
     const finalAmount = appointment.finalPaymentRecords?.length
       ? appointment.finalPaymentRecords.reduce((sum, record) => sum + Math.max(record.amount, 0), 0)
       : Math.max(appointment.finalPaymentAmount || 0, 0);
@@ -53,11 +54,40 @@ export const getRecordedCashIn = (appointment: Appointment | CashInReportRow): n
   return 0;
 };
 
-export const getTreatmentPlanBalance = (billingAppointment: Appointment) => {
+export const resolvePaymentAccount = (appointment: Appointment, appointments: Appointment[]): Appointment => {
+  if (!appointment.paymentAgreement) return appointment;
+  const account = appointments.find(item => item.id === appointment.paymentAgreement!.accountAppointmentId);
+  if (!account || account.treatmentPlanId !== appointment.treatmentPlanId ||
+    account.patientId !== appointment.patientId || account.psychologistId !== appointment.psychologistId ||
+    account.packageId !== appointment.packageId || !appointment.treatmentPlanId ||
+    (account.continuousSessionNumber || 1) !== 1 || !account.paymentAgreement ||
+    account.paymentAgreement.accountAppointmentId !== account.id ||
+    account.paymentAgreement.sessionAmount !== appointment.paymentAgreement.sessionAmount ||
+    account.paymentAgreement.sessionCount !== appointment.paymentAgreement.sessionCount) {
+    throw new Error('Ledger rangkaian tidak lengkap. Muat ulang sebelum memproses pembayaran.');
+  }
+  return account;
+};
+
+export const getTreatmentPlanBalance = (billingAppointment: Appointment, appointments: Appointment[] = [billingAppointment]) => {
   const totalAmount = Math.max(billingAppointment.totalAmount || 0, 0);
-  const paidAmount = getRecordedCashIn(billingAppointment);
+  const agreement = billingAppointment.paymentAgreement;
+  const cash = getRecordedCashIn(agreement ? resolvePaymentAccount(billingAppointment, appointments) : billingAppointment);
+  const paidAmount = agreement ? Math.min(totalAmount, Math.max(0,
+    cash - ((billingAppointment.continuousSessionNumber || 1) - 1) * agreement.sessionAmount)) : cash;
   return { totalAmount, paidAmount, remainingAmount: Math.max(totalAmount - paidAmount, 0) };
 };
+
+// Allocation is a view of existing receipts, never another cash-in transaction.
+export const syncPaymentAllocations = (appointments: Appointment[]): Appointment[] => appointments.map(item => {
+  if (!item.paymentAgreement) return item;
+  const account = resolvePaymentAccount(item, appointments);
+  if (!account.initialPaymentRecord?.verifiedAt) return item;
+  const balance = getTreatmentPlanBalance(item, appointments);
+  const eligible = getRecordedCashIn(account) >= calculateInitialDp(account.totalAmount);
+  return { ...item, remainingAmount: balance.remainingAmount, initialRequirementMet: eligible,
+    paymentStatus: balance.remainingAmount === 0 ? 'PAID' as const : eligible ? 'DP_PAID' as const : 'DP_PENDING_VERIFICATION' as const };
+});
 
 export const resolveBillingAppointment = (appointment: Appointment, appointments: Appointment[]): Appointment => {
   if (!appointment.treatmentPlanId || appointment.billingMode === 'PER_SESSION') return appointment;
@@ -76,17 +106,47 @@ export const getPlanBillingBalance = (appointments: Appointment[]) => {
     return [account.id, account];
   }));
   return [...billing.values()].reduce((total, item) => {
-    const balance = getTreatmentPlanBalance(item);
+    const balance = getTreatmentPlanBalance(item, appointments);
     return { totalAmount: total.totalAmount + balance.totalAmount,
       paidAmount: total.paidAmount + balance.paidAmount,
       remainingAmount: total.remainingAmount + balance.remainingAmount };
   }, { totalAmount: 0, paidAmount: 0, remainingAmount: 0 });
 };
 
+export const getPaymentSummary = (appointment: Appointment, appointments: Appointment[], now = new Date()) => {
+  const related = appointments.filter(item => appointment.treatmentPlanId
+    ? item.treatmentPlanId === appointment.treatmentPlanId && item.patientId === appointment.patientId
+    : item.id === appointment.id);
+  const balance = getPlanBillingBalance(related);
+  const agreement = appointment.paymentAgreement;
+  const account = agreement ? resolvePaymentAccount(appointment, related) : resolveBillingAppointment(appointment, related);
+  const cashReceived = agreement ? getRecordedCashIn(account) : [...new Map(related.map(item => {
+    const bill = resolveBillingAppointment(item, related); return [bill.id, bill];
+  })).values()].reduce((sum, bill) => sum + getRecordedCashIn(bill), 0);
+  const agreedAmount = agreement ? agreement.sessionAmount * agreement.sessionCount : balance.totalAmount;
+  const finalNumber = agreement?.sessionCount || appointment.continuousSessionTotal || 1;
+  const last = related.find(item => (item.continuousSessionNumber || 1) === finalNumber);
+  const stopped = related.some(item => item.treatmentPlanStatus === 'DISCONTINUED' || item.status === 'CANCELLED');
+  const dueDate = last?.date;
+  const sessionsCompleted = related.filter(item => item.status === 'COMPLETED').length >= finalNumber;
+  const remainingByFinal = Math.max((stopped ? balance.totalAmount : agreedAmount) - cashReceived, 0);
+  const closurePending = sessionsCompleted && balance.remainingAmount > 0;
+  const due = !stopped && remainingByFinal > 0 && Boolean(dueDate && getPracticeDate(now) >= dueDate);
+  const overpaidAmount = Math.max(cashReceived - agreedAmount, 0);
+  const label = stopped ? 'Layanan dihentikan' : closurePending ? 'Pertemuan selesai, menunggu pelunasan'
+    : due ? 'Wajib pelunasan sesi terakhir' : remainingByFinal === 0 ? 'Lunas seluruh layanan'
+    : 'Pembayaran bertahap';
+  return { ...balance, cashReceived, agreedAmount, remainingByFinal, dueDate, due, closurePending, label,
+    finalNumber, prepaidAmount: Math.max(Math.min(cashReceived, agreedAmount) - balance.totalAmount, 0),
+    overpaidAmount, stopped };
+};
+
 export const isPlanInitialPaymentVerified = (appointment: Appointment, appointments: Appointment[]): boolean => {
   const first = appointment.treatmentPlanId ? appointments.find(item =>
     item.treatmentPlanId === appointment.treatmentPlanId && (item.continuousSessionNumber || 1) === 1) : appointment;
-  return Boolean(first && ['DP_PAID', 'PAID'].includes(first.paymentStatus));
+  return Boolean(first && (first.paymentAgreement
+    ? first.initialPaymentRecord?.verifiedAt && getRecordedCashIn(first) >= calculateInitialDp(first.totalAmount)
+    : ['DP_PAID', 'PAID'].includes(first.paymentStatus)));
 };
 
 export const getNextSessionBilling = (source: Appointment, pkg?: ConsultationPackage): Partial<Appointment> => {
@@ -94,6 +154,13 @@ export const getNextSessionBilling = (source: Appointment, pkg?: ConsultationPac
     totalAmount: 0, subtotalAmount: 0, discountAmount: 0, dpAmount: 0, remainingAmount: 0,
     discountCode: undefined, discountLabel: undefined
   };
+  if (source.paymentAgreement) {
+    const terms = source.paymentAgreement;
+    return { billingMode: 'PER_SESSION', totalAmount: terms.sessionAmount,
+      subtotalAmount: terms.sessionSubtotal, discountAmount: terms.sessionDiscount,
+      discountCode: undefined, discountLabel: terms.discountLabel,
+      remainingAmount: terms.sessionAmount, dpAmount: 0 };
+  }
   if (!pkg?.isActive || pkg.id !== source.packageId || pkg.type !== 'PSYCHOTHERAPY') {
     throw new Error('Layanan psikoterapi tidak aktif. Periksa katalog sebelum menjadwalkan sesi berikutnya.');
   }
@@ -110,11 +177,14 @@ export const getNextSessionBilling = (source: Appointment, pkg?: ConsultationPac
 
 export const getPaymentSchemeLabel = (appointment: Appointment | CashInReportRow): string => {
   if ('cashInKind' in appointment) {
-    return appointment.cashInKind === 'DP' ? 'DP' : appointment.cashInKind === 'FULL' ? 'Pembayaran Lunas' : 'Cicilan / Pelunasan';
+    return appointment.cashInKind === 'DP' ? 'DP' : appointment.cashInKind === 'FULL'
+      ? appointment.paymentAgreement ? 'Pembayaran Awal Rangkaian' : 'Pembayaran Lunas' : 'Cicilan / Pelunasan';
   }
+  if (appointment.initialRequirementMet === false && appointment.initialPaymentRecord?.verifiedAt) return 'Menunggu Kekurangan DP';
   if (appointment.billingMode === 'PER_SESSION' && (appointment.continuousSessionNumber || 1) > 1) {
     return appointment.paymentStatus === 'PAID' ? 'Lunas Sesi' : 'Pembayaran Sesi (Tanpa DP Baru)';
   }
+  if (appointment.paymentAgreement && appointment.initialPaymentRecord?.kind === 'FULL') return 'Pembayaran awal / prabayar rangkaian';
   if (appointment.initialPaymentRecord?.kind === 'FULL') return 'Lunas (100%)';
   if (appointment.paymentStatus === 'PAID') {
     return appointment.finalPaymentRecords?.length || typeof appointment.finalPaymentAmount === 'number'

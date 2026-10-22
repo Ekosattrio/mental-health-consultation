@@ -3,7 +3,7 @@
 Satu stakeholder pemilik praktik sekaligus psikolog/dokter sesuai konteks bisnis; enum teknis PSYCHOLOGIST.
 Tujuan: menentukan layanan klinis dan kebijakan praktik serta menelusuri kas/data operasional.
 ## Dapat melakukan dan alasannya
-- Seluruh kemampuan operasional Admin.
+- Kemampuan operasional Admin selain mutasi penerimaan pembayaran pasien. Pemeriksaan/verifikasi/penolakan bukti serta input/koreksi DP, cicilan dan pelunasan khusus Admin sesuai penegasan developer 22 Oktober 2026.
 - Kelola harga/promo dan dasar tarif tambahan Konseling pada versi paket; kemampuan ini juga diberikan kepada Admin sesuai kontrak akses aktif.
 - Membaca profiling dan menentukan kebutuhan klinis, scope asesmen dan rencana psikoterapi.
 - Menerima kertas profiling pasien offline secara langsung; jawaban kertas tidak melalui input/unggahan Admin dan tidak wajib disalin ke aplikasi.

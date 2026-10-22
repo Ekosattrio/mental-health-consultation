@@ -2,6 +2,13 @@
 Arsitektur aktif: Laravel13 + Inertia3 + React/TypeScript, satu proyek/domain. Tabel target menjelaskan pekerjaan domain yang belum seluruhnya dibuat; daftar runtime di bawah membedakannya dari fondasi yang sudah tersedia.
 
 
+## Amendment Pembayaran Sesi Terakhir - 22 Oktober 2026
+Target domain terbaru: cicilan/penuh di awal, wajib lunas paling lambat hari pertemuan terakhir. Psikoterapi baru menyimpan kesepakatan empat sesi/tarif snapshot serta relasi penerimaan rangkaian ke alokasi invoice per sesi. Penerimaan dan allocation adalah objek berbeda; allocation tidak menerbitkan receipt kas baru. Nomor sesi/tarif/aktor/alokasi ditentukan server dalam transaction, bukan dipercaya dari payload FE. Route bisnis lama di bawah tetap target, bukan otomatis tersedia.
+
+DTO pasien/Superadmin perlu status finansial, tagihan terbentuk, alokasi terbayar, kesepakatan total, penerimaan aktual, prabayar, selisih lebih bayar dan jatuh tempo sesuai policy. DTO Admin hanya indikator/metode/rujukan yang diperbolehkan dan nominal input aktif, bukan saldo/agregat penerimaan/receipt penuh. Aksi mutasi pembayaran tetap D (Admin saja). Guard close administratif memeriksa seluruh tagihan sah lunas dan empat pertemuan selesai; jangan menghapus fakta sesi untuk memaksa pembayaran. Pembatalan tetap invoice terbentuk saja. Detail field FE dan handoff: [alur pembayaran sesi](ALUR_PEMBAYARAN_SESI.md).
+
+Skema database/DTO/route rinci untuk allocation belum diimplementasikan; perlu amendment backend, bukan menganggap appointment pertama FE sebagai model database final. Tidak menambah gateway/refund/dompet lintas booking.
+
 ## Transport, status implementasi dan kontrak halaman
 
 ### Runtime yang sudah didaftarkan
@@ -66,6 +73,8 @@ Response diserialisasi allowlist per role, termasuk response error, preview, exp
 ## Target route dan action domain
 A = Admin atau Superadmin. O = hanya Superadmin (role PSYCHOLOGIST). P = akun PATIENT dengan patient_accesses atau ownership sah. “Pemilik” tetap diperiksa melalui relasi, bukan UUID dari URL.
 
+D = ADMIN khusus untuk operasional penerimaan pembayaran pasien (penegasan developer 22 Oktober 2026). Role PSYCHOLOGIST tidak mewarisi mutasi tersebut; akses baca ledger/laporan melalui proyeksi Superadmin tetap tersedia. Hak harga/diskon dan expense terpisah, tidak dicabut oleh pembatasan ini.
+
 | Method dan path target | Akses | Request inti | Data halaman / hasil action / guard |
 |---|---|---|---|
 | GET / | Guest atau login | — | Inertia Home; public_landing tanpa harga/DP/klinis, auth sesi sendiri |
@@ -105,12 +114,12 @@ A = Admin atau Superadmin. O = hanya Superadmin (role PSYCHOLOGIST). P = akun PA
 | GET /appointments | login berizin | date/status,page | scope per role |
 | GET /appointments/{id} | pemilik atau A | — | role DTO, history jadwal |
 | POST /billing-accounts/{id}/payment-submissions | P | claimed_amount,method,reference | PENDING_VERIFICATION; bukan uang VERIFIED |
-| POST /payments/{id}/proofs | pemilik atau A | file,expected_proof_version | proof version; deadline/race guard |
-| GET /admin/payments/queue | A | status/prioritas | AdminPaymentWorkDTO untuk pengajuan pembayaran yang menunggu pemeriksaan; bukan aturan bisnis yang belum diputuskan |
-| POST /admin/payments | A | billing_account,amount,method,received_at,purpose,reference | kas aktual; cash tanpa nama bank/proof |
-| POST /admin/payments/{id}/verify | A | actual_amount,received_at,method,expected_version; duplicate_review_acknowledged/reason bila ada kandidat | VERIFIED + receipt; kandidat belum direview409 POSSIBLE_DUPLICATE_PAYMENT |
-| POST /admin/payments/{id}/reject | A | reason | REJECTED + correction_deadline |
-| POST /admin/payments/{id}/corrections | A | correct_amount>=0,received_at,reason | reversal+replacement positif; jika benar0 reversal saja, bukan refund |
+| POST /payments/{id}/proofs | pemilik atau D | file,expected_proof_version | proof version; deadline/race guard |
+| GET /admin/payments/queue | D | status/prioritas | AdminPaymentWorkDTO untuk pekerjaan pembayaran Admin; owner membaca ledger/laporan pada akses terpisah |
+| POST /admin/payments | D | billing_account,amount,method,received_at,purpose,reference | kas aktual; cash tanpa nama bank/proof |
+| POST /admin/payments/{id}/verify | D | actual_amount,received_at,method,expected_version; duplicate_review_acknowledged/reason bila ada kandidat | VERIFIED + receipt; kandidat belum direview409 POSSIBLE_DUPLICATE_PAYMENT |
+| POST /admin/payments/{id}/reject | D | reason | REJECTED + correction_deadline |
+| POST /admin/payments/{id}/corrections | D | correct_amount>=0,received_at,reason | reversal+replacement positif; jika benar0 reversal saja, bukan refund |
 | GET /billing-accounts/{id} | pemilik/A | — | DTO sesuai role, bukan raw model |
 | POST /admin/billing-accounts/{id}/charges | A | kind,label,quantity,unit_amount,reason | ADDENDUM; FORMAL_REPORT konseling200000; custom positif |
 | PUT /admin/appointments/{id}/additional-time | A | total_additional_minutes,expected_revision,reason | aggregate revision + delta invoice; hanya COUNSELING |

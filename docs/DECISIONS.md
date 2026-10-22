@@ -1,5 +1,22 @@
 # Migrasi Inertia disetujui — 20 Oktober 2026
 
+## Pembayaran Hari Terakhir - 22 Oktober 2026
+Instruksi terbaru: pembayaran boleh bertahap atau penuh di awal, tetapi wajib lunas paling lambat hari pertemuan terakhir. Implementasi FE baru memakai snapshot tarif psikoterapi empat sesi dan ledger rangkaian tunggal, alokasi berurutan tanpa kas baru, indikator jatuh tempo, serta penutupan administratif menunggu pelunasan bila fakta sesi sudah selesai. Booking ulang psikoterapi paket sama tidak melewati sisa tagihan. Invoice tetap hanya sesi dijadwalkan; pembatalan menuntut tagihan terbentuk, tidak menagih sisa proyeksi. Record lama tanpa agreement tidak dihitung ulang. Penolakan bukti juga sudah dibatasi Admin pada source. [Aturan, contoh dan handoff backend](ALUR_PEMBAYARAN_SESI.md). Catatan docs-only di bawah adalah histori sebelum implementasi ini.
+
+## Penegasan Saat Perbaikan Audit FE - 22 Oktober 2026
+Developer memilih opsi pre-test kedua: pasien mengonfirmasi atau memperbarui jawaban sebelumnya pada setiap booking/sesi baru, sebab konteks saat memesan Konseling lagi bisa berbeda. Salinan lama hanya bantuan; submission/snapshot baru harus berasal dari konfirmasi pasien dan tidak menimpa histori. Reschedule appointment yang sama tidak otomatis meminta pre-test baru. Jalur PAPER offline dan larangan Admin mengisi/baca jawaban klinis tetap berlaku. Keputusan sudah dicatat; penerapan pada FE sesi lanjutan dan tes regresinya masih TODO, bukan diklaim selesai.
+
+Penegasan developer sesudah audit: operasional penerimaan pembayaran pasien sepenuhnya Admin. Pemeriksaan/verifikasi/penolakan bukti serta pencatatan/koreksi DP, cicilan dan pelunasan tidak diberikan kepada psikolog. Psikolog memantau ledger/laporan. Sistem mencatat uang nyata, bukan memproses transfer. Kata "full Admin" merujuk tanggung jawab role, bukan pembayaran wajib100% di awal. Pembatasan input/verifikasi psikolog pada kode bukan celah; matriks/kontrak diperbarui agar tidak menuntut perluasan akses tersebut. Hak harga/diskon, pengeluaran praktik dan aksi operasional selain pembayaran tidak berubah. Pengerjaan penegasan ini docs-only; guard reject bukti yang masih mengizinkan psikolog dicatat sebagai tindak lanjut FE, bukan diklaim sudah diperbaiki.
+
+Developer meminta TODO FE dilanjutkan. Penegasan berikut menerapkan aturan yang sudah disepakati, bukan mengubah tarif, hak akses atau menambah pembayaran ulang:
+- Verifikasi uang tidak sama dengan minimum DP terpenuhi. Penerimaan kurang dari minimum tetap dicatat, sementara booking menunggu; kekurangan masuk sebagai penerimaan tambahan, bukan menimpa bukti/ledger awal.
+- Status PAID tidak menolak transfer lain yang benar-benar masuk. Retry satu operasi dideduplicasi dengan idempotency key; transfer nyata berbeda memakai operasi berbeda. Kelebihan tetap diselesaikan di luar sistem tanpa refund/dompet baru.
+- Asal permintaan bukan role pelaksana. Admin yang membantu pasien tidak mengubah origin menjadi CLINIC dan tidak menghapus kuota/batas pasien.
+- Pemilihan ulang slot mempertahankan requestedAt/ID asal dan menambah revision. Subset preview ini tidak menggantikan fase APPROVED/selection-window atau job SLA server pada kontrak target.
+- Override tanggal eksplisit mengalahkan libur/mingguan, dengan alasan dan guard konflik. Guard preview lokal tetap dipertahankan; migrasi Dashboard utama bukan mengaktifkan mock di produksi.
+
+Rincian implementasi dan batas pengujian: [perbaikan audit FE](PERBAIKAN_AUDIT_FE_2026_10_22.md).
+
 ## Kelanjutan Integrasi - 22 Oktober 2026
 Developer meminta seluruh blocker integrasi diperbaiki agar dapat menyelesaikan merge lalu merge ke main, tanpa force. Agent tidak menjalankan operasi Git.
 - Booking psikoterapi baru memakai billingMode=PER_SESSION, tarif/tagihan satu sesi; DP100.000 hanya awal. Record lama tanpa mode tetap ledger plan-total, tidak dihitung ulang.

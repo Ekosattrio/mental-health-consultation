@@ -264,6 +264,8 @@ Index/constraint: INDEX(patient_id,status,created_at).
 Anchor case adalah appointment TESTING dengan assessment_sequence=1; sequence anchor tidak diubah. Follow-up memakai paket/billing/clock bukti case/anchor, bukan hold/proof baru. verification_started_at/verification_due_at lanjutan bila disalin hanya snapshot clock asal. Verifikasi case mengunci appointment terurut sebelum billing dan hanya memperbarui yang menunggu, bukan terminal/kehadiran.
 
 ## treatment_plans
+Amendment 22 Oktober 2026: developer mengizinkan prabayar penuh/cicilan, wajib lunas paling lambat hari sesi terakhir. Target membutuhkan snapshot agreement empat sesi dan alokasi penerimaan rangkaian ke invoice sesi, tanpa duplikasi kas. Skema lama per-billing di bawah belum mendefinisikan tabel alokasi ini secara lengkap; perlu desain migration/constraint backend sebelum dipakai produksi. Jangan memaksakan agreement FE menjadi receipt pada setiap appointment. Close administratif memerlukan seluruh pertemuan selesai dan tagihan sah lunas; sebelum itu status finansial menunggu pelunasan meskipun fakta sesi COMPLETED. Lihat [aturan dan handoff](ALUR_PEMBAYARAN_SESI.md). Invoice belum dijadwalkan tetap bukan utang dan cancel hanya menuntut tagihan terbentuk.
+
 Rencana psikoterapi, bukan induk invoice bundle.
 Tabel mutable: id, created_at, updated_at mengikuti common.
 

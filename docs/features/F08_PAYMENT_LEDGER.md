@@ -2,7 +2,7 @@
 ## Latar belakang dan tujuan
 Memisahkan kewajiban, uang masuk dan status reservasi. Satu field pelunasan tidak cukup untuk DP, koreksi, diskon dan biaya susulan.
 ## Aktor dan authorization
-Pasien melihat saldo/riwayat sendiri dan mengirim bukti. Admin melihat harga/diskon/total, memeriksa bukti dan nominal input aktif, mencatat uang nyata; **tidak menerima saldo/agregat paid**. Superadmin melihat ledger/laporan. Tanpa gateway/refund.
+Pasien melihat saldo/riwayat sendiri dan mengirim bukti. Admin melihat harga/diskon/total, memeriksa bukti dan nominal input aktif, mencatat uang nyata; **tidak menerima saldo/agregat paid**. Operasional pembayaran pasien khusus ADMIN, termasuk verify/reject/koreksi penerimaan; Superadmin melihat ledger/laporan tanpa aksi input/verifikasi pembayaran pasien. Ini penegasan developer 22 Oktober 2026, bukan kewajiban bayar penuh di awal. Tanpa gateway/refund.
 ## Kolom/isian dan validasi
 | Isian | Wajib | Validasi |
 |---|---|---|
@@ -17,6 +17,7 @@ Pasien melihat saldo/riwayat sendiri dan mengirim bukti. Admin melihat harga/dis
 Status payment: PENDING_VERIFICATION/PENDING_RECONCILIATION/VERIFIED/REJECTED. Tagihan UNPAID/PARTIAL/PAID derived dari kewajiban dan penerimaan VERIFIED. Pembatalan adalah status layanan terpisah, wajib lunas atas tagihan terbentuk; tidak menghapus sisa agar menjadi PAID. OVERPAID indikator aritmetika terpisah, bukan fitur resolusi.
 Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABASE_ARCHITECTURE.md). actor_id dan waktu keputusan diambil server, bukan dipercaya dari form.
 ## Alur normal
+Ketentuan terbaru: cicilan atau penuh di awal diperbolehkan, wajib lunas paling lambat hari sesi terakhir. Psikoterapi baru memakai snapshot kesepakatan empat sesi dan alokasi penerimaan ke invoice berurutan. Dana untuk sesi belum dijadwalkan adalah prabayar pada rangkaian itu, bukan overpayment salah transfer, invoice baru atau kas kedua. Lewat kesepakatan total tetap selisih lebih bayar untuk penanganan eksternal. Pembatalan tetap memeriksa invoice terbentuk saja. [Alur lengkap, contoh, batas FE dan handoff backend](../ALUR_PEMBAYARAN_SESI.md) menggantikan penafsiran larangan semua prabayar pada catatan lama.
 1. Billing account dimiliki appointment Konseling/Psikoterapi atau satu case Asesmen. BASE berisi normal PLUS dan promo global MINUS; minimum DP flat min(100000,dasar_net) sekali pada booking/rangkaian baru. Sesi lanjutan plan/case memakai0 setelah DP awal verified; reschedule tidak membuat DP atau verifikasi awal baru.
 2. Pasien mengirim nominal klaim/bukti, belum menambah kas. Admin mencocokkan uang, memasukkan actual_amount/method/received_at lalu verify.
 3. Penerimaan net VERIFIED = RECEIPT minus REVERSAL. Jika >=minimum DP, booking CONFIRMED. PAID hanya jika memenuhi seluruh kewajiban.

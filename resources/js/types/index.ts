@@ -107,6 +107,7 @@ export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPL
 
 export interface FinalPaymentRecord {
   id: string;
+  idempotencyKey?: string;
   amount: number;
   method: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
   channelDetail?: string;
@@ -165,6 +166,17 @@ export interface Appointment {
   discountAmount?: number;
   totalAmount: number;
   billingMode?: 'PER_SESSION' | 'PLAN_TOTAL';
+  paymentAgreement?: {
+    version: 1;
+    accountAppointmentId: string;
+    agreedAt: string;
+    sessionCount: number;
+    sessionAmount: number;
+    sessionSubtotal: number;
+    sessionDiscount: number;
+    discountLabel?: string;
+    durationMinutes: number;
+  };
   dpAmount?: number;
   remainingAmount?: number;
   paymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
@@ -211,7 +223,9 @@ export interface Appointment {
     startTime: string;
     endTime: string;
     reason: string;
-    status: 'REQUESTED' | 'APPLIED' | 'REJECTED';
+    status: 'REQUESTED' | 'SLOT_SELECTION_REQUIRED' | 'APPLIED' | 'REJECTED';
+    revision?: number;
+    lastSubmittedAt?: string;
     decidedAt?: string;
     decidedByName?: string;
     decisionReason?: string;

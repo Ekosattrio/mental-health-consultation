@@ -8,7 +8,7 @@ import {
   User
 } from '../types';
 import { calculatePackagePayableAmount } from '../utils/discounts';
-import { calculateInitialDp } from '../utils/payments';
+import { calculateInitialDp, getPaymentSummary } from '../utils/payments';
 import { CONSENT_VERSION, PRIVACY_VERSION, PRE_TEST_VERSION, createRecordId, getPracticeDate, isValidBookingDate } from '../utils/bookingPolicy';
 
 export interface BookAppointmentPayload {
@@ -33,6 +33,7 @@ export interface BookAppointmentPayload {
   consentVersion?: string;
   privacyVersion?: string;
   initialPaymentAmount?: number;
+  initialPaymentScope?: 'SESSION' | 'PLAN';
   initialPaymentReceivedDate?: string;
   expectedTotalAmount?: number;
 }
@@ -160,10 +161,10 @@ export class PatientEndpoints {
           appointment.packageId === selectedPkg.id &&
           appointment.packageType === 'PSYCHOTHERAPY' &&
           (appointment.continuousSessionNumber || 1) === 1 &&
-          appointment.treatmentPlanStatus !== 'COMPLETED' &&
-          appointment.treatmentPlanStatus !== 'DISCONTINUED'
+          appointment.treatmentPlanStatus !== 'DISCONTINUED' &&
+          (appointment.treatmentPlanStatus !== 'COMPLETED' || getPaymentSummary(appointment, appointments).remainingAmount > 0)
         )) {
-          throw new ApiError('Rencana psikoterapi sebelumnya masih berjalan. Booking lagi setelah empat sesi selesai.', 422);
+          throw new ApiError('Rencana sebelumnya masih berjalan atau menunggu pelunasan. Selesaikan empat sesi dan pembayaran sebelum booking lagi.', 422);
         }
 
         const targetPsychologist = users.find(u => u.id === payload.psychologistId);
@@ -194,11 +195,14 @@ export class PatientEndpoints {
         const isFullPayment = isFreeBooking || (
           isAdminWalkIn && Boolean(payload.paymentMethod?.includes('FULL'))
         );
+        const planFullAmount = payableAmount * (selectedPkg.type === 'PSYCHOTHERAPY' ? plannedSessions : 1);
+        if (!Number.isSafeInteger(planFullAmount)) throw new ApiError('Nilai kesepakatan rangkaian tidak valid.', 422);
         const initialAmount = isAdminWalkIn ? payload.initialPaymentAmount || 0 : dpAmount;
+        const fullAmount = payload.initialPaymentScope === 'PLAN' ? planFullAmount : payableAmount;
         if (isAdminWalkIn && payload.initialPaymentReceivedDate && (!isValidBookingDate(payload.initialPaymentReceivedDate) || payload.initialPaymentReceivedDate > getPracticeDate())) {
           throw new ApiError('Tanggal penerimaan pembayaran tidak valid atau berada di masa depan.', 422);
         }
-        if (isAdminWalkIn && (!Number.isInteger(initialAmount) || initialAmount !== (isFullPayment ? payableAmount : dpAmount))) {
+        if (isAdminWalkIn && (!Number.isInteger(initialAmount) || initialAmount !== (isFullPayment ? fullAmount : dpAmount))) {
           throw new ApiError('Nominal penerimaan tidak sesuai dengan jenis pembayaran. Periksa jumlah yang benar-benar diterima dan kesepakatan pasien.', 422);
         }
         const initialMethod: NonNullable<Appointment['paymentMethod']> =
@@ -234,6 +238,12 @@ export class PatientEndpoints {
           discountAmount,
           totalAmount: payableAmount,
           billingMode: selectedPkg.type === 'PSYCHOTHERAPY' ? 'PER_SESSION' : 'PLAN_TOTAL',
+          paymentAgreement: selectedPkg.type === 'PSYCHOTHERAPY' ? {
+            version: 1, accountAppointmentId: appointmentId, agreedAt: new Date().toISOString(),
+            sessionCount: plannedSessions, sessionAmount: payableAmount, sessionSubtotal: subtotalAmount,
+            sessionDiscount: discountAmount, discountLabel: packagePricing.discount?.label,
+            durationMinutes: selectedPkg.durationMinutes
+          } : undefined,
           dpAmount,
           remainingAmount: isFreeBooking ? 0 : payableAmount,
           initialPaymentRecord: isAdminWalkIn && initialAmount > 0 ? {

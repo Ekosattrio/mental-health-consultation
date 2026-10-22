@@ -15,15 +15,21 @@ import { fitTooltip } from '../resources/js/utils/tooltipPosition';
 import { Appointment, ConsultationPackage } from '../resources/js/types';
 import { PatientEndpoints, BookAppointmentPayload } from '../resources/js/api/patientEndpoints';
 import { PatientController } from '../resources/js/controllers/PatientController';
-import { computeDynamicSlotsForDate, PracticeScheduleSettings } from '../resources/js/data/scheduleConfig';
+import { computeDynamicSlotsForDate, PracticeScheduleSettings, getScheduleAvailabilitySummary } from '../resources/js/data/scheduleConfig';
+import { findScheduleConflicts } from '../resources/js/utils/scheduleConflicts';
+import { reviewRescheduleAvailability } from '../resources/js/utils/rescheduleApproval';
+import { verifyInitialReceipt, appendReceivedPayment, canRecordReceivedPayment } from '../resources/js/utils/paymentWorkflow';
 import { getMinimumBookingDate, getPracticeDate, timeSlotKey, findTimeSlot } from '../resources/js/utils/bookingPolicy';
 import { readXsrfCookie } from '../resources/js/utils/csrf';
 import { csvCell, csvRow, escapeHtml, spreadsheetText } from '../resources/js/utils/exportEncoding';
 import { calculateInitialDp, FLAT_DP_AMOUNT, getRecordedCashIn, getTreatmentPlanBalance, getNextSessionBilling,
-  getPlanBillingBalance, resolveBillingAppointment, buildCashInReportRows } from '../resources/js/utils/payments';
+  getPlanBillingBalance, resolveBillingAppointment, buildCashInReportRows, getPaymentSummary,
+  resolvePaymentAccount, syncPaymentAllocations } from '../resources/js/utils/payments';
+import { PaymentProgress } from '../resources/js/components/common/PaymentProgress';
 import { cancelPaidPlan } from '../resources/js/utils/appointmentWorkflow';
 import { canRescheduleAppointment, rescheduleExistingAppointment, getScheduleVersion, assertScheduleVersion,
-  requestPatientReschedule, applyPatientReschedule, getPatientRescheduleCount } from '../resources/js/utils/reschedulePolicy';
+  requestPatientReschedule, applyPatientReschedule, getPatientRescheduleCount, requireRescheduleSlotSelection,
+  assertRequestRevision } from '../resources/js/utils/reschedulePolicy';
 import { correctInitialPaymentProof, rejectInitialPaymentProof } from '../resources/js/utils/paymentProof';
 import { calculatePackagePayableAmount } from '../resources/js/utils/discounts';
 import { TreatmentPlansTab } from '../resources/js/components/psychologist/tabs/TreatmentPlansTab';
@@ -659,13 +665,13 @@ test('only applied patient-origin changes consume the three-change quota', () =>
   }
   assert.equal(getPatientRescheduleCount(current), 3);
   assert.throws(() => requestPatientReschedule(current, patient, '2026-10-29', '10:00', '11:00', 'Keempat', rescheduleNow));
-  const clinicMove = rescheduleExistingAppointment(current, clinicAdmin, '2026-10-30', '10:00', '11:00', 'Klinik tutup', rescheduleNow);
+  const clinicMove = rescheduleExistingAppointment(current, clinicAdmin, '2026-10-30', '10:00', '11:00', 'Klinik tutup', rescheduleNow, 'CLINIC');
   assert.equal(getPatientRescheduleCount(clinicMove), 3);
 });
 
 test('a clinic change supersedes a pending patient request and stale approval never overwrites it', () => {
   const requested = requestPatientReschedule(sessionBill('stale'), patient, '2026-10-27', '10:00', '11:00', 'Alasan', rescheduleNow);
-  const moved = rescheduleExistingAppointment(requested, clinicAdmin, '2026-10-28', '10:00', '11:00', 'Arahan klinik', rescheduleNow);
+  const moved = rescheduleExistingAppointment(requested, clinicAdmin, '2026-10-28', '10:00', '11:00', 'Arahan klinik', rescheduleNow, 'CLINIC');
   assert.equal(moved.rescheduleRequest?.status, 'REJECTED');
   assert.throws(() => applyPatientReschedule(moved, clinicAdmin, requested.rescheduleRequest!.id, rescheduleNow));
   assert.equal(moved.date, '2026-10-28');
@@ -679,6 +685,265 @@ const proofBooking = (): Appointment => ({ ...sessionBill('proof'), status: 'PEN
   paymentProofState: 'SUBMITTED', paymentProofVersion: 1, paymentProofUrl: 'data:image/png;base64,iVBORw0KGgo=',
   paymentProofName: 'asal.png', paymentProofMimeType: 'image/png', paymentProofSubmittedAt: '2026-10-22T00:01:00Z' });
 const replacementProof = { url: 'data:image/png;base64,iVBORw0KGgo=', name: 'koreksi.png', mimeType: 'image/png', senderName: 'Pasien' };
+
+const verifiableBooking = (): Appointment => ({ ...proofBooking(), paymentMethod: 'BANK_TRANSFER',
+  transferSenderName: 'Pasien', initialPaymentRecord: undefined });
+const receipt = (key: string, amount: number) => ({ idempotencyKey: key, amount, method: 'BANK_TRANSFER' as const,
+  channelDetail: 'BCA', receivedDate: '2026-10-22' });
+
+test('initial verification records actual underpayments without confirming or assuming a flat DP receipt', () => {
+  for (const amount of [1, 99999, 100000]) {
+    const source = verifiableBooking();
+    const verified = verifyInitialReceipt(source, clinicAdmin, amount, '2026-10-22', 1, '', rescheduleNow);
+    assert.equal(verified.initialRequirementMet, amount >= 100000);
+    assert.equal(verified.status, amount >= 100000 ? 'CONFIRMED' : 'PENDING');
+    assert.equal(getRecordedCashIn(verified), amount);
+    assert.equal(getTreatmentPlanBalance(verified).remainingAmount, source.totalAmount - amount);
+    assert.equal(buildCashInReportRows([verified]).reduce((sum, row) => sum + row.cashInAmount, 0), amount);
+    assert.equal(source.initialPaymentRecord, undefined);
+    assert.throws(() => verifyInitialReceipt(verified, clinicAdmin, 100000, '2026-10-22', 1, '', rescheduleNow), /diproses/);
+  }
+});
+
+test('initial verification caps the minimum at net cost, supports free services and retains overpayments', () => {
+  const small = verifyInitialReceipt({ ...verifiableBooking(), totalAmount: 75000 }, clinicAdmin, 75000, '2026-10-22', 1, '', rescheduleNow);
+  assert.equal(small.paymentStatus, 'PAID');
+  assert.equal(small.initialRequirementMet, true);
+  const excess = verifyInitialReceipt(verifiableBooking(), clinicAdmin, 600000, '2026-10-22', 1, '', rescheduleNow);
+  assert.equal(excess.paymentStatus, 'PAID');
+  assert.equal(getRecordedCashIn(excess), 600000);
+  const free = verifyInitialReceipt({ ...verifiableBooking(), totalAmount: 0, paymentStatus: 'PAID' }, clinicAdmin, 0, '2026-10-22', 1, '', rescheduleNow);
+  assert.equal(free.initialRequirementMet, true);
+  assert.equal(free.status, 'CONFIRMED');
+  assert.equal(getRecordedCashIn(free), 0);
+});
+
+test('verification rejects invalid actual amounts, future dates, stale proofs and unauthorized actors', () => {
+  assert.equal(canRecordReceivedPayment(verifiableBooking()), false);
+  assert.equal(canRecordReceivedPayment(sessionBill('unverified-first')), false);
+  assert.equal(canRecordReceivedPayment({ ...sessionBill('continuation', 2), initialRequirementMet: true }), true);
+  assert.equal(canRecordReceivedPayment({ ...sessionBill('unverified-continuation', 2), initialRequirementMet: false }), false);
+  for (const amount of [NaN, Infinity, -1, 0, 1.5]) {
+    assert.throws(() => verifyInitialReceipt(verifiableBooking(), clinicAdmin, amount, '2026-10-22', 1, '', rescheduleNow), /Nominal/);
+  }
+  assert.throws(() => verifyInitialReceipt(verifiableBooking(), patient, 100000, '2026-10-22', 1, '', rescheduleNow), /Admin/);
+  assert.throws(() => verifyInitialReceipt(verifiableBooking(), clinicAdmin, 100000, '2026-10-23', 1, '', rescheduleNow), /Tanggal/);
+  assert.throws(() => verifyInitialReceipt(verifiableBooking(), clinicAdmin, 100000, '2026-10-22', 0, '', rescheduleNow), /versi/);
+  assert.throws(() => verifyInitialReceipt({ ...verifiableBooking(), totalAmount: -1 }, clinicAdmin, 100000, '2026-10-22', 1, '', rescheduleNow), /tagihan/);
+});
+
+test('a verified DP shortfall can be topped up exactly once and only confirms when the minimum is reached', () => {
+  const short = verifyInitialReceipt(verifiableBooking(), clinicAdmin, 1, '2026-10-22', 1, '', rescheduleNow);
+  assert.equal(canRecordReceivedPayment(short), true);
+  const stillShort = appendReceivedPayment(short, clinicAdmin, receipt('topup-1', 99998), rescheduleNow);
+  assert.equal(stillShort.status, 'PENDING');
+  assert.equal(stillShort.initialRequirementMet, false);
+  assert.equal(getRecordedCashIn(stillShort), 99999);
+  const topped = appendReceivedPayment(stillShort, clinicAdmin, receipt('topup-2', 1), rescheduleNow);
+  assert.equal(topped.status, 'CONFIRMED');
+  assert.equal(topped.paymentStatus, 'DP_PAID');
+  assert.equal(topped.initialRequirementMet, true);
+  assert.equal(getRecordedCashIn(topped), 100000);
+  assert.equal(topped.initialPaymentRecord?.amount, 1);
+  assert.equal(appendReceivedPayment(topped, clinicAdmin, receipt('topup-2', 1), rescheduleNow), topped);
+});
+
+test('two actual transfers after PAID are retained while retries and conflicting operation keys are guarded', () => {
+  const paid = verifyInitialReceipt(verifiableBooking(), clinicAdmin, 500000, '2026-10-22', 1, '', rescheduleNow);
+  const extra = appendReceivedPayment(paid, clinicAdmin, receipt('extra-1', 100000), rescheduleNow);
+  const second = appendReceivedPayment(extra, clinicAdmin, receipt('extra-2', 100000), rescheduleNow);
+  assert.equal(second.paymentStatus, 'PAID');
+  assert.equal(getRecordedCashIn(second), 700000);
+  assert.equal(second.finalPaymentRecords?.length, 2);
+  assert.deepEqual(second.initialPaymentRecord, paid.initialPaymentRecord);
+  assert.equal(appendReceivedPayment(second, clinicAdmin, receipt('extra-1', 100000), rescheduleNow), second);
+  assert.throws(() => appendReceivedPayment(second, clinicAdmin, receipt('extra-1', 90000), rescheduleNow), /berbeda/);
+  assert.throws(() => appendReceivedPayment(second, patient, receipt('forged', 100000), rescheduleNow), /Admin/);
+  assert.throws(() => appendReceivedPayment(second, clinicAdmin, { ...receipt('', 100000) }, rescheduleNow), /Identitas/);
+  assert.throws(() => appendReceivedPayment(second, clinicAdmin, receipt('overflow', Number.MAX_SAFE_INTEGER), rescheduleNow), /batas nominal/);
+  assert.equal(buildCashInReportRows([second]).reduce((sum, row) => sum + row.cashInAmount, 0), 700000);
+});
+
+test('additional receipts preserve legacy paid cash and never reactivate a cancelled service', () => {
+  const source: Appointment = { ...sessionBill('legacy-paid'), billingMode: undefined, status: 'CANCELLED',
+    treatmentPlanStatus: 'DISCONTINUED', paymentStatus: 'PAID', finalPaymentAmount: undefined,
+    finalPaymentRecords: undefined, initialPaymentRecord: undefined };
+  const updated = appendReceivedPayment(source, clinicAdmin, receipt('late-actual-transfer', 100000), rescheduleNow);
+  assert.equal(getRecordedCashIn(updated), 600000);
+  assert.equal(updated.status, 'CANCELLED');
+  assert.equal(updated.treatmentPlanStatus, 'DISCONTINUED');
+  assert.equal(getTreatmentPlanBalance(updated).remainingAmount, 0);
+  assert.equal(buildCashInReportRows([updated]).reduce((sum, row) => sum + row.cashInAmount, 0), 600000);
+});
+
+test('Admin-assisted patient changes count against quota and clinic changes require an explicit origin', () => {
+  let current = sessionBill('assisted');
+  assert.throws(() => rescheduleExistingAppointment(current, clinicAdmin, '2026-10-25', '10:00', '11:00', 'Bantuan', rescheduleNow), /asal/);
+  for (let index = 0; index < 3; index++) {
+    current = rescheduleExistingAppointment(current, clinicAdmin, `2026-10-${25 + index}`, '10:00', '11:00', 'Pasien meminta bantuan', rescheduleNow, 'PATIENT');
+  }
+  assert.equal(getPatientRescheduleCount(current), 3);
+  assert.equal(current.rescheduleHistory?.[0].actorRole, 'ADMIN');
+  assert.throws(() => rescheduleExistingAppointment(current, clinicAdmin, '2026-10-29', '10:00', '11:00', 'Keempat', rescheduleNow, 'PATIENT'), /kuota/);
+  const clinic = rescheduleExistingAppointment(current, clinicAdmin, '2026-10-29', '10:00', '11:00', 'Klinik tutup', rescheduleNow, 'CLINIC');
+  assert.equal(getPatientRescheduleCount(clinic), 3);
+  assert.throws(() => rescheduleExistingAppointment(sessionBill('forged'), patient, '2026-10-25', '10:00', '11:00', 'Bypass', rescheduleNow, 'CLINIC'), /kewenangan/);
+  assert.throws(() => rescheduleExistingAppointment(sessionBill('forged-origin'), clinicAdmin, '2026-10-25', '10:00', '11:00', 'Bypass', rescheduleNow, 'INVALID' as 'PATIENT'), /kewenangan/);
+});
+
+test('assisted patient requests still enforce submission deadlines and every origin enforces H+1', () => {
+  const source = sessionBill('late-assisted');
+  assert.throws(() => rescheduleExistingAppointment(source, clinicAdmin, '2026-10-25', '10:00', '11:00', 'Terlambat',
+    new Date('2026-10-24T00:00:00Z'), 'PATIENT'), /batas waktu/);
+  assert.throws(() => rescheduleExistingAppointment(source, clinicAdmin, '2026-10-22', '10:00', '11:00', 'Klinik', rescheduleNow, 'CLINIC'), /H\+1/);
+});
+
+test('slot reselection preserves timely eligibility after delayed Admin processing, old slot and DP', () => {
+  const source = sessionBill('reselect');
+  const submitted = requestPatientReschedule(source, patient, '2026-10-25', '10:00', '11:00', 'Pindah', rescheduleNow);
+  const late = new Date('2026-10-26T02:00:00Z');
+  const reopened = requireRescheduleSlotSelection(submitted, clinicAdmin, submitted.rescheduleRequest!.id, 'Slot terisi', 0, late);
+  assert.equal(reopened.date, source.date);
+  assert.equal(reopened.rescheduleRequest?.requestedAt, rescheduleNow.toISOString());
+  assert.equal(canRescheduleAppointment(reopened, patient, late), true);
+  assert.throws(() => rescheduleExistingAppointment(reopened, clinicAdmin, '2026-10-28', '10:00', '11:00', 'Bantuan langsung', late, 'PATIENT'), /pengajuan aktif/);
+  assert.throws(() => requestPatientReschedule(reopened, patient, '2026-10-28', '10:00', '11:00', 'Baru', late, 0), /berubah/);
+  const selected = requestPatientReschedule(reopened, patient, '2026-10-28', '10:00', '11:00', 'Baru', late, 1);
+  assert.equal(selected.rescheduleRequest?.id, submitted.rescheduleRequest?.id);
+  assert.equal(selected.rescheduleRequest?.requestedAt, submitted.rescheduleRequest?.requestedAt);
+  assert.equal(selected.rescheduleRequest?.revision, 2);
+  assert.equal(getPatientRescheduleCount(selected), 0);
+  assert.throws(() => assertRequestRevision(selected, 0), /berubah/);
+  const applied = applyPatientReschedule(selected, clinicAdmin, selected.rescheduleRequest!.id, late);
+  assert.equal(applied.date, '2026-10-28');
+  assert.equal(getPatientRescheduleCount(applied), 1);
+  assert.equal(applied.dpAmount, 100000);
+  assert.equal(applied.totalAmount, source.totalAmount);
+  assert.throws(() => applyPatientReschedule(applied, clinicAdmin, selected.rescheduleRequest!.id, late), /diproses/);
+});
+
+test('reselection cannot bypass ownership, stale schedule versions, no-show windows or a terminated plan', () => {
+  const source = sessionBill('reselection-guards');
+  const submitted = requestPatientReschedule(source, patient, '2026-10-25', '10:00', '11:00', 'Pindah', rescheduleNow);
+  assert.throws(() => requireRescheduleSlotSelection(submitted, patient, submitted.rescheduleRequest!.id, 'Bypass', 0, rescheduleNow));
+  assert.throws(() => requireRescheduleSlotSelection({ ...submitted, scheduleVersion: 1 }, clinicAdmin, submitted.rescheduleRequest!.id, 'Stale', 0, rescheduleNow), /Jadwal sudah berubah/);
+  const reopened = requireRescheduleSlotSelection(submitted, clinicAdmin, submitted.rescheduleRequest!.id, 'Pilih ulang', 0, rescheduleNow);
+  assert.equal(canRescheduleAppointment(reopened, { ...patient, id: 'another' }, rescheduleNow), false);
+  assert.equal(canRescheduleAppointment({ ...reopened, treatmentPlanStatus: 'DISCONTINUED' }, patient, rescheduleNow), false);
+  assert.throws(() => requestPatientReschedule(reopened, patient, '2026-10-22', '10:00', '11:00', 'Hari ini', rescheduleNow, 1), /H\+1/);
+  const noShow = { ...source, status: 'NO_SHOW' as const, paymentStatus: 'DP_PAID' as const, date: '2026-10-20' };
+  const timely = requestPatientReschedule(noShow, patient, '2026-10-26', '10:00', '11:00', 'No show', rescheduleNow);
+  const late = new Date('2026-10-27T02:00:00Z');
+  const again = requireRescheduleSlotSelection(timely, clinicAdmin, timely.rescheduleRequest!.id, 'Slot lama lewat', 0, late);
+  assert.equal(canRescheduleAppointment(again, patient, late), true);
+  const invalid = { ...again, rescheduleRequest: { ...again.rescheduleRequest!, requestedAt: late.toISOString() } };
+  assert.equal(canRescheduleAppointment(invalid, patient, late), false);
+});
+
+test('cancellation closes requests waiting for slot reselection without dropping payment history', () => {
+  const submitted = requestPatientReschedule(sessionBill('stop-reselect'), patient, '2026-10-25', '10:00', '11:00', 'Pindah', rescheduleNow);
+  const reopened = requireRescheduleSlotSelection(submitted, clinicAdmin, submitted.rescheduleRequest!.id, 'Pilih ulang', 0, rescheduleNow);
+  const result = cancelPaidPlan([{ ...reopened, paymentStatus: 'PAID', finalPaymentAmount: 400000 }], reopened.id, clinicAdmin, 'Berhenti');
+  assert.equal(result.error, undefined);
+  assert.equal(result.appointments?.[0].rescheduleRequest?.status, 'REJECTED');
+  assert.equal(result.appointments?.[0].finalPaymentAmount, 400000);
+});
+
+test('explicit date overrides reopen holidays consistently with availability, conflict guards and summary', () => {
+  const date = '2030-01-07';
+  const holiday: PracticeScheduleSettings = { ...structuredClone(settings), holidays: [date] };
+  assert.equal(computeDynamicSlotsForDate(date, holiday, [], 'psy-1').slots.length, 0);
+  const opened: PracticeScheduleSettings = { ...holiday, customDateOverrides: [{ date, isOpen: true, maxPatients: 2,
+    startTime: '10:00', endTime: '16:00', note: 'Praktik pengganti disepakati' }] };
+  const booked: Appointment = { ...sessionBill('holiday-booking'), date, psychologistId: 'psy-1', startTime: '10:00', endTime: '11:00' };
+  const available = computeDynamicSlotsForDate(date, opened, [booked], 'psy-1');
+  assert.equal(available.isHoliday, false);
+  assert.equal(available.remainingQuota, 1);
+  assert.equal(available.slots.find(slot => slot.startTime === '10:00')?.isAvailable, false);
+  assert.equal(available.slots.find(slot => slot.startTime === '11:00')?.isAvailable, true);
+  assert.deepEqual(findScheduleConflicts(opened, [booked], 'psy-1'), []);
+  const summary = getScheduleAvailabilitySummary(date, opened, [booked], 'psy-1');
+  assert.equal(summary.isOpen, true);
+  assert.equal(summary.totalOperatingMinutes, 300);
+  assert.equal(summary.remainingFreeMinutes, 240);
+  assert.equal(summary.operatingHours.startTime, '10:00');
+  const full = computeDynamicSlotsForDate(date, { ...opened, customDateOverrides: [{ ...opened.customDateOverrides[0], maxPatients: 1 }] }, [booked], 'psy-1');
+  assert.equal(full.isQuotaFull, true);
+  const closed: PracticeScheduleSettings = { ...opened, customDateOverrides: [{ ...opened.customDateOverrides[0], isOpen: false }] };
+  assert.equal(computeDynamicSlotsForDate(date, closed, [], 'psy-1').isHoliday, true);
+  assert.ok(findScheduleConflicts(closed, [booked], 'psy-1').length > 0);
+  assert.equal(getScheduleAvailabilitySummary(date, closed, [], 'psy-1').totalOperatingMinutes, 0);
+});
+
+test('actual approval reopens a taken target, retains the old slot and can later apply the new selection', () => {
+  const submitted = requestPatientReschedule(sessionBill('taken-target'), patient, '2030-01-07', '10:00', '11:00', 'Pindah', rescheduleNow);
+  const competing: Appointment = { ...submitted, id: 'other-patient', patientId: 'other', date: '2030-01-07',
+    startTime: '10:00', endTime: '11:00', rescheduleRequest: undefined };
+  const config = { ...settings, weeklyDays: settings.weeklyDays.map(day => ({ ...day, maxPatients: 5 })) };
+  const reviewed = reviewRescheduleAvailability(submitted, clinicAdmin, submitted.rescheduleRequest!.id, 0, [submitted, competing], config, rescheduleNow);
+  assert.equal(reviewed.applied, false);
+  assert.equal(reviewed.appointment.date, submitted.date);
+  assert.equal(reviewed.appointment.rescheduleRequest?.status, 'SLOT_SELECTION_REQUIRED');
+  assert.equal(getPatientRescheduleCount(reviewed.appointment), 0);
+  const updated = requestPatientReschedule(reviewed.appointment, patient, '2030-01-07', '11:00', '12:00', 'Slot lain', rescheduleNow, 1);
+  assert.throws(() => reviewRescheduleAvailability(updated, clinicAdmin, updated.rescheduleRequest!.id, 0, [updated, competing], config, rescheduleNow), /berubah/);
+  const accepted = reviewRescheduleAvailability(updated, clinicAdmin, updated.rescheduleRequest!.id, 2, [updated, competing], config, rescheduleNow);
+  assert.equal(accepted.applied, true);
+  assert.equal(accepted.appointment.startTime, '11:00');
+  assert.equal(accepted.appointment.rescheduleRequest?.requestedAt, submitted.rescheduleRequest?.requestedAt);
+  assert.equal(getPatientRescheduleCount(accepted.appointment), 1);
+  assert.equal(accepted.appointment.dpAmount, submitted.dpAmount);
+});
+
+test('expired targets reopen for selection instead of rejecting a timely patient request', () => {
+  const submitted = requestPatientReschedule(sessionBill('past-target'), patient, '2026-10-25', '10:00', '11:00', 'Pindah', rescheduleNow);
+  const late = new Date('2026-10-26T02:00:00Z');
+  const reviewed = reviewRescheduleAvailability(submitted, clinicAdmin, submitted.rescheduleRequest!.id, 0, [submitted], settings, late);
+  assert.equal(reviewed.applied, false);
+  assert.equal(reviewed.appointment.rescheduleRequest?.status, 'SLOT_SELECTION_REQUIRED');
+  assert.equal(canRescheduleAppointment(reviewed.appointment, patient, late), true);
+});
+
+test('parallel approvals for one interval apply only one booking while the other can reselect', async () => {
+  const makeRequest = (id: string) => requestPatientReschedule({ ...sessionBill(id), date: id === 'one' ? '2030-01-05' : '2030-01-06' },
+    patient, '2030-01-07', '10:00', '11:00', 'Pindah', rescheduleNow);
+  const one = makeRequest('one');
+  const two = makeRequest('two');
+  commitWorkflow(state => ({ ...state, appointments: [one, two] }));
+  const config = { ...settings, weeklyDays: settings.weeklyDays.map(day => ({ ...day, maxPatients: 5 })) };
+  const approve = (id: string) => withWorkflowLock(() => {
+    const state = readWorkflowState();
+    const source = state.appointments.find(item => item.id === id)!;
+    const result = reviewRescheduleAvailability(source, clinicAdmin, source.rescheduleRequest!.id, 0, state.appointments, config, rescheduleNow);
+    commitWorkflow(current => ({ ...current, appointments: current.appointments.map(item => item.id === id ? result.appointment : item) }));
+    return result.applied;
+  });
+  assert.deepEqual(await Promise.all([approve('one'), approve('two')]), [true, false]);
+  const final = readWorkflowState().appointments;
+  assert.equal(final.filter(item => item.date === '2030-01-07' && item.startTime === '10:00').length, 1);
+  assert.equal(final.find(item => item.id === 'two')?.rescheduleRequest?.status, 'SLOT_SELECTION_REQUIRED');
+});
+
+test('parallel payment retries record a single receipt and persistence failure keeps the old ledger', async () => {
+  const paid = verifyInitialReceipt(verifiableBooking(), clinicAdmin, 500000, '2026-10-22', 1, '', rescheduleNow);
+  commitWorkflow(state => ({ ...state, appointments: [paid] }));
+  const save = () => withWorkflowLock(() => {
+    const source = readWorkflowState().appointments[0];
+    const updated = appendReceivedPayment(source, clinicAdmin, receipt('parallel-extra', 100000), rescheduleNow);
+    if (updated !== source) commitWorkflow(current => ({ ...current, appointments: [updated] }));
+  });
+  await Promise.all([save(), save()]);
+  assert.equal(readWorkflowState().appointments[0].finalPaymentRecords?.length, 1);
+  assert.equal(getRecordedCashIn(readWorkflowState().appointments[0]), 600000);
+  storage.failWrites = true;
+  await assert.rejects(withWorkflowLock(() => {
+    const source = readWorkflowState().appointments[0];
+    const updated = appendReceivedPayment(source, clinicAdmin, receipt('failed-extra', 100000), rescheduleNow);
+    commitWorkflow(current => ({ ...current, appointments: [updated] }));
+  }), /belum tersimpan/);
+  assert.equal(getRecordedCashIn(readWorkflowState().appointments[0]), 600000);
+  assert.equal(readWorkflowState().appointments[0].finalPaymentRecords?.length, 1);
+});
 
 test('proof rejection and correction preserve old evidence, original timing, and booking ledger', () => {
   const source = proofBooking();
@@ -735,7 +1000,8 @@ test('another psychotherapy purchase requires the previous plan to be terminal a
   const duplicate = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
     paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], [first.data.appointment], [therapyPackage], INITIAL_USERS, {});
   assert.equal(duplicate.success, false);
-  const completed: Appointment = { ...first.data.appointment, status: 'COMPLETED', treatmentPlanStatus: 'COMPLETED' };
+  const settled = verifyInitialReceipt({ ...first.data.appointment, paymentProofUrl: 'walk-in', transferSenderName: 'Kasir' }, clinicAdmin, 500000, getPracticeDate(), 1);
+  const completed: Appointment = { ...settled, status: 'COMPLETED', treatmentPlanStatus: 'COMPLETED' };
   const repeat = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
     paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], [completed], [therapyPackage], INITIAL_USERS, {});
   assert.equal(repeat.success, true);
@@ -743,4 +1009,191 @@ test('another psychotherapy purchase requires the previous plan to be terminal a
   assert.equal(repeat.data.appointment.continuousSessionNumber, 1);
   assert.equal(repeat.data.appointment.dpAmount, 100000);
   assert.equal(repeat.data.appointment.totalAmount, 500000);
+});
+
+const agreedSession = (number = 1): Appointment => ({ ...sessionBill(`agreed-${number}`, number),
+  paymentAgreement: { version: 1, accountAppointmentId: 'agreed-1', agreedAt: rescheduleNow.toISOString(),
+    sessionCount: 4, sessionAmount: 500000, sessionSubtotal: 500000, sessionDiscount: 0, durationMinutes: 60 },
+  ...(number === 1 ? { status: 'PENDING' as const, paymentStatus: 'DP_PENDING_VERIFICATION' as const,
+    paymentMethod: 'BANK_TRANSFER' as const, paymentProofUrl: 'proof.jpg', transferSenderName: 'Pasien',
+    paymentProofState: 'SUBMITTED' as const, paymentProofVersion: 1 } : { initialRequirementMet: true })
+});
+const paidAccount = (amount: number) => verifyInitialReceipt(agreedSession(), clinicAdmin, amount, '2026-10-22', 1, '', rescheduleNow);
+
+test('new agreement permits full four-session prepayment but creates only the first invoice', async () => {
+  const result = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_FULL', initialPaymentScope: 'PLAN', initialPaymentAmount: 2000000 },
+    [], [], [therapyPackage], INITIAL_USERS, {});
+  assert.equal(result.success, true);
+  const pending = result.data.appointment;
+  assert.equal(pending.totalAmount, 500000);
+  assert.equal(pending.paymentAgreement?.sessionAmount, 500000);
+  assert.equal(pending.initialPaymentRecord?.amount, 2000000);
+  assert.equal(getRecordedCashIn(pending), 0);
+  const verified = verifyInitialReceipt({ ...pending, paymentProofUrl: 'walk-in', transferSenderName: 'Kasir' }, clinicAdmin, 2000000, getPracticeDate(), 1);
+  const summary = getPaymentSummary(verified, [verified]);
+  assert.equal(summary.totalAmount, 500000);
+  assert.equal(summary.cashReceived, 2000000);
+  assert.equal(summary.prepaidAmount, 1500000);
+  assert.equal(summary.remainingByFinal, 0);
+});
+
+test('FIFO allocation pays future invoices without receipts, second DP, or duplicate cash report rows', () => {
+  const all = syncPaymentAllocations([paidAccount(2000000), agreedSession(2), agreedSession(3), agreedSession(4)]);
+  for (const item of all) {
+    assert.equal(getTreatmentPlanBalance(item, all).remainingAmount, 0);
+    assert.equal(item.paymentStatus, 'PAID');
+  }
+  assert.equal(all[1].dpAmount, 0);
+  assert.equal(all[1].initialPaymentRecord, undefined);
+  assert.equal(getRecordedCashIn(all[1]), 0);
+  assert.equal(buildCashInReportRows(all).length, 1);
+  assert.equal(buildCashInReportRows(all).reduce((sum, row) => sum + row.cashInAmount, 0), 2000000);
+  assert.deepEqual(getPlanBillingBalance(all), { totalAmount: 2000000, paidAmount: 2000000, remainingAmount: 0 });
+});
+
+test('installments before consultation allocate in session order and retries do not consume money twice', () => {
+  let account = paidAccount(100000);
+  const transfer = { amount: 600000, method: 'CASH' as const, receivedDate: '2026-10-22', idempotencyKey: 'installment-1' };
+  account = appendReceivedPayment(account, clinicAdmin, transfer, rescheduleNow);
+  assert.equal(appendReceivedPayment(account, clinicAdmin, transfer, rescheduleNow), account);
+  const all = syncPaymentAllocations([account, agreedSession(2)]);
+  assert.equal(getTreatmentPlanBalance(all[0], all).paidAmount, 500000);
+  assert.equal(getTreatmentPlanBalance(all[1], all).paidAmount, 200000);
+  assert.equal(getPaymentSummary(all[1], all).remainingByFinal, 1300000);
+  assert.equal(getPaymentSummary(all[1], all).remainingAmount, 300000);
+  assert.equal(resolvePaymentAccount(all[1], all).id, all[0].id);
+  assert.equal(buildCashInReportRows(all).reduce((sum, row) => sum + row.cashInAmount, 0), 700000);
+});
+
+test('last consultation is due on its date and an unpaid completed plan stays awaiting settlement', () => {
+  let all = syncPaymentAllocations([paidAccount(100000), agreedSession(2), agreedSession(3), agreedSession(4)]);
+  const early = new Date('2026-10-23T05:00:00Z');
+  assert.equal(getPaymentSummary(all[0], all, early).due, false);
+  const due = new Date('2026-10-24T00:01:00+07:00');
+  assert.equal(getPaymentSummary(all[0], all, due).due, true);
+  all = all.map(item => ({ ...item, status: 'COMPLETED', treatmentPlanStatus: 'COMPLETED' }));
+  assert.equal(getPaymentSummary(all[0], all, due).closurePending, true);
+  assert.equal(getPaymentSummary(all[0], all, due).remainingByFinal, 1900000);
+  const markup = renderToStaticMarkup(createElement(TreatmentPlansTab, { appointments: all,
+    onScheduleNextSession: async () => false, onDiscontinuePlan: async () => false, onReschedule: async () => false }));
+  assert.match(markup, /Menunggu pelunasan/);
+  assert.doesNotMatch(markup, /Selesai &amp; lunas/);
+  all[0] = appendReceivedPayment(all[0], clinicAdmin,
+    { amount: 1900000, method: 'CASH', receivedDate: '2026-10-24', idempotencyKey: 'settle-last' }, due);
+  all = syncPaymentAllocations(all);
+  assert.equal(getPaymentSummary(all[0], all, due).closurePending, false);
+  assert.equal(getPaymentSummary(all[0], all, due).remainingByFinal, 0);
+  assert.ok(all.every(item => item.status === 'COMPLETED'));
+});
+
+test('rescheduling the last consultation moves the due date without changing the agreement or cash', () => {
+  const first = paidAccount(100000);
+  const last = { ...agreedSession(4), date: '2026-10-30' };
+  const summary = getPaymentSummary(last, [first, last], new Date('2026-10-25T04:00:00Z'));
+  assert.equal(summary.dueDate, '2026-10-30');
+  assert.equal(summary.due, false);
+  assert.equal(summary.cashReceived, 100000);
+  assert.equal(summary.remainingByFinal, 1900000);
+});
+
+test('fixed agreement preserves session tariff after catalog edits without repricing legacy invoices', () => {
+  const source = paidAccount(2000000);
+  assert.equal(getNextSessionBilling(source, { ...therapyPackage, price: 750000 }).totalAmount, 500000);
+  assert.equal(getNextSessionBilling(sessionBill('legacy'), { ...therapyPackage, price: 750000 }).totalAmount, 750000);
+});
+
+test('cancellation requires every created invoice settled but never creates debt for unbooked sessions', () => {
+  const first = paidAccount(100000);
+  assert.ok(cancelPaidPlan([first, agreedSession(2)], first.id, clinicAdmin, 'Berhenti').error);
+  const settled = paidAccount(500000);
+  const result = cancelPaidPlan([settled], settled.id, clinicAdmin, 'Berhenti sebelum sesi kedua');
+  assert.equal(result.error, undefined);
+  assert.equal(getPaymentSummary(result.appointments![0], result.appointments!).remainingByFinal, 0);
+  const prepaid = paidAccount(2000000);
+  const stopped = cancelPaidPlan([prepaid], prepaid.id, clinicAdmin, 'Berhenti');
+  assert.equal(getRecordedCashIn(stopped.appointments![0]), 2000000);
+  assert.equal(getPaymentSummary(stopped.appointments![0], stopped.appointments!).prepaidAmount, 1500000);
+});
+
+test('payment accounts cannot cross patients, packages, plans or silently disappear', () => {
+  const first = paidAccount(2000000);
+  for (const bad of [{ ...agreedSession(2), patientId: 'other' }, { ...agreedSession(2), packageId: 'other' },
+    { ...agreedSession(2), treatmentPlanId: 'other' }]) {
+    assert.throws(() => resolvePaymentAccount(bad, [first, bad]), /Ledger/);
+  }
+  assert.throws(() => getTreatmentPlanBalance(agreedSession(2)), /Ledger/);
+  assert.equal(getRecordedCashIn({ ...sessionBill('other'), paymentStatus: 'PAID', finalPaymentAmount: 400000 }), 500000);
+});
+
+test('Admin-only receipt mutations and payment display keep prepaid funds out of Admin balances', () => {
+  const first = paidAccount(2000000);
+  assert.throws(() => rejectInitialPaymentProof(agreedSession(), psychologist, 'Tolak', 1, rescheduleNow), /Admin/);
+  assert.throws(() => appendReceivedPayment(first, psychologist, { amount: 1000, method: 'CASH',
+    idempotencyKey: 'owner-cannot-receive' }, rescheduleNow), /Admin/);
+  const adminMarkup = renderToStaticMarkup(createElement(TreatmentPlansTab, { appointments: [first, agreedSession(2)],
+    hideFinancialDetails: true, operatorRole: 'ADMIN', onScheduleNextSession: async () => false,
+    onDiscontinuePlan: async () => false, onReschedule: async () => false }));
+  assert.doesNotMatch(adminMarkup, /2\.000\.000|1\.500\.000|Rp|Diterima/);
+  const patientMarkup = renderToStaticMarkup(createElement(PaymentProgress, { appointment: first, appointments: [first] }));
+  assert.match(patientMarkup, /Prabayar sesi mendatang/);
+  assert.match(patientMarkup, /Lunas seluruh layanan/);
+});
+
+test('new psychotherapy booking is refused when a completed plan still has unpaid created invoices', async () => {
+  const all: Appointment[] = [paidAccount(100000), agreedSession(2), agreedSession(3), agreedSession(4)]
+    .map(item => ({ ...item, status: 'COMPLETED', treatmentPlanStatus: 'COMPLETED' }));
+  const result = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], all, [therapyPackage], INITIAL_USERS, {});
+  assert.equal(result.success, false);
+  assert.match(result.message || '', /pelunasan/);
+});
+
+test('prepayment within the agreement is distinct from genuine excess cash and never moves to another plan', () => {
+  const first = paidAccount(2500000);
+  const summary = getPaymentSummary(first, [first]);
+  assert.equal(summary.prepaidAmount, 1500000);
+  assert.equal(summary.overpaidAmount, 500000);
+  const another: Appointment = { ...agreedSession(), id: 'new-plan-first', treatmentPlanId: 'new-plan',
+    paymentAgreement: { ...first.paymentAgreement!, accountAppointmentId: 'new-plan-first' } };
+  assert.equal(getPaymentSummary(another, [first, another]).cashReceived, 0);
+  assert.equal(getPaymentSummary(another, [first, another]).remainingByFinal, 2000000);
+  assert.throws(() => appendReceivedPayment(agreedSession(2), clinicAdmin,
+    { amount: 500000, method: 'CASH', idempotencyKey: 'wrong-account' }, rescheduleNow), /ledger awal/);
+});
+
+test('single consultation has the same final-day rule and upfront payment settles it without another DP', () => {
+  const pending: Appointment = { ...verifiableBooking(), treatmentPlanId: undefined, continuousSessionNumber: undefined,
+    continuousSessionTotal: undefined, packageType: 'OFFLINE_CLINIC', date: '2026-10-24', totalAmount: 900000 };
+  const partial = verifyInitialReceipt(pending, clinicAdmin, 100000, '2026-10-22', 1, '', rescheduleNow);
+  const now = new Date('2026-10-24T03:00:00Z');
+  assert.equal(getPaymentSummary(partial, [partial], now).due, true);
+  assert.equal(getPaymentSummary(partial, [partial], now).remainingByFinal, 800000);
+  const full = verifyInitialReceipt(pending, clinicAdmin, 900000, '2026-10-22', 1, '', rescheduleNow);
+  assert.equal(getPaymentSummary(full, [full], now).remainingByFinal, 0);
+  assert.equal(getPaymentSummary(full, [full], now).due, false);
+  assert.equal(full.dpAmount, 100000);
+});
+
+test('parallel payments from different sessions share one account and a failed save never publishes a new allocation', async () => {
+  const first = paidAccount(100000);
+  commitWorkflow(state => ({ ...state, appointments: [first, agreedSession(2)] }));
+  const receive = (id: string, key: string) => withWorkflowLock(() => {
+    const current = readWorkflowState().appointments;
+    const account = resolvePaymentAccount(current.find(item => item.id === id)!, current);
+    const updated = appendReceivedPayment(account, clinicAdmin,
+      { amount: 500000, method: 'CASH', idempotencyKey: key, receivedDate: '2026-10-22' }, rescheduleNow);
+    const allocated = syncPaymentAllocations(current.map(item => item.id === account.id ? updated : item));
+    commitWorkflow(state => ({ ...state, appointments: allocated }));
+  });
+  const one = receive(first.id, 'parallel-plan-one');
+  const two = receive('agreed-2', 'parallel-plan-two');
+  await one;
+  await two;
+  const before = readWorkflowState().appointments;
+  assert.equal(getPaymentSummary(before[0], before).cashReceived, 1100000);
+  assert.equal(buildCashInReportRows(before).length, 3);
+  storage.failWrites = true;
+  await assert.rejects(receive('agreed-2', 'cannot-save'), /belum tersimpan/);
+  assert.deepEqual(readWorkflowState().appointments, before);
 });

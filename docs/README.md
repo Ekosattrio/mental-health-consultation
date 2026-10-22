@@ -3,12 +3,14 @@
 ## Keputusan Terbaru - 22 Oktober 2026
 Mulai dari [keputusan final integrasi](KEPUTUSAN_FINAL_2026_10_22.md): DP flat Rp100.000 sekali pada awal, semua jadwal H+1, tanpa tambah sesi, batal wajib lunas. Scope lain Desman diterima sebagai target. Fitur domain belum seluruhnya diimplementasikan.
 
+Terbaru: [pembayaran bertahap/penuh dan pelunasan hari sesi terakhir](ALUR_PEMBAYARAN_SESI.md), termasuk alokasi prabayar psikoterapi baru, ringkasan sesuai role dan batas handoff backend. Verifikasi FE terbaru: TypeScript lolos, 87/87 tes (84 FE +3integrasi sumber); bukan hasil E2E browser/database.
+
 
 Untuk Eko dan pengembang backend, mulai dari [panduan menyeluruh Eko](EKO_PROJECT_GUIDE.md), lalu [peta dokumentasi](DOCS_ARCHITECTURE.md).
 
 Dokumen utama langsung berada di `docs/`, tanpa lapisan Psikolog/Live Docs. Root proyek memakai struktur Laravel 13, React berada di resources/js, dengan Inertia3, routing web serta session Laravel pada domain yang sama. [README root](../README.md) menjelaskan proyek saat ini; catatan prototype lama disimpan sebagai arsip.
 
-Panduan menyelesaikan merge/push oleh developer: [PANDUAN_MERGE_INTEGRASI](PANDUAN_MERGE_INTEGRASI.md). TypeScript dan58tes lolos; agent tidak menjalankan Git/dev/build.
+Panduan menyelesaikan merge/push oleh developer: [PANDUAN_MERGE_INTEGRASI](PANDUAN_MERGE_INTEGRASI.md). Agent tidak menjalankan Git/dev/build.
 
 ## Peta folder
 

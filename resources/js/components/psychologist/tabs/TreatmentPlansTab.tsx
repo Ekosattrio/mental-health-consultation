@@ -5,16 +5,18 @@ import { CalendarPlus, CalendarClock, CheckCircle2, CircleStop, ClipboardList, C
 import { RescheduleModal } from '../../patient/RescheduleModal';
 import { Tooltip } from '../../common/Tooltip';
 import { computeDynamicSlotsForDate, loadScheduleSettings } from '../../../data/scheduleConfig';
-import { getTreatmentPlanBalance, getSessionRate, isPlanInitialPaymentVerified } from '../../../utils/payments';
+import { getTreatmentPlanBalance, getSessionRate, isPlanInitialPaymentVerified, getPaymentSummary } from '../../../utils/payments';
 import { getMinimumBookingDate } from '../../../utils/bookingPolicy';
 import { PaymentProgress } from '../../common/PaymentProgress';
+import { RescheduleOptions } from '../../../utils/reschedulePolicy';
 
 interface TreatmentPlansTabProps {
   appointments: Appointment[];
   hideFinancialDetails?: boolean;
+  operatorRole?: 'ADMIN' | 'PSYCHOLOGIST';
   onScheduleNextSession: (appointmentId: string, date: string, startTime: string, endTime: string) => Promise<boolean>;
   onDiscontinuePlan: (appointmentId: string, reason: string) => Promise<boolean>;
-  onReschedule: (appointmentId: string, date: string, startTime: string, endTime: string, reason?: string, expectedVersion?: number) => Promise<boolean>;
+  onReschedule: (appointmentId: string, date: string, startTime: string, endTime: string, reason?: string, expectedVersion?: number, options?: RescheduleOptions) => Promise<boolean>;
 }
 
 interface TreatmentPlanView {
@@ -27,7 +29,7 @@ interface TreatmentPlanView {
   lastAppointment: Appointment;
   billingAppointment?: Appointment;
   appointments: Appointment[];
-  status: 'ACTIVE' | 'COMPLETED' | 'DISCONTINUED';
+  status: 'ACTIVE' | 'COMPLETED' | 'DISCONTINUED' | 'AWAITING_SETTLEMENT';
 }
 
 const getTomorrowDate = () => {
@@ -37,6 +39,7 @@ const getTomorrowDate = () => {
 export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
   appointments,
   hideFinancialDetails = false,
+  operatorRole = 'PSYCHOLOGIST',
   onScheduleNextSession,
   onDiscontinuePlan,
   onReschedule
@@ -82,7 +85,8 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
         lastAppointment: sorted[sorted.length - 1],
         billingAppointment,
         appointments: sorted,
-        status: completedSessions >= totalSessions ? 'COMPLETED' : discontinued ? 'DISCONTINUED' : 'ACTIVE'
+        status: discontinued ? 'DISCONTINUED' : completedSessions >= totalSessions
+          ? getPaymentSummary(sorted[0], sorted).remainingAmount > 0 ? 'AWAITING_SETTLEMENT' : 'COMPLETED' : 'ACTIVE'
       };
     });
   }, [appointments]);
@@ -209,7 +213,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                 const paymentReady = isPlanInitialPaymentVerified(plan.lastAppointment, plan.appointments);
                 const canScheduleNext = plan.status === 'ACTIVE' && paymentReady && lastSessionDone && !plan.nextAppointment && plan.completedSessions < plan.totalSessions;
                 const billingApt = plan.billingAppointment;
-                const balance = billingApt ? getTreatmentPlanBalance(billingApt) : null;
+                const balance = billingApt ? getTreatmentPlanBalance(billingApt, plan.appointments) : null;
                 const payableAmount = balance?.totalAmount || 0;
                 const remainingAmount = balance?.remainingAmount || 0;
 
@@ -227,7 +231,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                           ? 'bg-rose-50 text-rose-700 border-rose-200'
                           : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       }`}>
-                        {plan.status === 'COMPLETED' ? 'Selesai' : plan.status === 'DISCONTINUED' ? 'Dihentikan' : 'Aktif'}
+                        {plan.status === 'COMPLETED' ? 'Selesai & lunas' : plan.status === 'AWAITING_SETTLEMENT' ? 'Menunggu pelunasan' : plan.status === 'DISCONTINUED' ? 'Dihentikan' : 'Aktif'}
                       </span>
                     </div>
 
@@ -316,7 +320,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                     const billingApt = plan.billingAppointment;
                     const subtotalAmount = billingApt?.subtotalAmount ?? billingApt?.totalAmount ?? 0;
                     const discountAmount = billingApt?.discountAmount || 0;
-                    const balance = billingApt ? getTreatmentPlanBalance(billingApt) : null;
+                    const balance = billingApt ? getTreatmentPlanBalance(billingApt, plan.appointments) : null;
                     const payableAmount = balance?.totalAmount ?? Math.max(subtotalAmount - discountAmount, 0);
                     const remainingAmount = balance?.remainingAmount || 0;
                     const scheduleTooltip = canScheduleNext
@@ -412,7 +416,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                               ? 'bg-rose-50 text-rose-700 border-rose-200'
                               : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                           }`}>
-                            {plan.status === 'COMPLETED' ? 'Selesai' : plan.status === 'DISCONTINUED' ? 'Dihentikan' : 'Aktif'}
+                            {plan.status === 'COMPLETED' ? 'Selesai & lunas' : plan.status === 'AWAITING_SETTLEMENT' ? 'Menunggu pelunasan' : plan.status === 'DISCONTINUED' ? 'Dihentikan' : 'Aktif'}
                           </span>
                         </td>
 
@@ -465,6 +469,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
       </div>
 
       <RescheduleModal
+        operatorRole={operatorRole}
         key={rescheduleId || 'closed'}
         isOpen={Boolean(rescheduleAppointment)}
         onClose={() => setRescheduleId(null)}

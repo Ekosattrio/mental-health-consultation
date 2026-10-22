@@ -15,7 +15,7 @@ import {
 import { Tooltip } from '../common/Tooltip';
 import { computeDynamicSlotsForDate, loadScheduleSettings, SCHEDULE_SETTINGS_STORAGE_KEY, SCHEDULE_SETTINGS_UPDATED_EVENT } from '../../data/scheduleConfig';
 import { getMinimumBookingDate, timeSlotKey, findTimeSlot } from '../../utils/bookingPolicy';
-import { getScheduleVersion } from '../../utils/reschedulePolicy';
+import { getScheduleVersion, RescheduleOptions, RescheduleOrigin } from '../../utils/reschedulePolicy';
 
 interface RescheduleModalProps {
   isOpen: boolean;
@@ -23,13 +23,15 @@ interface RescheduleModalProps {
   appointment: Appointment | null;
   appointments: Appointment[];
   requiresAdminConfirmation?: boolean;
+  operatorRole?: 'ADMIN' | 'PSYCHOLOGIST';
   onConfirmReschedule: (
     aptId: string,
     newDate: string,
     newStartTime: string,
     newEndTime: string,
     reason?: string,
-    expectedVersion?: number
+    expectedVersion?: number,
+    options?: RescheduleOptions
   ) => Promise<boolean>;
 }
 
@@ -57,8 +59,10 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   appointment,
   appointments,
   onConfirmReschedule,
-  requiresAdminConfirmation = true
+  requiresAdminConfirmation = true,
+  operatorRole = 'PSYCHOLOGIST'
 }) => {
+  const currentRole = requiresAdminConfirmation ? 'PATIENT' : operatorRole;
   // Hitung tanggal minimal H+1
   const minDateStr = getMinimumBookingDate();
 
@@ -71,8 +75,16 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   const [submitError, setSubmitError] = useState('');
   const [confirmedSlot, setConfirmedSlot] = useState<{ start: string; end: string } | null>(null);
   const [expectedVersion, setExpectedVersion] = useState<number>();
+  const [requestRevision, setRequestRevision] = useState<number>();
+  const [requestId, setRequestId] = useState<string>();
+  const [origin, setOrigin] = useState<RescheduleOrigin>('PATIENT');
   useEffect(() => {
-    if (isOpen && appointment) setExpectedVersion(getScheduleVersion(appointment));
+    if (isOpen && appointment) {
+      setExpectedVersion(getScheduleVersion(appointment));
+      setRequestRevision(appointment.rescheduleRequest?.revision || 0);
+      setRequestId(appointment.rescheduleRequest?.id);
+      setOrigin(requiresAdminConfirmation ? 'PATIENT' : currentRole === 'ADMIN' ? 'PATIENT' : 'OWNER');
+    }
   }, [isOpen, appointment?.id]);
   useEffect(() => {
     const sync = () => setScheduleSettings(loadScheduleSettings());
@@ -128,7 +140,8 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   if (!isOpen || !appointment) return null;
 
   const selectedSlot = findTimeSlot(availableTimeSlots, selectedSlotKey);
-  const staleSchedule = expectedVersion !== undefined && getScheduleVersion(appointment) !== expectedVersion;
+  const staleSchedule = expectedVersion !== undefined && (getScheduleVersion(appointment) !== expectedVersion ||
+    requestId !== appointment.rescheduleRequest?.id || requestRevision !== (appointment.rescheduleRequest?.revision || 0));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +160,8 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
       selectedSlot.start,
       selectedSlot.end,
       fullReason,
-      expectedVersion
+      expectedVersion,
+      { origin, requestId, requestRevision }
     );
 
     if (ok) {
@@ -337,6 +351,12 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             </div>
 
             {/* Langkah 3: Alasan Permohonan Reschedule */}
+            {!requiresAdminConfirmation && <label className="block text-xs font-bold text-slate-800">Asal Permintaan
+              <select value={origin} onChange={event => setOrigin(event.target.value as RescheduleOrigin)} className="mt-2 block w-full rounded-lg border border-slate-200 px-3 py-2.5">
+                <option value="PATIENT">Atas permintaan pasien</option>
+                {currentRole === 'ADMIN' ? <option value="CLINIC">Perubahan dari klinik</option> : <option value="OWNER">Perubahan dari psikolog</option>}
+              </select>
+            </label>}
             <div className="space-y-1.5 text-xs">
               <label className="block font-bold text-slate-800">
                 3. Alasan Permohonan Reschedule
@@ -358,7 +378,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             {/* Catatan Tambahan (Opsional) */}
             <div className="space-y-1.5 text-xs">
               <label className="block font-semibold text-slate-700">
-                {requiresAdminConfirmation ? 'Catatan untuk Psikolog (Opsional)' : 'Hasil Konfirmasi dengan Pasien (Opsional)'}
+                {requiresAdminConfirmation ? 'Catatan untuk Admin (Opsional)' : 'Hasil Konfirmasi dengan Pasien (Opsional)'}
               </label>
               <textarea
                 rows={2}

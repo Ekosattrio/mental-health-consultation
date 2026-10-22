@@ -1,5 +1,21 @@
 # Migrasi Inertia disetujui — 20 Oktober 2026
 
+## Status Terbaru - Pelunasan Sesi Terakhir
+FE preview baru mendukung cicilan/penuh di awal dan kewajiban lunas hari sesi terakhir, snapshot tarif/ledger/alokasi prabayar untuk psikoterapi baru, serta indikator penutupan menunggu pelunasan. Guard reject bukti kini Admin-only; pernyataan bahwa guard masih terbuka di bawah adalah histori. [Alur dan batas implementasi](ALUR_PEMBAYARAN_SESI.md).
+
+Yang belum selesai: domain Laravel/DB, skema agreement/alokasi backend, redaksi DTO/policy server, close administratif atomik dan pengujian visual browser/mobile. Kas/prabayar lintas sesi hanya berlaku pada rangkaian baru dengan agreement; histori tanpa agreement tidak dimigrasikan diam-diam. Pre-test sesi lanjutan masih TODO terpisah. FE tidak mengimplementasikan seluruh addendum/biaya tambahan Desman; backend harus memasukkan semua tagihan sah dalam guard pelunasan. Lewat jatuh tempo bukan pembatalan otomatis, dan fakta klinis selesai bukan bukti lunas. Tidak ada klaim semua flow/produksi sudah aman.
+
+Pemeriksaan tautan Markdown: tautan relatif pada dokumen pembayaran yang diubah tersedia. Ditemukan14tautan absolut lama pada `audits/AUDIT_PERBANDINGAN_DESAIN_2026-10-18.md` yang masih menunjuk workspace `mental-health-consultation`; dibiarkan sebagai temuan dokumen historis, bukan diubah dalam scope pembayaran ini.
+
+## Status Sebelumnya - Audit FE 22 Oktober 2026
+Penegasan developer sesudah audit: input/verifikasi pembayaran pasien khusus Admin, sehingga penolakan aksi tersebut untuk psikolog bukan celah. Matriks/kontrak sudah disesuaikan; guard reject bukti pada FE masih mengizinkan psikolog dan tercatat sebagai TODO. Perubahan penegasan ini docs-only, bukan klaim seluruh permission FE/server sudah selaras.
+
+AUD-02 sampai AUD-06 pada [TODO](TODO.md) telah diperbaiki di FE preview: nominal aktual/minimum DP, asal reschedule bantuan petugas, pemilihan ulang slot dengan requestedAt/revisi asal, penerimaan setelah lunas dan override libur. TypeScript lolos dan 74/74 tes lolos. Rincian: [perbaikan audit FE](PERBAIKAN_AUDIT_FE_2026_10_22.md).
+
+Yang masih terbuka: AUD-01 (Dashboard utama placeholder), migrasi halaman domain ke Inertia/DTO server, transaksi/authorization database, fase APPROVED/selection-window serta clock/SLA operasional dan integrasi provider. Pemilihan ulang SLOT_SELECTION_REQUIRED tersedia pada preview, bukan berarti seluruh state machine backend sudah selesai. Browser/mobile belum diuji visual/E2E.
+
+Preview tetap lokal/LocalStorage; guard produksi tidak dilepas. Commit/push integrasi c4a90a3 berdasarkan log developer sudah dilakukan oleh developer; merge main belum dikonfirmasi. Agent tidak menjalankan Git/dev/build. Bagian di bawah adalah histori sebelum audit dan perbaikan terbaru, bukan klaim status aktif yang mengalahkan bagian ini.
+
 ## Status Sesudah Perbaikan FE Integrasi
 - Tagihan per-sesi baru, menu Admin, request pasien dan koreksi proof utama sudah diimplementasikan pada preview. Pernyataan lama bahwa semuanya belum ada di bawah adalah histori sebelum perbaikan ini.
 - Legacy plan-total tetap disimpan, bukan dipaksa menjadi per-session. Perbedaan skema terlihat pada detail transaksi; migrasi finansial historis harus eksplisit.

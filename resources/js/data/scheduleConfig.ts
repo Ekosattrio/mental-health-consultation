@@ -172,6 +172,20 @@ export const minutesToTime = (minutes: number): string => {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
+export const resolvePracticeDay = (date: string, settings: PracticeScheduleSettings) => {
+  const dayIndex = new Date(`${date}T00:00:00Z`).getUTCDay();
+  const weekly = settings.weeklyDays.find(item => item.dayIndex === dayIndex);
+  const override = settings.customDateOverrides.find(item => item.date === date);
+  return {
+    isOpen: override?.isOpen ?? (!settings.holidays.includes(date) && (weekly?.isOpen ?? false)),
+    startTime: override?.startTime || weekly?.startTime || '09:00',
+    endTime: override?.endTime || weekly?.endTime || '17:00',
+    maxPatients: override?.maxPatients ?? weekly?.maxPatients ?? 0,
+    dayName: weekly?.dayName || 'tersebut',
+    override
+  };
+};
+
 /**
  * Compute dynamic available slots for any given date and package duration
  */
@@ -190,41 +204,12 @@ export const computeDynamicSlotsForDate = (
   requestedDurationMinutes: number = 60,
   excludeHoldId?: string
 ) => {
-  const [year, month, day] = dateString.split('-').map(Number);
-  const dateObj = new Date(year, month - 1, day);
-  const dayIndex = dateObj.getDay();
-
-  // 1. Check if date is in holiday list
-  if (settings.holidays.includes(dateString)) {
-    return {
-      isHoliday: true,
-      isQuotaFull: false,
-      reason: 'Hari Libur Tambahan / Cuti Khusus',
-      slots: [],
-      maxPatients: 0,
-      bookedCount: 0,
-      remainingQuota: 0
-    };
-  }
-
-  // 2. Check Custom Date Override for this specific date
-  const override = settings.customDateOverrides?.find(o => o.date === dateString);
-
-  // 3. Fallback to weekly standard configuration
-  const defaultDay = settings.weeklyDays.find(d => d.dayIndex === dayIndex) || {
-    dayName: 'Hari Ini',
-    dayIndex,
-    isOpen: dayIndex !== 0,
-    startTime: '09:00',
-    endTime: '17:00',
-    maxPatients: 5,
-    sessionDurationMinutes: 60
-  };
-
-  const isOpen = override ? override.isOpen : defaultDay.isOpen;
-  const startTimeStr = (override?.startTime) || defaultDay.startTime || '09:00';
-  const endTimeStr = (override?.endTime) || defaultDay.endTime || '17:00';
-  const maxPatients = override ? override.maxPatients : defaultDay.maxPatients;
+  const resolved = resolvePracticeDay(dateString, settings);
+  const override = resolved.override;
+  const isOpen = resolved.isOpen;
+  const startTimeStr = resolved.startTime;
+  const endTimeStr = resolved.endTime;
+  const maxPatients = resolved.maxPatients;
 
   if (!isOpen) {
     return {
@@ -232,7 +217,8 @@ export const computeDynamicSlotsForDate = (
       isQuotaFull: false,
       reason: override?.note
         ? `Tutup Praktik: ${override.note}`
-        : `Hari ${defaultDay.dayName} adalah hari libur rutin klinik`,
+        : settings.holidays.includes(dateString) ? 'Hari Libur Tambahan / Cuti Khusus'
+          : `Hari ${resolved.dayName} adalah hari libur rutin klinik`,
       slots: [],
       maxPatients: 0,
       bookedCount: 0,
@@ -363,19 +349,14 @@ export const getScheduleAvailabilitySummary = (
     requestedDurationMinutes
   );
 
-  const [year, month, day] = dateString.split('-').map(Number);
-  const dateObj = new Date(year, month - 1, day);
-  const dayIndex = dateObj.getDay();
-
-  const override = settings.customDateOverrides?.find(o => o.date === dateString);
-  const defaultDay = settings.weeklyDays.find(d => d.dayIndex === dayIndex) || DEFAULT_WEEKLY_SCHEDULE[1];
-
-  const startTimeStr = (override?.startTime) || defaultDay.startTime || '09:00';
-  const endTimeStr = (override?.endTime) || defaultDay.endTime || '17:00';
+  const resolved = resolvePracticeDay(dateString, settings);
+  const startTimeStr = resolved.startTime;
+  const endTimeStr = resolved.endTime;
 
   const startMinutes = timeToMinutes(startTimeStr);
   const endMinutes = timeToMinutes(endTimeStr);
-  const totalOperatingMinutes = Math.max(0, endMinutes - startMinutes);
+  const lunchMinutes = Math.max(0, Math.min(endMinutes, 780) - Math.max(startMinutes, 720));
+  const totalOperatingMinutes = dynamicRes.isHoliday ? 0 : Math.max(0, endMinutes - startMinutes - lunchMinutes);
 
   const activeBookings = existingAppointments
     .filter(

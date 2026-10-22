@@ -1,5 +1,26 @@
 # Migrasi Inertia disetujui — 20 Oktober 2026
 
+## Pelunasan Sesi Terakhir - 22 Oktober 2026
+- Izinkan cicilan sebelum sesi dan penuh di awal; DP tetap Rp100.000 sekali dan mengurangi biaya, pelunasan wajib paling lambat hari sesi terakhir.
+- Tambahkan snapshot agreement psikoterapi baru dan ledger/alokasi FIFO rangkaian, tanpa duplikasi receipt/kas pada sesi lanjutan atau perubahan tagihan historis.
+- Tambahkan pilihan pembayaran awal, ringkasan terbayar/prabayar/sisa/jatuh tempo, status menunggu pelunasan dan guard booking ulang belum lunas; pertahankan fakta sesi selesai, aturan cancel lunas atas invoice terbentuk, H+1, dan tanpa sesi5.
+- Batasi reject bukti pada Admin di helper/facade; payment mutation psikolog tetap ditolak. Tambahkan regresi pembayaran baru, isolasi data/role, overpayment, due WIB/reschedule dan transaksi paralel/gagal simpan.
+- Dokumentasikan [alur pembayaran](ALUR_PEMBAYARAN_SESI.md), keputusan/aturan bisnis/F08/F11, TODO dan batas backend. Catatan docs-only sebelum ini tetap sebagai histori, bukan status source terbaru.
+- Verifikasi: TypeScript lolos, 87/87 tes (84 FE +3integrasi sumber); tidak menjalankan Git/dev/build/browser/database.
+
+## Perbaikan TODO Audit FE - 22 Oktober 2026
+Penegasan pre-test: developer memilih konfirmasi/perbarui per booking/sesi baru karena konteks Konseling ulang dapat berubah. Dokumentasikan salinan yang memerlukan konfirmasi pasien, snapshot per appointment, histori tetap dan reschedule tanpa pre-test ulang otomatis pada keputusan final/F07/aturan bisnis/TODO/handoff. Ini pencatatan keputusan saja; source dan tes tidak diubah.
+
+Penegasan bisnis sesudah audit: pembayaran pasien khusus Admin untuk pemeriksaan/verifikasi/penolakan bukti dan pencatatan/koreksi penerimaan. Perbarui keputusan final, permission, aktor Superadmin, F08, aturan bisnis, kontrak web dan handoff. Psikolog tetap membaca ledger/laporan; larangan input/verifikasi bukan celah. Guard reject FE yang masih menerima psikolog masuk TODO. Ini perubahan dokumentasi saja, tanpa source, tes ulang, Git/dev/build.
+
+- Perbaiki AUD-02 sampai AUD-06 pada preview lokal tanpa mengubah scaffold/backend atau guard preview produksi.
+- Tambah input nominal aktual, guard minimum DP, ledger DP kurang/top-up, penerimaan tambahan setelah PAID dan idempotency per operasi; pertahankan kas legacy dan status layanan terminal.
+- Pisahkan asal reschedule dari pelaksana; tambahkan SLOT_SELECTION_REQUIRED, revision request, requestedAt asal, aksi pemilihan ulang dan approval target terbaru dengan guard slot/versi. Tutup request pemilihan ulang saat layanan dibatalkan setelah lunas.
+- Satukan resolver tanggal untuk availability/ringkasan/conflict guard; override dapat membuka libur dengan alasan. Selaraskan angka waktu operasional pada ringkasan.
+- Perbaiki kwitansi agar memakai penerimaan awal aktual dan menamai tagihan psikoterapi PER_SESSION sebagai sesi terkait, bukan membagi tarif satu sesi menjadi empat.
+- Perbarui TODO, aturan bisnis, keputusan, known issues dan handoff; tambah [catatan perbaikan FE](PERBAIKAN_AUDIT_FE_2026_10_22.md). AUD-01 serta integrasi backend/window/SLA tetap terbuka.
+- npm run lint lolos; npm test74/74 (71 FE +3integrasi sumber), bertambah16tes dari baseline58. Tidak menjalankan dev/build/Git, pengujian browser atau database.
+
 ## Kelanjutan FE dan Kesiapan Merge - 22 Oktober 2026
 - Implementasikan billing per sesi untuk psikoterapi baru, DP awal100.000, DP lanjutan0, receipt/report per sesi serta guard batal seluruh invoice lunas. Legacy dipertahankan.
 - Lengkapi request pasien dan review Admin, kuota3 APPLIED/H-2/+4hari WIB, histori asal perubahan, guard versi dan slot. Slot lama tidak dilepas sebelum apply.

@@ -17,8 +17,7 @@ const assertPending = (appointment: Appointment, expectedVersion: number) => {
 export const rejectInitialPaymentProof = (appointment: Appointment, actor: Actor, reason: string,
   expectedVersion: number, now = new Date()): Appointment => {
   assertPending(appointment, expectedVersion);
-  if (!['ADMIN', 'PSYCHOLOGIST'].includes(actor.role) ||
-      (actor.role === 'PSYCHOLOGIST' && appointment.psychologistId !== actor.id)) throw new Error('Tidak berwenang menolak bukti.');
+  if (actor.role !== 'ADMIN') throw new Error('Penolakan bukti pembayaran hanya dapat dilakukan Admin.');
   if (!reason.trim()) throw new Error('Alasan penolakan wajib diisi.');
   if (appointment.paymentProofState === 'REJECTED') throw new Error('Bukti ini sudah ditolak; tunggu koreksi pasien.');
   const sessionStart = Date.parse(`${appointment.date}T${appointment.startTime}:00+07:00`);

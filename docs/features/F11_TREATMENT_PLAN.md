@@ -3,7 +3,7 @@
 Aturan terbaru: [keputusan final 22 Oktober 2026](../KEPUTUSAN_FINAL_2026_10_22.md). Ini kontrak target backend, bukan klaim seluruh preview telah dimigrasikan.
 
 ## Latar Belakang dan Tujuan
-Mengelompokkan empat sesi awal tanpa menagih sesi yang belum dipesan. Harga Rp500.000 per sesi; bukan pembelian bundle Rp2.000.000 di awal.
+Mengelompokkan empat sesi awal tanpa menagih sesi yang belum dipesan. Harga Rp500.000 per sesi; bukan wajib membeli bundle Rp2.000.000 di awal. Keputusan terbaru memperbolehkan prabayar penuh empat sesi atau cicilan, wajib lunas pada hari sesi terakhir. Snapshot tarif disepakati pada awal rangkaian baru. Detail [alokasi dan pelunasan](../ALUR_PEMBAYARAN_SESI.md).
 
 ## Aktor dan Authorization
 Pasien memulai melalui booking pertama. Admin menjadwalkan sesi berikutnya menurut arahan psikolog dan kesepakatan pasien. Psikolog menentukan isi/tujuan klinis dan penutupan rencana. DTO Admin tidak membawa clinical_objective, saldo atau agregat penerimaan. Admin mengikuti hak operasional Desman dengan policy server.
@@ -23,14 +23,15 @@ Pasien memulai melalui booking pertama. Admin menjadwalkan sesi berikutnya menur
 3. Admin memverifikasi DP aktual. Rp100.000 mengurangi tagihan sesi pertama, bukan biaya di luar layanan dan bukan DP baru per sesi.
 4. Setelah sesi sebelumnya selesai, Admin menyepakati jadwal H+1 untuk sesi berikutnya. Buat satu appointment/invoice500.000 sesi itu saja; tidak meminta DP/bukti awal baru. Pembayaran pelunasan tetap boleh dicatat menurut kesepakatan dengan praktisi.
 5. Reschedule/no-show recovery memakai appointment, session_number dan billing yang sama. Tidak membuat invoice dasar atau DP kedua. Periksa versi terbaru agar form lama tidak menimpa jadwal baru.
-6. Setelah empat sesi benar-benar selesai, plan dapat ditutup administratif. Bila masih diperlukan terapi, pasien booking kembali memakai plan/ledger baru dan DP awal100.000 baru. Catatan klinis dapat merujuk rangkaian terdahulu; plan lama tidak mendapat sesi5.
+6. Setelah empat sesi benar-benar selesai dan seluruh tagihan sah lunas, plan dapat ditutup administratif. Bila belum lunas, fakta pertemuan tetap selesai tetapi finansial Menunggu pelunasan; tidak boleh menganggap layanan selesai dan lunas atau memesan ulang paket yang sama untuk melewati sisa. Bila masih diperlukan terapi setelah penutupan sah, pasien booking kembali memakai plan/ledger baru dan DP awal100.000 baru. Catatan klinis dapat merujuk rangkaian terdahulu; plan lama tidak mendapat sesi5.
 
 ## Status dan Transisi
 | Aksi | Guard | Hasil |
 |---|---|---|
 | Booking pertama | tidak ada plan ACTIVE, slot H+1 sah | plan4 + sesi1 + invoice sesi1 atomik |
 | Jadwalkan lanjutan | ACTIVE, sesi sebelumnya selesai, DP awal verified, belum ada sesi berikutnya, nomor <=4 | satu appointment/invoice baru, DP0 |
-| Selesai rencana | empat sesi COMPLETED, tidak ada appointment aktif | COMPLETED; bukan klaim keberhasilan klinis |
+| Selesai rencana | empat sesi COMPLETED, tidak ada appointment aktif, seluruh tagihan sah lunas | selesai administratif; bukan klaim keberhasilan klinis |
+| Sesi terakhir selesai belum lunas | fakta pertemuan tetap COMPLETED | Menunggu pelunasan administratif, Admin masih dapat mencatat pembayaran |
 | Hentikan/batalkan | seluruh tagihan sah yang telah terbentuk lunas, alasan dan versi valid | seluruh sisa appointment terkait CANCELLED + plan DISCONTINUED atomik |
 | Booking kembali | plan sebelumnya terminal, tidak ada ACTIVE lain | plan baru empat unit dan ledger/DP awal baru |
 

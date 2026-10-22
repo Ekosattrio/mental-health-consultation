@@ -7,15 +7,17 @@ import { Tooltip } from '../../common/Tooltip';
 import { computeDynamicSlotsForDate, loadScheduleSettings } from '../../../data/scheduleConfig';
 import { isPlanInitialPaymentVerified } from '../../../utils/payments';
 import { getMinimumBookingDate } from '../../../utils/bookingPolicy';
+import { RescheduleOptions } from '../../../utils/reschedulePolicy';
 
 interface HistoryTabProps {
   myAppointments: Appointment[];
   operatorLabel?: string;
+  operatorRole?: 'ADMIN' | 'PSYCHOLOGIST';
   onCompleteAppointment: (appointmentId: string) => Promise<boolean>;
   onMarkNoShow: (appointmentId: string, reason: string) => Promise<boolean>;
   onCancelAppointment: (appointmentId: string, reason: string) => Promise<boolean>;
   onScheduleNextSession: (appointmentId: string, date: string, startTime: string, endTime: string) => Promise<boolean>;
-  onReschedule: (appointmentId: string, date: string, startTime: string, endTime: string, reason?: string, expectedVersion?: number) => Promise<boolean>;
+  onReschedule: (appointmentId: string, date: string, startTime: string, endTime: string, reason?: string, expectedVersion?: number, options?: RescheduleOptions) => Promise<boolean>;
 }
 
 const getTomorrowDate = () => {
@@ -25,6 +27,7 @@ const getTomorrowDate = () => {
 export const HistoryTab: React.FC<HistoryTabProps> = ({
   myAppointments,
   operatorLabel = 'Psikolog',
+  operatorRole = 'PSYCHOLOGIST',
   onCompleteAppointment,
   onMarkNoShow,
   onCancelAppointment,
@@ -603,6 +606,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
       )}
 
       <RescheduleModal
+        operatorRole={operatorRole}
         key={rescheduleId || 'closed'}
         isOpen={Boolean(rescheduleAppointment)}
         onClose={() => setRescheduleId(null)}

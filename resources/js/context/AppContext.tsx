@@ -8,7 +8,6 @@ import {
   ConsultationPackage,
   ScheduleSlot,
   Appointment,
-  FinalPaymentRecord,
   IntakeForm,
   Review,
   AnalyticsSummary,
@@ -34,11 +33,14 @@ import {
   loadScheduleSettings,
   resetScheduleSettings
 } from '../data/scheduleConfig';
-import { getTreatmentPlanBalance, getNextSessionBilling, isPlanInitialPaymentVerified } from '../utils/payments';
+import { getNextSessionBilling, isPlanInitialPaymentVerified, getCashInDate, resolvePaymentAccount, syncPaymentAllocations, getPaymentSummary } from '../utils/payments';
+import { appendReceivedPayment, verifyInitialReceipt, ReceivedPayment } from '../utils/paymentWorkflow';
 import { calculatePackagePayableAmount } from '../utils/discounts';
 import { cancelPaidPlan } from '../utils/appointmentWorkflow';
 import { rejectInitialPaymentProof, correctInitialPaymentProof, ProofUpload } from '../utils/paymentProof';
-import { canRescheduleAppointment, rescheduleExistingAppointment, assertScheduleVersion, requestPatientReschedule, applyPatientReschedule } from '../utils/reschedulePolicy';
+import { canRescheduleAppointment, rescheduleExistingAppointment, assertScheduleVersion, requestPatientReschedule,
+  RescheduleOptions, assertRequestRevision, requireRescheduleSlotSelection, isOpenRescheduleRequest } from '../utils/reschedulePolicy';
+import { reviewRescheduleAvailability } from '../utils/rescheduleApproval';
 import { AccountProfileInput, updateOwnAccountProfile } from '../utils/accountProfile';
 import { persistBrowserValue, validateLandingCms, mergePatientCms } from '../utils/cms';
 import { createRecordId, getPracticeDate, isValidBookingDate } from '../utils/bookingPolicy';
@@ -163,6 +165,7 @@ interface AppContextType {
     consentVersion?: string;
     privacyVersion?: string;
     initialPaymentAmount?: number;
+    initialPaymentScope?: 'SESSION' | 'PLAN';
     initialPaymentReceivedDate?: string;
     expectedTotalAmount?: number;
     slotHoldId?: string;
@@ -188,17 +191,12 @@ interface AppContextType {
   togglePackageStatus: (packageId: string) => void;
   updateAppointmentStatus: (aptId: string, status: Appointment['status'], reason?: string) => Promise<boolean>;
   confirmRescheduledBooking: (appointmentId: string) => Promise<boolean>;
-  reviewPatientReschedule: (appointmentId: string, requestId: string, approve: boolean, reason?: string) => Promise<boolean>;
-  verifyPaymentAndConfirmBooking: (appointmentId: string, note?: string, receivedDate?: string, expectedProofVersion?: number) => Promise<boolean>;
+  reviewPatientReschedule: (appointmentId: string, requestId: string, approve: boolean, reason?: string, expectedRevision?: number) => Promise<boolean>;
+  reopenPatientReschedule: (appointmentId: string, requestId: string, reason: string, expectedRevision: number) => Promise<boolean>;
+  verifyPaymentAndConfirmBooking: (appointmentId: string, note?: string, receivedDate?: string, expectedProofVersion?: number, receivedAmount?: number) => Promise<boolean>;
   rejectPaymentProof: (appointmentId: string, reason: string, expectedVersion: number) => Promise<boolean>;
   correctPaymentProof: (appointmentId: string, proof: ProofUpload, expectedVersion: number) => Promise<boolean>;
-  recordFinalPayment: (appointmentId: string, payment: {
-    amount: number;
-    method: NonNullable<Appointment['finalPaymentMethod']>;
-    channelDetail?: string;
-    purpose?: FinalPaymentRecord['purpose'];
-    receivedDate?: string;
-  }) => Promise<boolean>;
+  recordFinalPayment: (appointmentId: string, payment: ReceivedPayment) => Promise<boolean>;
   scheduleNextContinuousSession: (
     appointmentId: string,
     date: string,
@@ -212,7 +210,8 @@ interface AppContextType {
     newStartTime: string,
     newEndTime: string,
     reason?: string,
-    expectedVersion?: number
+    expectedVersion?: number,
+    options?: RescheduleOptions
   ) => Promise<boolean>;
   resetAllToDefault: () => Promise<void>;
 }
@@ -833,6 +832,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     consentVersion?: string;
     privacyVersion?: string;
     initialPaymentAmount?: number;
+    initialPaymentScope?: 'SESSION' | 'PLAN';
     initialPaymentReceivedDate?: string;
     expectedTotalAmount?: number;
     slotHoldId?: string;
@@ -990,7 +990,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           patientId: effectivePatient.id,
           patientName: effectivePatient.name,
           patientEmail: effectivePatient.email,
-          paymentMethod: isAdminWalkIn ? data.paymentMethod : 'TRANSFER_BANK_DP',
+          paymentMethod: isAdminWalkIn ? data.paymentMethod : data.paymentMethod?.includes('FULL') ? 'TRANSFER_BANK_FULL' : 'TRANSFER_BANK_DP',
           paymentChannelDetail: !isAdminWalkIn && hold?.paymentChannelDetail ? hold.paymentChannelDetail : data.paymentChannelDetail,
           paymentProofUrl: paymentCase?.paymentProofUrl || data.paymentProofUrl,
           paymentProofName: paymentCase?.paymentProofName || data.paymentProofName,
@@ -1229,7 +1229,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast('Rencana Dihentikan', 'Sesi pada rencana yang dihentikan tidak dapat diproses.', 'warning');
         return false;
       }
-      if (['NO_SHOW', 'COMPLETED'].includes(status) && target.rescheduleRequest?.status === 'REQUESTED') {
+      if (['NO_SHOW', 'COMPLETED'].includes(status) && isOpenRescheduleRequest(target)) {
         showToast('Pengajuan Belum Diputuskan', 'Selesaikan pengajuan reschedule pasien sebelum menetapkan no-show.', 'warning');
         return false;
       }
@@ -1280,7 +1280,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     setAppointments(nextAppointments);
-    showToast('Status Sesi Diperbarui', `Status sesi berhasil diubah menjadi ${status}.`, 'success');
+    const summary = getPaymentSummary(nextAppointments.find(item => item.id === aptId)!, nextAppointments);
+    showToast('Status Sesi Diperbarui', summary.closurePending
+      ? 'Pertemuan selesai dicatat. Layanan masih menunggu pelunasan melalui Admin.'
+      : `Status sesi berhasil diubah menjadi ${status}.`, summary.closurePending ? 'warning' : 'success');
     return true;
   };
 
@@ -1317,9 +1320,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     appointmentId: string,
     note?: string,
     receivedDate?: string,
-    expectedProofVersion?: number
+    expectedProofVersion?: number,
+    receivedAmount?: number
   ): Promise<boolean> => {
-    if (currentRole !== 'ADMIN') {
+    if (currentRole !== 'ADMIN' || !currentUser) {
       showToast('Akses Ditolak', 'Verifikasi pembayaran hanya dapat dilakukan admin operasional.', 'warning');
       return false;
     }
@@ -1365,41 +1369,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const verifiedAt = new Date().toISOString();
-    const verifiedByName = currentUser?.name || 'Admin Operasional';
-    const nextAppointments = latestAppointments.map(item => (
-      item.id === appointmentId
-        ? {
-            ...item,
-            status: 'CONFIRMED' as const,
-            paymentStatus: item.initialPaymentRecord?.kind === 'FULL' || item.paymentStatus === 'PAID' || (item.dpAmount || 0) >= item.totalAmount ? 'PAID' as const : 'DP_PAID' as const,
-            remainingAmount: Math.max(item.totalAmount - (item.initialPaymentRecord?.amount ?? (item.paymentStatus === 'PAID' ? item.totalAmount : item.dpAmount || 0)), 0),
-            paymentVerifiedAt: verifiedAt,
-            initialRequirementMet: true,
-            paymentVerifiedByName: verifiedByName,
-            paymentVerificationNote: note?.trim() || undefined,
-            paymentProofState: 'VERIFIED' as const,
-            initialPaymentRecord: item.totalAmount > 0 ? {
-              id: item.initialPaymentRecord?.id || createRecordId('payment'),
-              amount: item.initialPaymentRecord?.amount ?? (item.paymentStatus === 'PAID' ? item.totalAmount : item.dpAmount || 0),
-              kind: item.initialPaymentRecord?.kind || (item.paymentStatus === 'PAID' ? 'FULL' as const : 'DP' as const),
-              method: item.initialPaymentRecord?.method || item.paymentMethod || 'BANK_TRANSFER' as const,
-              channelDetail: item.initialPaymentRecord?.channelDetail || item.paymentChannelDetail,
-              receivedAt: receivedDate || item.initialPaymentRecord?.receivedAt || getPracticeDate(),
-              recordedByName: verifiedByName, verifiedAt
-            } : undefined,
-            statusHistory: [...(item.statusHistory || []), {
-              from: item.status, to: 'CONFIRMED' as const, at: new Date().toISOString(),
-              actorId: currentUser!.id, actorName: verifiedByName, reason: 'Verifikasi pembayaran awal'
-            }]
-          }
-        : item
-    ));
+    const updated = verifyInitialReceipt(target, currentUser,
+      receivedAmount ?? target.initialPaymentRecord?.amount ?? (target.totalAmount === 0 ? 0 : NaN),
+      receivedDate || (target.initialPaymentRecord?.receivedAt ? getCashInDate(target.initialPaymentRecord.receivedAt) : getPracticeDate()), expectedProofVersion ?? -1, note);
+    const nextAppointments = latestAppointments.map(item => item.id === appointmentId ? updated : item);
 
-    setAppointments(nextAppointments);
+    setAppointments(syncPaymentAllocations(nextAppointments));
     showToast(
       'Pembayaran Terverifikasi',
-      'Bukti pembayaran valid dan booking telah dikonfirmasi.',
+      updated.initialRequirementMet ? 'Pembayaran tercatat dan booking dikonfirmasi.' : 'Penerimaan dicatat. Booking tetap menunggu sampai minimum DP terpenuhi.',
       'success'
     );
     return true;
@@ -1409,7 +1387,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     runWorkflowMutation(() => verifyPaymentAndConfirmBookingUnlocked(...args), false);
 
   const rejectPaymentProof: AppContextType['rejectPaymentProof'] = (id, reason, version) => runWorkflowMutation(() => {
-    if (!currentUser || !ensureRole(['ADMIN', 'PSYCHOLOGIST'], 'Penolakan bukti')) return false;
+    if (!currentUser || !ensureRole(['ADMIN'], 'Penolakan bukti')) return false;
     const latest = readWorkflowState().appointments;
     const source = latest.find(item => item.id === id);
     if (!source) return false;
@@ -1432,13 +1410,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const recordFinalPaymentUnlocked = (
     appointmentId: string,
-    payment: {
-      amount: number;
-      method: NonNullable<Appointment['finalPaymentMethod']>;
-      channelDetail?: string;
-      purpose?: FinalPaymentRecord['purpose'];
-      receivedDate?: string;
-    }
+    payment: ReceivedPayment
   ): boolean => {
     if (currentRole !== 'ADMIN') {
       showToast('Akses Ditolak', 'Pencatatan pembayaran hanya dapat dilakukan admin operasional.', 'warning');
@@ -1456,71 +1428,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const latestAppointments = loadState<Appointment[]>('appointments', appointments);
     const target = latestAppointments.find(item => item.id === appointmentId);
-    if (!target || !(target.paymentStatus === 'DP_PAID' || (target.billingMode === 'PER_SESSION' && target.paymentStatus === 'PENDING')) || target.status === 'CANCELLED' ||
-        target.treatmentPlanStatus === 'DISCONTINUED' ||
-        ((target.continuousSessionNumber || 1) > 1 && target.billingMode !== 'PER_SESSION')) {
-      showToast('Pembayaran Tidak Tersedia', 'Booking ini tidak berada pada status DP terbayar.', 'warning');
+    if (!target || !currentUser) {
+      showToast('Pembayaran Tidak Tersedia', 'Booking tidak ditemukan.', 'warning');
       return false;
     }
-
-    if (target.packageType === 'PSYCHOTHERAPY' && target.status !== 'COMPLETED' && payment.purpose !== 'CANCELLATION_SETTLEMENT') {
-      showToast('Sesi Belum Selesai', 'Pembayaran psikoterapi dicatat setelah sesi terkait selesai atau sebagai pelunasan sebelum pembatalan.', 'warning');
-      return false;
-    }
-
-    const balance = getTreatmentPlanBalance(target);
-    const amount = Math.round(payment.amount);
-
-    const updatedAt = new Date().toISOString();
-    const previousPayments: FinalPaymentRecord[] = target.finalPaymentRecords?.length
-      ? target.finalPaymentRecords
-      : typeof target.finalPaymentAmount === 'number' && target.finalPaymentAmount > 0
-        ? [{
-            id: `payment-legacy-${target.id}`,
-            amount: target.finalPaymentAmount,
-            method: target.finalPaymentMethod || 'CASH',
-            channelDetail: target.finalPaymentChannelDetail,
-            recordedAt: target.finalPaymentRecordedAt || target.createdAt,
-            recordedByName: target.finalPaymentRecordedByName || 'Admin Operasional'
-          }]
-        : [];
-    const finalPaymentRecords: FinalPaymentRecord[] = [
-      ...previousPayments,
-      {
-        id: `payment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        amount,
-        method: payment.method,
-        channelDetail: payment.channelDetail?.trim() || undefined,
-        recordedAt: updatedAt,
-        receivedAt: payment.receivedDate || getPracticeDate(),
-        recordedByName: currentUser?.name || 'Admin Operasional',
-        purpose: payment.purpose || 'CONSULTATION'
-      }
-    ];
-    const remainingAmount = Math.max(balance.remainingAmount - amount, 0);
+    const account = resolvePaymentAccount(target, latestAppointments);
+    const updated = appendReceivedPayment(account, currentUser, payment);
+    if (updated === account) return true;
     const nextAppointments = latestAppointments.map(item => (
-      item.id === appointmentId
-        ? {
-            ...item,
-            paymentStatus: remainingAmount === 0 ? 'PAID' as const : 'DP_PAID' as const,
-            remainingAmount,
-            finalPaymentRecords,
-            finalPaymentAmount: finalPaymentRecords.reduce((sum, record) => sum + record.amount, 0),
-            finalPaymentMethod: payment.method,
-            finalPaymentChannelDetail: payment.channelDetail?.trim() || undefined,
-            finalPaymentRecordedAt: updatedAt,
-            finalPaymentRecordedByName: currentUser?.name || 'Admin Operasional'
-          }
+      item.id === account.id
+        ? updated
         : target.billingMode !== 'PER_SESSION' && target.treatmentPlanId && item.treatmentPlanId === target.treatmentPlanId
-          ? { ...item, paymentStatus: remainingAmount === 0 ? 'PAID' as const : 'DP_PAID' as const }
+          ? { ...item, paymentStatus: updated.paymentStatus, initialRequirementMet: updated.initialRequirementMet }
           : item
     ));
-    setAppointments(nextAppointments);
+    const allocated = syncPaymentAllocations(nextAppointments);
+    setAppointments(allocated);
 
     showToast(
       'Pembayaran Dicatat',
-      remainingAmount === 0
-        ? 'Pembayaran lunas. Nominal tidak ditampilkan kembali pada portal admin.'
+      getPaymentSummary(allocated.find(item => item.id === account.id)!, allocated).remainingByFinal === 0
+        ? 'Pembayaran seluruh layanan lunas. Nominal tidak ditampilkan kembali pada portal admin.'
         : 'Pembayaran sebagian tercatat. Nominal tidak ditampilkan kembali pada portal admin.',
       'success'
     );
@@ -1790,7 +1718,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ))
       ];
 
-      setAppointments(nextAppointments);
+      setAppointments(syncPaymentAllocations(nextAppointments));
       showToast(
         'Sesi Lanjutan Dijadwalkan',
         `Sesi ${nextSessionNumber} dari ${latestTotalSessions} berhasil dibuat pada ${date} pukul ${startTime} - ${endTime}.`,
@@ -1836,7 +1764,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     newEndTime: string,
     reason?: string,
     expectedVersion?: number,
-    approvedRequestId?: string
+    options?: RescheduleOptions
   ): Promise<boolean> => {
     if (!ensureRole(['PATIENT', 'ADMIN', 'PSYCHOLOGIST'], 'Reschedule janji temu')) return false;
     if (!reason?.trim()) {
@@ -1893,7 +1821,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       assertScheduleVersion(latestTarget, expectedVersion);
       if (currentRole === 'PATIENT') {
-        const requested = requestPatientReschedule(latestTarget, currentUser, newDate, newStartTime, newEndTime, reason);
+        if (options?.origin && options.origin !== 'PATIENT') throw new Error('Pasien tidak dapat mengubah asal pengajuan.');
+        if (latestTarget.rescheduleRequest?.status === 'SLOT_SELECTION_REQUIRED' && options?.requestId !== latestTarget.rescheduleRequest.id) {
+          throw new Error('Pengajuan sudah berubah. Periksa data terbaru.');
+        }
+        const requested = requestPatientReschedule(latestTarget, currentUser, newDate, newStartTime, newEndTime, reason, new Date(), options?.requestRevision);
         setAppointments(latestAppointments.map(item => item.id === aptId ? requested : item));
         return true;
       }
@@ -1926,9 +1858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      const updatedApt = approvedRequestId
-        ? applyPatientReschedule(latestTarget, currentUser, approvedRequestId)
-        : rescheduleExistingAppointment(latestTarget, currentUser, newDate, newStartTime, newEndTime, reason);
+      const updatedApt = rescheduleExistingAppointment(latestTarget, currentUser, newDate, newStartTime, newEndTime, reason, new Date(), options?.origin);
       const nextAppointments = latestAppointments.map(item => item.id === aptId ? updatedApt : item);
       setAppointments(nextAppointments);
       return true;
@@ -1952,18 +1882,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
-  const reviewPatientReschedule: AppContextType['reviewPatientReschedule'] = async (appointmentId, requestId, approve, reason) => {
+  const reopenPatientReschedule: AppContextType['reopenPatientReschedule'] = (id, requestId, reason, revision) => runWorkflowMutation(() => {
+    if (!currentUser || !ensureRole(['ADMIN', 'PSYCHOLOGIST'], 'Pemilihan ulang slot')) return false;
+    const latest = readWorkflowState().appointments;
+    const target = latest.find(item => item.id === id);
+    if (!target) return false;
+    const reopened = requireRescheduleSlotSelection(target, currentUser, requestId, reason, revision);
+    setAppointments(latest.map(item => item.id === id ? reopened : item));
+    showToast('Pemilihan Ulang Dibuka', 'Pasien dapat memilih ulang dari riwayat booking. Jadwal aktif tetap berlaku.', 'success');
+    return true;
+  }, false);
+
+  const reviewPatientReschedule: AppContextType['reviewPatientReschedule'] = async (appointmentId, requestId, approve, reason, expectedRevision) => {
     if (!ensureRole(['ADMIN', 'PSYCHOLOGIST'], 'Review reschedule')) return false;
-    const source = readWorkflowState().appointments.find(item => item.id === appointmentId);
-    const request = source?.rescheduleRequest;
-    if (!source || !request || request.id !== requestId || request.status !== 'REQUESTED') return false;
-    if (approve) return rescheduleAppointment(appointmentId, request.date, request.startTime, request.endTime,
-      request.reason, request.expectedScheduleVersion, requestId);
     return runWorkflowMutation(() => {
       const latest = readWorkflowState().appointments;
       const target = latest.find(item => item.id === appointmentId);
       if (!target?.rescheduleRequest || target.rescheduleRequest.id !== requestId || target.rescheduleRequest.status !== 'REQUESTED') return false;
+      assertRequestRevision(target, expectedRevision);
       if (currentRole === 'PSYCHOLOGIST' && target.psychologistId !== currentUser?.id) return false;
+      if (approve) {
+        const result = reviewRescheduleAvailability(target, currentUser!, requestId, expectedRevision!, latest, loadScheduleSettings());
+        setAppointments(latest.map(item => item.id === appointmentId ? result.appointment : item));
+        showToast(result.applied ? 'Jadwal Diperbarui' : 'Pemilihan Ulang Dibuka',
+          result.applied ? 'Usulan pasien disetujui tanpa DP tambahan.' : 'Pasien dapat memilih ulang dari riwayat booking. Jadwal aktif tetap berlaku.',
+          result.applied ? 'success' : 'warning');
+        return result.applied;
+      }
       if (!reason?.trim()) throw new Error('Alasan penolakan wajib diisi.');
       setAppointments(latest.map(item => item.id === appointmentId ? { ...item,
         rescheduleRequest: { ...target.rescheduleRequest!, status: 'REJECTED',
@@ -2101,6 +2046,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         confirmRescheduledBooking,
         reviewPatientReschedule,
         verifyPaymentAndConfirmBooking,
+        reopenPatientReschedule,
         rejectPaymentProof,
         correctPaymentProof,
         recordFinalPayment,

@@ -18,7 +18,7 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 2. Autosave dengan expected_version=row_version agar dua tab tidak menimpa. Nomor versi template berbeda dari versi row draft.
 3. Submit memvalidasi hanya pertanyaan template; versi submitted immutable.
 4. Booking menghubungkan submission dalam transaction setelah appointment dibuat.
-5. Sesi berikutnya membuat submission baru; boleh menawarkan salinan yang harus dikonfirmasi ulang, bukan mengganti histori.
+5. Keputusan eksplisit developer 22 Oktober 2026: setiap booking/sesi baru memakai submission baru yang dikonfirmasi atau diperbarui pasien. Termasuk pemesanan Konseling kembali, karena konteks keluhannya dapat berbeda. Boleh menawarkan salinan jawaban sebelumnya, tetapi pasien wajib memeriksa/menyetujui atau mengubahnya; jangan otomatis menganggap snapshot lama sebagai jawaban sesi baru. Histori tetap terikat appointment asal. Admin yang menjadwalkan tidak menjadi pengisi/penyetujui jawaban klinis pasien.
 6. Jawaban risiko menandai perhatian praktisi di dashboard; tidak menghasilkan diagnosis/layanan darurat otomatis.
 7. Booking offline oleh Admin dapat memakai appointments.profiling_mode=PAPER tanpa pretest_submission_id; pasien mengisi kertas dan menyerahkannya langsung ke Superadmin. Label “Profiling kertas — tidak tersimpan di aplikasi” berbeda dari SUBMITTED digital. Admin tidak menyatakan kelengkapan klinis kertas atau membuat submission kosong untuk meloloskan booking. Kelengkapan identitas, pembayaran, consent dan guard slot tetap berlaku.
 ## Status dan transisi
@@ -37,6 +37,9 @@ Target path relatif root domain memakai route web/session Laravel. Kontrak props
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
 ## Acceptance criteria
+- Konseling berikutnya dapat mempunyai keluhan/harapan berbeda; psikolog melihat jawaban milik appointment yang dipilih, bukan selalu jawaban terbaru pasien atau salinan otomatis tanpa konfirmasi.
+- Jawaban yang disalin harus dikonfirmasi pasien sebelum menjadi submission baru. Membuka form atau menjadwalkan sesi oleh Admin tidak dihitung sebagai konfirmasi pasien.
+- Reschedule appointment yang sama mempertahankan pre-test/snapshot asal tanpa memaksa submission baru. Koreksi jawaban yang memang diminta tetap memakai revisi berjejak, bukan overwrite.
 - Jawaban kunjungan pertama tetap terlihat di sesi pertama setelah kunjungan kedua.
 - Profiling tidak memuat DASS/scoring diagnosis pada scope aktif.
 - API Admin tidak mengembalikan answers JSON.

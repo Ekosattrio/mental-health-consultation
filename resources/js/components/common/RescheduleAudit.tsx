@@ -15,6 +15,7 @@ export const RescheduleAudit: React.FC<{ appointment: Appointment }> = ({ appoin
     {appointment.rescheduleHistory?.length ? <ol className="space-y-3 border-l-2 border-sky-200 pl-3">
       {appointment.rescheduleHistory.map((event, index) => <li key={`${event.at}-${index}`} className="break-words">
         <p className="font-semibold">{event.actorName} ({event.actorRole})</p>
+        {event.origin && <p className="text-slate-500">Asal: {event.origin === 'PATIENT' ? 'Permintaan pasien' : event.origin === 'CLINIC' ? 'Klinik' : 'Psikolog'}</p>}
         <p>{event.fromDate}, {event.fromStartTime} - {event.fromEndTime} WIB</p>
         <p className="font-medium text-sky-800">Menjadi {event.toDate}, {event.toStartTime} - {event.toEndTime} WIB</p>
         <p className="whitespace-pre-line">{event.reason}</p>

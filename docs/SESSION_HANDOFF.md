@@ -1,6 +1,27 @@
 # Migrasi Inertia disetujui — 20 Oktober 2026
 
-## Kelanjutan Terbaru - Siap Review Merge
+## Kelanjutan Terbaru - Pelunasan Sesi Terakhir
+Permintaan terbaru developer: boleh cicilan/penuh di awal, wajib lunas pada hari sesi terakhir. FE preview baru memakai `paymentAgreement` pada psikoterapi baru dengan snapshot tarif empat sesi dan satu ledger uang nyata pada appointment awal. Aksi pembayaran sesi mana pun dirutekan ke ledger itu; FIFO allocation melunasi invoice terjadwal tanpa kas/DP/proof kedua. Harga katalog baru tidak mengubah agreement. Tagihan sesi belum dipesan tetap bukan utang; prabayar sukarela/lebih bayar ditampilkan terpisah dan tidak pindah ke rangkaian baru.
+
+Pilihan DP/penuh tersedia pada Booking pasien dan walk-in Admin. Riwayat/receipt pasien, progress dan Paket Berjalan memperlihatkan ringkasan pembayaran sesuai role. Admin melihat indikator/jatuh tempo, bukan saved saldo/agregat nominal; hanya Admin dapat verify/record/reject. Pertemuan terakhir yang terjadi tetap COMPLETED secara klinis; jika saldo invoice masih positif, UI Menunggu pelunasan dan pembelian ulang psikoterapi paket sama ditahan. Pelunasan mengubah indikator tanpa mengarang kejadian sesi. Jatuh tempo mengikuti jadwal terakhir yang di-reschedule, tanpa auto-cancel/denda.
+
+Rincian, contoh dan kontrak backend: [ALUR_PEMBAYARAN_SESI](ALUR_PEMBAYARAN_SESI.md). Record lama tanpa agreement dipertahankan; jangan migrasi histori atau membuka mock ke produksi. Domain/DB, penutupan server atomik, DTO, skema alokasi dan pengujian browser/mobile belum selesai. Pre-test konfirmasi per sesi tetap TODO terpisah. Tidak menjalankan Git/dev/build atau PHPUnit pada perubahan FE ini. Catatan lebih lama di bawah bersifat historis.
+Verifikasi: `npm run lint` tanpa error, `npm test` 87/87 (84 FE +3integrasi sumber). Tambahan13tes mencakup alokasi, prabayar/lebih bayar, due WIB, status akhir, isolasi/role, dua pembayaran paralel dan kegagalan simpan atomik. Tidak ada dev server/build/browser E2E dijalankan oleh agent.
+
+## Kelanjutan Sebelumnya - TODO FE Audit
+Keputusan terbaru untuk pre-test: pilih konfirmasi/perbarui jawaban pada setiap booking atau sesi baru, termasuk Konseling ulang dengan konteks berbeda. Salinan lama tidak otomatis menjadi jawaban baru; simpan submission/snapshot per appointment tanpa menimpa histori. Reschedule sesi yang sama tidak otomatis mengulang pre-test. F07, keputusan final dan TODO diperbarui; source sesi lanjutan yang masih mewarisi snapshot lama belum diubah. Tidak menetapkan deadline/guard layanan baru di luar keputusan ini.
+
+Instruksi bisnis paling baru: operasional penerimaan pembayaran pasien khusus Admin; psikolog membaca keuangan, bukan input/verifikasi. Penolakan input/verifikasi psikolog bukan lagi temuan yang perlu dibuka aksesnya. Dokumen keputusan, permission, F08 dan kontrak diselaraskan. Guard reject bukti masih perlu dibatasi ke Admin dalam tindak lanjut FE; tidak mengubah source/menjalankan tes pada penegasan docs-only ini. Hak harga/diskon dan pengeluaran owner tidak berubah.
+
+Permintaan terakhir: lanjutkan TODO frontend. Lima temuan AUD-02 sampai AUD-06 sudah diperbaiki pada preview; lihat [rincian alur dan handoff backend](PERBAIKAN_AUDIT_FE_2026_10_22.md). AUD-01 tetap terbuka: aplikasi utama belum memiliki seluruh halaman domain yang terhubung backend. Jangan membuka mock di produksi sebagai jalan pintas.
+
+Pembayaran: input nominal aktual saat verifikasi; uang kurang dari DP tetap dicatat tanpa mengonfirmasi booking; pencatatan tambahan memenuhi kekurangan tanpa mengubah penerimaan awal. Transfer nyata setelah PAID tetap masuk ledger, retry ber-key sama tidak rangkap, pembatalan tidak diaktifkan lagi oleh uang masuk.
+
+Reschedule: asal PATIENT/CLINIC/OWNER terpisah dari pelaksana; bantuan pasien oleh Admin tetap memakai kuota/batas pasien. Request dengan tujuan terambil/lewat dapat memilih ulang melalui Riwayat pasien, menjaga ID/requestedAt pertama dan memeriksa revision. Approval memeriksa target request terbaru di bawah workflow lock; slot lama dan DP tetap sampai apply. Kalender memakai resolver tanggal bersama yang menghormati override eksplisit.
+
+Verifikasi: npm run lint lolos, npm test74/74 (71 FE +3integrasi sumber). Belum menjalankan browser/mobile E2E, build, dev server, migration, PHPUnit atau Git pada pengerjaan ini. Backend domain, authorization/DTO, transaksi lintas perangkat, fase APPROVED/selection-window dan clock/SLA tetap TODO. Semua progres sebelumnya di bawah bersifat historis.
+
+## Kelanjutan Sebelumnya - Review Integrasi
 Permintaan developer terbaru: rapikan semua blocker integrasi agar dapat commit merge integrasi/desman lalu merge main tanpa force. [Panduan developer](PANDUAN_MERGE_INTEGRASI.md) berisi urutan aman; agent tidak mengeksekusi Git atau mengubah index.
 FE preview kini memakai tagihan per sesi pada psikoterapi baru, DP100.000 sekali, lanjutan DP0, rekening sesi/receipt/report terpisah. Record tanpa billingMode mempertahankan nilai legacy. Cancel memeriksa semua invoice terbentuk, menghentikan sisa plan dan request terkait setelah lunas.
 Admin punya menu operasional, paket berjalan, kalender, katalog dan CMS administratif (tanpa data klinis/layar saldo/finance). Request pasien mempertahankan slot lama sampai apply Admin; max3 asal pasien, H-2, deadline no-show+4hari, stale-version dan slot dicek. Koreksi bukti beralasan/berversi menjaga jadwal, ledger, bukti asal serta waktu submit pertama.

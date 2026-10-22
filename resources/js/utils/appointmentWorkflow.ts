@@ -1,5 +1,6 @@
 import { Appointment, User } from '../types';
-import { getPlanBillingBalance } from './payments';
+import { getPlanBillingBalance, getTreatmentPlanBalance } from './payments';
+import { isOpenRescheduleRequest } from './reschedulePolicy';
 
 export const cancelPaidPlan = (
   appointments: Appointment[],
@@ -28,7 +29,8 @@ export const cancelPaidPlan = (
     return { error: 'Data rencana atau pembayaran tidak lengkap.' };
   }
   const billable = related.filter(item => item.billingMode === 'PER_SESSION' || (item.continuousSessionNumber || 1) === 1);
-  if (billable.some(item => item.totalAmount > 0 && item.paymentStatus !== 'PAID') || getPlanBillingBalance(related).remainingAmount > 0) {
+  if (billable.some(item => item.paymentAgreement ? getTreatmentPlanBalance(item, related).remainingAmount > 0
+    : item.totalAmount > 0 && item.paymentStatus !== 'PAID') || getPlanBillingBalance(related).remainingAmount > 0) {
     return { error: 'Seluruh biaya harus lunas sebelum layanan dapat dibatalkan. Minta admin mencatat pelunasan terlebih dahulu.' };
   }
   const at = new Date().toISOString();
@@ -47,8 +49,8 @@ export const cancelPaidPlan = (
           treatmentPlanDiscontinuedReason: reason.trim()
         } : {}),
         status: shouldCancel ? 'CANCELLED' as const : item.status,
-        rescheduleRequest: item.rescheduleRequest?.status === 'REQUESTED' ? {
-          ...item.rescheduleRequest, status: 'REJECTED' as const, decidedAt: at,
+        rescheduleRequest: isOpenRescheduleRequest(item) ? {
+          ...item.rescheduleRequest!, status: 'REJECTED' as const, decidedAt: at,
           decidedByName: actor.name, decisionReason: 'Layanan dihentikan setelah pelunasan.'
         } : item.rescheduleRequest,
         statusHistory: shouldCancel ? [...(item.statusHistory || []), {

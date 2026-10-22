@@ -1,5 +1,5 @@
 import { Appointment } from '../types';
-import { PracticeScheduleSettings, timeToMinutes } from '../data/scheduleConfig';
+import { PracticeScheduleSettings, timeToMinutes, resolvePracticeDay } from '../data/scheduleConfig';
 
 export const findScheduleConflicts = (
   settings: PracticeScheduleSettings,
@@ -13,17 +13,16 @@ export const findScheduleConflicts = (
     .forEach(item => grouped.set(item.date, [...(grouped.get(item.date) || []), item]));
   const conflicts: string[] = [];
   grouped.forEach((items, date) => {
-    const override = settings.customDateOverrides.find(item => item.date === date);
-    const weekly = settings.weeklyDays.find(item => item.dayIndex === new Date(`${date}T00:00:00Z`).getUTCDay());
-    const isOpen = !settings.holidays.includes(date) && (override?.isOpen ?? weekly?.isOpen ?? false);
+    const resolved = resolvePracticeDay(date, settings);
+    const isOpen = resolved.isOpen;
     const codes = items.slice(0, 3).map(item => item.bookingCode).join(', ');
     if (!isOpen) {
       conflicts.push(`${date}: masih ada booking aktif (${codes}).`);
       return;
     }
-    const start = timeToMinutes(override?.startTime || weekly?.startTime || '09:00');
-    const end = timeToMinutes(override?.endTime || weekly?.endTime || '17:00');
-    const quota = override?.maxPatients ?? weekly?.maxPatients ?? 0;
+    const start = timeToMinutes(resolved.startTime);
+    const end = timeToMinutes(resolved.endTime);
+    const quota = resolved.maxPatients;
     if (items.length > quota) conflicts.push(`${date}: ${items.length} booking aktif melebihi kuota baru ${quota}.`);
     items.forEach(item => {
       const from = timeToMinutes(item.startTime);

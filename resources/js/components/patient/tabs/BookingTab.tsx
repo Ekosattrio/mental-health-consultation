@@ -183,6 +183,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   const [proofDataUrl, setProofDataUrl] = useState('');
   const [proofMimeType, setProofMimeType] = useState('');
   const [consentAgreed, setConsentAgreed] = useState(false);
+  const [payInFull, setPayInFull] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingPreTest, setIsSavingPreTest] = useState(false);
   const [successApt, setSuccessApt] = useState<Appointment | null>(null);
@@ -209,7 +210,9 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   const quoteMatchesHold = hold?.totalAmount === payableAmount && hold?.packageId === currentPackage?.id;
 
   const dpAmount = calculateInitialDp(payableAmount);
-  const finalAmount = Math.max(payableAmount - dpAmount, 0);
+  const agreedAmount = payableAmount * (currentPackage?.type === 'PSYCHOTHERAPY' ? 4 : 1);
+  const initialPayAmount = payInFull ? agreedAmount : dpAmount;
+  const finalAmount = Math.max(agreedAmount - initialPayAmount, 0);
   const requiresPayment = (currentStep === 3 && hold ? hold.totalAmount : payableAmount) > 0;
 
   const [pricingNotice, setPricingNotice] = useState('');
@@ -410,7 +413,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
         slotId: selectedSlotId,
         startTime: hold.startTime,
         endTime: hold.endTime,
-        paymentMethod: requiresPayment ? 'TRANSFER_BANK_DP' : undefined,
+        paymentMethod: requiresPayment ? `TRANSFER_BANK_${payInFull ? 'FULL' : 'DP'}` : undefined,
+        initialPaymentScope: payInFull && currentPackage?.type === 'PSYCHOTHERAPY' ? 'PLAN' : 'SESSION',
         paymentChannelDetail: requiresPayment ? paymentChannel : undefined,
         transferSenderName: transferSenderName.trim(),
         paymentProofUrl: proofDataUrl,
@@ -682,18 +686,18 @@ export const BookingTab: React.FC<BookingTabProps> = ({
             </div>
             {successApt.packageType === 'PSYCHOTHERAPY' && (
               <div className="flex justify-between py-1 border-b border-slate-200">
-                <span className="text-slate-400 font-medium">PROYEKSI 4 SESI</span>
-                <strong className="text-slate-900 font-bold">Rp {successApt.totalAmount.toLocaleString('id-ID')}</strong>
+                <span className="text-slate-400 font-medium">KESEPAKATAN 4 SESI</span>
+                <strong className="text-slate-900 font-bold">Rp {(successApt.totalAmount * 4).toLocaleString('id-ID')}</strong>
               </div>
             )}
             {successApt.totalAmount > 0 ? (
-              <div className="flex justify-between py-1 border-b border-slate-200 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
+              <div className="flex flex-wrap justify-between gap-2 py-1 border-b border-slate-200 bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200">
                 <div>
-                  <span className="text-emerald-950 font-bold block">DP PAKET</span>
+                  <span className="text-emerald-950 font-bold block">PENGAJUAN PEMBAYARAN AWAL</span>
                   <span className="text-[10px] text-emerald-800">Nama Rekening Pengirim: {transferSenderName || 'Terlampir'}</span>
                 </div>
                 <strong className="text-emerald-900 font-black text-sm">
-                  Rp {(successApt.dpAmount ?? dpAmount).toLocaleString('id-ID')} (Menunggu Verifikasi)
+                  Rp {initialPayAmount.toLocaleString('id-ID')} (Menunggu Verifikasi)
                 </strong>
               </div>
             ) : (
@@ -703,8 +707,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               </div>
             )}
             <div className="flex justify-between py-1 border-b border-slate-200">
-              <span className="text-slate-400 font-medium">{successApt.packageType === 'PSYCHOTHERAPY' ? 'SISA RENCANA AWAL' : 'SISA PELUNASAN'}</span>
-              <strong className="text-slate-900 font-bold">Rp {(successApt.remainingAmount ?? finalAmount).toLocaleString('id-ID')}</strong>
+              <span className="text-slate-400 font-medium">STATUS PEMBAYARAN</span>
+              <strong className="text-slate-900 font-bold">Menunggu pemeriksaan Admin</strong>
             </div>
             <div className="flex justify-between py-1">
               <span className="text-slate-400 font-medium">STATUS PRE-TEST</span>
@@ -1204,19 +1208,26 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                   </div>
                 )}
 
-                {/* DP ADMINISTRASI HIGHLIGHT */}
-                <div className="flex justify-between py-2 border-b border-slate-200 bg-emerald-50/90 p-3 rounded-xl border border-emerald-200">
+                {requiresPayment && <label className="block py-2 text-xs font-bold text-slate-700">
+                  Pembayaran awal
+                  <select value={payInFull ? 'FULL' : 'DP'} onChange={event => setPayInFull(event.target.value === 'FULL')} disabled={Boolean(proofDataUrl) || isSubmitting || Boolean(reconciliationId)} className="mt-2 w-full rounded-lg border border-slate-200 bg-white p-2.5 text-sm">
+                    <option value="DP">DP Rp {dpAmount.toLocaleString('id-ID')} sekali di awal</option>
+                    <option value="FULL">{currentPackage?.type === 'PSYCHOTHERAPY' ? 'Lunas 4 sesi' : 'Lunas layanan'} Rp {agreedAmount.toLocaleString('id-ID')}</option>
+                  </select>
+                </label>}
+                {currentPackage?.type === 'PSYCHOTHERAPY' && <p className="py-2 text-xs text-slate-600">Kesepakatan 4 sesi x Rp {payableAmount.toLocaleString('id-ID')} = Rp {agreedAmount.toLocaleString('id-ID')}. Tarif ini tetap untuk rangkaian ini. Sesi dijadwalkan bertahap.</p>}
+                <div className="flex flex-wrap justify-between gap-2 py-2 border-b border-slate-200 bg-emerald-50/90 p-3 rounded-xl border border-emerald-200">
                   <div>
-                    <span className="text-emerald-950 font-black block">{requiresPayment ? 'DP Paket (Bayar Sekarang)' : 'Tanpa Pembayaran'}</span>
+                    <span className="text-emerald-950 font-black block">{requiresPayment ? payInFull ? 'Bayar Penuh di Awal' : 'DP Awal (Bayar Sekarang)' : 'Tanpa Pembayaran'}</span>
                     <span className="text-[10px] text-emerald-800">{requiresPayment ? 'Sebagai syarat mengunci jadwal dan persiapan berkas' : 'Total paket setelah diskon adalah Rp 0'}</span>
                   </div>
                   <strong className="text-emerald-900 font-black text-base">
-                    Rp {dpAmount.toLocaleString('id-ID')}
+                    Rp {initialPayAmount.toLocaleString('id-ID')}
                   </strong>
                 </div>
 
-                <div className="flex justify-between py-1 text-slate-600">
-                  <span>{currentPackage?.type === 'PSYCHOTHERAPY' ? 'Sisa tagihan sesi pertama:' : 'Sisa Pelunasan (Sesuai Arahan Administrasi):'}</span>
+                <div className="flex flex-wrap justify-between gap-2 py-1 text-slate-600">
+                  <span>Sisa pelunasan paling lambat hari sesi terakhir:</span>
                   <span className="font-bold text-slate-900">Rp {finalAmount.toLocaleString('id-ID')}</span>
                 </div>
               </div>
@@ -1241,7 +1252,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               {/* Bank Account Info Card */}
               {holdActive && quoteMatchesHold && consentAgreed && !reconciliationId && <div className="p-4 rounded-2xl bg-white border border-emerald-200 shadow-2xs space-y-2 text-xs">
                 <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">
-                  Rekening Pembayaran DP Konsultasi:
+                  Rekening Pembayaran Konsultasi:
                 </span>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
                   <div>
@@ -1276,12 +1287,12 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               {/* UPLOAD BUKTI TRANSFER DP SESUAI PAKET (WAJIB) */}
               <div className="space-y-2">
                 <label className="block text-xs font-bold text-slate-800">
-                  Upload Bukti Pembayaran DP (Rp {dpAmount.toLocaleString('id-ID')}) <span className="text-rose-600">*</span>:
+                  Upload Bukti Pembayaran (Rp {initialPayAmount.toLocaleString('id-ID')}) <span className="text-rose-600">*</span>:
                 </label>
                 <div className="p-4 rounded-2xl border-2 border-dashed border-slate-300 text-center space-y-2 bg-slate-50/50">
                   <Upload className="w-6 h-6 text-slate-400 mx-auto" />
                   <div className="text-xs text-slate-600">
-                    Unggah tangkapan layar struk / bukti transfer sebesar Rp {dpAmount.toLocaleString('id-ID')}
+                    Unggah tangkapan layar struk / bukti transfer sebesar Rp {initialPayAmount.toLocaleString('id-ID')}. Status terbayar muncul setelah verifikasi Admin.
                   </div>
                   <input
                     type="file"

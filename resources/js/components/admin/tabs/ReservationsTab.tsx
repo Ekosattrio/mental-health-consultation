@@ -28,7 +28,9 @@ import { getScheduleVersion } from '../../../utils/reschedulePolicy';
 import { createRecordId, getMinimumBookingDate, getPracticeDate } from '../../../utils/bookingPolicy';
 import { csvRow, downloadCsv } from '../../../utils/exportEncoding';
 import { PaymentReconciliation } from '../../../utils/workflowStore';
-import { getCashInDate } from '../../../utils/payments';
+import { getCashInDate, getPaymentSchemeLabel, getPaymentSummary } from '../../../utils/payments';
+import { canRecordReceivedPayment } from '../../../utils/paymentWorkflow';
+import { RescheduleOrigin } from '../../../utils/reschedulePolicy';
 
 interface ReservationsTabProps {
   appointments: Appointment[];
@@ -57,6 +59,7 @@ const isImageProof = (value?: string, mimeType?: string) => (
 
 const canVerifyBookingPayment = (appointment: Appointment) => (
   appointment.status === 'PENDING' &&
+  (appointment.paymentProofState !== 'VERIFIED' || (Boolean(appointment.rescheduledAt) && ['DP_PAID', 'PAID'].includes(appointment.paymentStatus))) &&
   appointment.treatmentPlanStatus !== 'DISCONTINUED' &&
   (appointment.paymentStatus === 'DP_PENDING_VERIFICATION' || appointment.paymentStatus === 'PAID' ||
     (Boolean(appointment.rescheduledAt) && appointment.paymentStatus === 'DP_PAID'))
@@ -127,6 +130,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const [rescheduleDate, setRescheduleDate] = useState('');
   const [rescheduleTime, setRescheduleTime] = useState('10:00 - 11:00');
   const [rescheduleReason, setRescheduleReason] = useState('');
+  const [rescheduleOrigin, setRescheduleOrigin] = useState<RescheduleOrigin>('PATIENT');
   const [rescheduleVersion, setRescheduleVersion] = useState<number>();
   const [scheduleSettings, setScheduleSettings] = useState(loadScheduleSettings);
   useEffect(() => {
@@ -142,6 +146,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const settlementApt = appointments.find(item => item.id === settlementId) || null;
   const setSettlementApt = (item: Appointment | null) => setSettlementId(item?.id || null);
   const [settlementAmount, setSettlementAmount] = useState('');
+  const [settlementKey, setSettlementKey] = useState('');
   const [settlementDate, setSettlementDate] = useState(getPracticeDate());
   const [settlementMethod, setSettlementMethod] = useState<NonNullable<Appointment['finalPaymentMethod']>>('CASH');
   const [settlementChannel, setSettlementChannel] = useState('');
@@ -152,6 +157,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const setVerificationApt = (item: Appointment | null) => setVerificationId(item?.id || null);
   const [verificationNote, setVerificationNote] = useState('');
   const [verificationDate, setVerificationDate] = useState(getPracticeDate());
+  const [verificationAmount, setVerificationAmount] = useState('');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
   const defaultPsychologistId = users.find(u => u.role === 'PSYCHOLOGIST' && u.status === 'ACTIVE')?.id || '';
@@ -225,45 +231,48 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
     setRescheduleDate(getTomorrowDate());
     setRescheduleTime(`${apt.startTime} - ${apt.endTime}`);
     setRescheduleReason('');
+    setRescheduleOrigin('PATIENT');
   };
 
   const handleConfirmPayment = (apt: Appointment) => {
     setProofVersion(apt.paymentProofVersion || 0);
     setVerificationApt(apt);
     setVerificationNote('');
+    setVerificationAmount('');
     setVerificationDate(apt.initialPaymentRecord?.receivedAt ? getCashInDate(apt.initialPaymentRecord.receivedAt) : getPracticeDate());
   };
 
   const handleVerifyPayment = async () => {
-    if (!verificationApt) return;
+    if (!verificationApt || isVerifyingPayment) return;
     const isReconfirmation = Boolean(verificationApt.rescheduledAt) && ['DP_PAID', 'PAID'].includes(verificationApt.paymentStatus);
     if (!isReconfirmation && !verificationDate) {
       showToast('Tanggal Belum Diisi', 'Isi tanggal penerimaan pembayaran sebelum konfirmasi.', 'warning');
       return;
     }
-    setIsVerifyingPayment(true);
-    const success = isReconfirmation ? await confirmRescheduledBooking(verificationApt.id)
-      : await verifyPaymentAndConfirmBooking(verificationApt.id, verificationNote, verificationDate, proofVersion);
-    setIsVerifyingPayment(false);
-
-    if (success) {
-      const verifiedAt = new Date().toISOString().replace('T', ' ').slice(0, 16);
-      setReceiptApt({
-        ...verificationApt,
-        status: 'CONFIRMED',
-        paymentStatus: verificationApt.paymentStatus === 'PAID' || (!isReconfirmation && (verificationApt.dpAmount || 0) >= verificationApt.totalAmount) ? 'PAID' : 'DP_PAID',
-        paymentVerifiedAt: isReconfirmation ? verificationApt.paymentVerifiedAt : verifiedAt,
-        paymentVerifiedByName: isReconfirmation ? verificationApt.paymentVerifiedByName : currentUser?.name || 'Admin Operasional',
-        paymentVerificationNote: isReconfirmation ? verificationApt.paymentVerificationNote : verificationNote.trim() || undefined
-      });
-      setVerificationApt(null);
-      setVerificationNote('');
+    if (!isReconfirmation && verificationApt.totalAmount > 0 &&
+      (!verificationAmount.trim() || !Number.isSafeInteger(Number(verificationAmount)) || Number(verificationAmount) <= 0)) {
+      showToast('Nominal Belum Valid', 'Masukkan nominal aktual yang benar-benar diterima.', 'warning');
+      return;
     }
+    setIsVerifyingPayment(true);
+    try {
+      const success = isReconfirmation ? await confirmRescheduledBooking(verificationApt.id)
+        : await verifyPaymentAndConfirmBooking(verificationApt.id, verificationNote, verificationDate, proofVersion,
+          verificationApt.totalAmount === 0 ? 0 : Number(verificationAmount));
+
+      if (success) {
+        setReceiptId(verificationApt.id);
+        setVerificationApt(null);
+        setVerificationNote('');
+        setVerificationAmount('');
+      }
+    } finally { setIsVerifyingPayment(false); }
   };
 
   const openSettlementModal = (apt: Appointment) => {
     setSettlementApt(apt);
     setSettlementAmount('');
+    setSettlementKey(createRecordId('receipt-operation'));
     setSettlementDate(getPracticeDate());
     setSettlementMethod('CASH');
     setSettlementChannel('');
@@ -282,7 +291,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
       method: settlementMethod,
       channelDetail: settlementChannel,
       purpose: isCancellationSettlement ? 'CANCELLATION_SETTLEMENT' : 'CONSULTATION',
-      receivedDate: settlementDate
+      receivedDate: settlementDate,
+      idempotencyKey: settlementKey
     });
 
     if (success) {
@@ -319,7 +329,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
         startTime,
         endTime,
         rescheduleReason.trim() || 'Dibantu reschedule oleh admin',
-        rescheduleVersion
+        rescheduleVersion,
+        { origin: rescheduleOrigin }
       );
 
       if (success) {
@@ -440,6 +451,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
         transferSenderName,
         paymentChannelDetail,
         initialPaymentAmount: Number(walkInAmount),
+        initialPaymentScope: isFullPayment && targetPkg.type === 'PSYCHOTHERAPY' ? 'PLAN' : 'SESSION',
         initialPaymentReceivedDate: walkInReceivedDate,
         reconciliationId: reconciliation?.id,
         paymentProofUrl: `Walk-in ${paymentChannelDetail}`
@@ -650,7 +662,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <p className="text-xs font-semibold text-slate-600 break-words">{getPaymentSummary(apt, appointments).label}</p>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
                 <span className={`px-2 py-1 rounded text-[10px] font-bold ${
                   apt.paymentStatus === 'PAID'
                     ? 'bg-emerald-100 text-emerald-800'
@@ -673,7 +686,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                       <CalendarClock className="w-4 h-4" />
                     </button>
                   )}
-                  {(apt.paymentStatus === 'DP_PAID' || (apt.billingMode === 'PER_SESSION' && apt.paymentStatus === 'PENDING')) && (apt.billingMode === 'PER_SESSION' || (apt.continuousSessionNumber || 1) === 1) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
+                  {canRecordReceivedPayment(apt) && (
                     <button type="button" onClick={() => openSettlementModal(apt)} className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 border border-purple-200 flex items-center justify-center" aria-label="Catat pembayaran">
                       <CreditCard className="w-4 h-4" />
                     </button>
@@ -754,6 +767,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                       >
                         {apt.paymentStatus}
                       </span>
+                      <p className="mt-1 text-[11px] font-semibold text-slate-600">{getPaymentSummary(apt, appointments).label}</p>
                       {apt.transferSenderName && (
                         <div className="text-[10px] text-emerald-800 font-bold mt-0.5">
                           Pengirim: {apt.transferSenderName}
@@ -791,7 +805,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                             </button>
                           </Tooltip>
                         )}
-                        {(apt.paymentStatus === 'DP_PAID' || (apt.billingMode === 'PER_SESSION' && apt.paymentStatus === 'PENDING')) && (apt.billingMode === 'PER_SESSION' || (apt.continuousSessionNumber || 1) === 1) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
+                        {canRecordReceivedPayment(apt) && (
                           <Tooltip content="Catat Pembayaran yang Diterima" position="top">
                             <button
                               type="button"
@@ -803,7 +817,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                             </button>
                           </Tooltip>
                         )}
-                        {(apt.status === 'CONFIRMED' || apt.paymentStatus === 'DP_PAID' || apt.paymentStatus === 'PAID') && (
+                        {(apt.status === 'CONFIRMED' || apt.paymentStatus === 'DP_PAID' || apt.paymentStatus === 'PAID' || apt.initialPaymentRecord?.verifiedAt) && (
                           <Tooltip content="Print Receipt / Simpan PDF" position="top">
                             <button
                               type="button"
@@ -1080,10 +1094,10 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                   >
                     <div className="flex items-center gap-1.5 text-emerald-700 mb-1">
                       <CreditCard className="w-3.5 h-3.5" />
-                      <span>Lunas di Tempat</span>
+                      <span>{selectedWalkInPackage?.type === 'PSYCHOTHERAPY' ? 'Lunas 4 Sesi di Awal' : 'Lunas di Awal'}</span>
                     </div>
                     <span className="text-[11px] font-normal text-slate-500 block">
-                      Catat seluruh uang yang diterima sebagai pembayaran lunas.
+                      {selectedWalkInPackage?.type === 'PSYCHOTHERAPY' ? 'Prabayar empat sesi; dialokasikan tanpa penerimaan baru.' : 'Seluruh biaya layanan dibayar di awal.'}
                     </span>
                   </button>
 
@@ -1228,8 +1242,10 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-[10px] font-black uppercase text-slate-400">Status</span>
-                  <strong className="text-sky-700">DP sudah dikonfirmasi</strong>
+                  <strong className="text-sky-700">{getPaymentSchemeLabel(settlementApt)}</strong>
                 </div>
+                <p className="mt-2 text-slate-700 break-words">{getPaymentSummary(settlementApt, appointments).label}</p>
+                <p className="mt-1 text-slate-500 break-words">Pelunasan paling lambat {getPaymentSummary(settlementApt, appointments).dueDate || 'hari sesi terakhir'}. Tanpa DP tambahan.</p>
               </div>
 
               <label className="block text-xs font-bold text-slate-700">
@@ -1401,10 +1417,17 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
                 </div>
               </div>
 
+              <label className="block text-xs font-bold text-slate-700">Asal Permintaan
+                <select value={rescheduleOrigin} onChange={event => setRescheduleOrigin(event.target.value as RescheduleOrigin)} className="mt-2 block w-full rounded-lg border border-slate-200 px-3 py-2.5">
+                  <option value="PATIENT">Atas permintaan pasien</option>
+                  <option value="CLINIC">Perubahan dari klinik</option>
+                </select>
+              </label>
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">Catatan Alasan Reschedule</label>
                 <textarea
                   rows={3}
+                  required
                   value={rescheduleReason}
                   onChange={e => setRescheduleReason(e.target.value)}
                   placeholder="Contoh: pasien meminta bantuan admin karena tidak bisa akses portal."
@@ -1529,6 +1552,10 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
               </div>
 
               <div>
+                {!(verificationApt.rescheduledAt && ['DP_PAID', 'PAID'].includes(verificationApt.paymentStatus)) && verificationApt.totalAmount > 0 && <label className="mb-4 block text-xs font-bold text-slate-700">
+                  Nominal Aktual Diterima (Rp)
+                  <input required type="number" min="1" step="1" autoComplete="off" value={verificationAmount} onChange={event => setVerificationAmount(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5" />
+                </label>}
                 {!(verificationApt.rescheduledAt && ['DP_PAID', 'PAID'].includes(verificationApt.paymentStatus)) && <label className="block text-xs font-bold text-slate-700 mb-4">
                   Tanggal Uang Diterima
                   <input required type="date" max={getPracticeDate()} value={verificationDate} onChange={event => setVerificationDate(event.target.value)} className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2.5" />

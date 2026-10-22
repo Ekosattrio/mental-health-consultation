@@ -9,7 +9,7 @@ Tanggal: 19 Oktober 2026. Role bisnis Superadmin dipetakan ke PSYCHOLOGIST, hany
 | Harga, diskon, total tagihan pasien | Tidak | Milik sendiri | Ya | Ya |
 | Saldo pasien/agregat penerimaan/receipt penuh | Tidak | Milik sendiri | **Tidak** | Ya |
 | Nominal bukti/input pembayaran aktif | Tidak | Milik sendiri | Ya untuk verifikasi/input | Ya |
-| Verifikasi dan pencatatan DP/pelunasan | Tidak | Upload saja | Ya | Ya |
+| Verifikasi/penolakan bukti dan pencatatan/koreksi DP/cicilan/pelunasan | Tidak | Upload/koreksi bukti sendiri saja | Ya | Tidak; baca ledger/laporan |
 | Promo global dan diskon tagihan individual | Tidak | Lihat hasil milik sendiri | Ya, alasan/audit | Ya |
 | Harga dasar dan basis tarif additional time per versi paket | Tidak | Lihat ketentuan paket sendiri | Kelola, alasan/audit | Kelola |
 | Biaya kustom/extra Konseling/laporan | Tidak | Lihat tagihan sendiri | Ya sesuai guard | Ya |
@@ -34,4 +34,6 @@ Koreksi developer 19 Oktober: Admin boleh harga/diskon/total, **saldo tidak bole
 Menyembunyikan saldo adalah pembatasan field, bukan jaminan Admin tidak dapat memperkirakannya dari bukti atau perhitungan yang sudah diketahui.
 
 ## Policy
+Penegasan developer 22 Oktober 2026: operasional penerimaan pembayaran pasien khusus ADMIN. PSYCHOLOGIST tetap membaca ledger/keuangan, tetapi tidak mewarisi aksi input/verifikasi/penolakan/koreksi pembayaran hanya karena role tertinggi. Ketentuan ini tidak mengubah hak pengelolaan harga/diskon atau pengeluaran praktik yang diatur terpisah. Temuan audit sebelumnya yang menyebut penolakan input/verifikasi psikolog sebagai celah dinyatakan tidak berlaku.
+
 Role tidak cukup: backend memeriksa relasi pasien, target dokumen, status, waktu dan tujuan file. UUID bukan otorisasi. Export menggunakan dataset role yang sama. Aksi petugas mencatat actor dari session dan alasan; Superadmin tidak dapat menghapus audit/kas historis secara overwrite.

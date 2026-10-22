@@ -87,6 +87,10 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const handleAddOverride = (e: React.FormEvent) => {
     e.preventDefault();
     if (!overrideDate) return;
+    if (overrideIsOpen && settings.holidays.includes(overrideDate) && !overrideNote.trim()) {
+      setValidationError('Alasan membuka praktik pada hari libur wajib diisi.');
+      return;
+    }
 
     if (
       overrideIsOpen && (
@@ -161,7 +165,8 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
         timeToMinutes(item.endTime) <= timeToMinutes(item.startTime) ||
         !Number.isInteger(item.maxPatients) ||
         item.maxPatients < 1 ||
-        item.maxPatients > 15
+        item.maxPatients > 15 ||
+        (settings.holidays.includes(item.date) && !item.note?.trim())
       )
     ));
 

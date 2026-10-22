@@ -46,7 +46,7 @@ export const Navbar: React.FC = () => {
     isSidebarCollapsed,
     toggleSidebar,
     landingCms,
-    showToast,
+    saveAccountProfile,
     activeAdminTab,
     setActiveAdminTab,
     activePsychologistTab,
@@ -54,13 +54,15 @@ export const Navbar: React.FC = () => {
     activePatientTab,
     setActivePatientTab,
     packages,
-    appointments
+    appointments,
+    intakeForms
   } = useApp();
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Close mobile nav on role or tab change
   useEffect(() => {
@@ -81,8 +83,7 @@ export const Navbar: React.FC = () => {
     name: '',
     phone: '',
     email: '',
-    emergencyContact: 'Bpk. Rahmat (0812-9988-7766)',
-    notes: 'Riwayat keluhan cemas ringan & jadwal fleksibel.'
+    emergencyContact: ''
   });
 
   useEffect(() => {
@@ -90,8 +91,9 @@ export const Navbar: React.FC = () => {
       setProfileFormData(prev => ({
         ...prev,
         name: currentUser.name || '',
-        phone: currentUser.phone || '0812-3456-7890',
-        email: currentUser.email || ''
+        phone: currentUser.phone || '',
+        email: currentUser.email || '',
+        emergencyContact: currentUser.emergencyContact || ''
       }));
     }
   }, [currentUser]);
@@ -123,7 +125,8 @@ export const Navbar: React.FC = () => {
     { id: 'treatmentPlans', label: 'Paket Berjalan', icon: ClipboardList, badge: appointments.filter(a => a.psychologistId === (currentUser?.role === 'PSYCHOLOGIST' ? currentUser.id : '') && (a.continuousSessionTotal || 1) > 1).length },
     { id: 'patients', label: 'Data Pasien & Pre-Test', icon: FileText },
     { id: 'cms', label: 'CMS Konten', icon: LayoutTemplate },
-    { id: 'history', label: 'Riwayat Sesi', icon: History, badge: appointments.filter(a => a.psychologistId === (currentUser?.role === 'PSYCHOLOGIST' ? currentUser.id : '')).length }
+    { id: 'history', label: 'Riwayat Sesi', icon: History, badge: appointments.filter(a => a.psychologistId === (currentUser?.role === 'PSYCHOLOGIST' ? currentUser.id : '')).length },
+    { id: 'profile', label: 'Profil Praktik', icon: Stethoscope }
   ];
 
   const patientNavTabs = [
@@ -141,8 +144,8 @@ export const Navbar: React.FC = () => {
           : 'bg-white/85 backdrop-blur-sm border-b border-slate-200/60 shadow-none'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`flex items-center justify-between gap-4 transition-all duration-300 ${isScrolled ? 'h-14' : 'h-16'}`}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className={`flex items-center justify-between gap-2 sm:gap-4 transition-all duration-300 ${isScrolled ? 'h-14' : 'h-16'}`}>
           {/* Logo & Platform Title */}
           <div className="flex items-center gap-3 select-none group">
             {landingCms?.logoUrl ? (
@@ -233,7 +236,7 @@ export const Navbar: React.FC = () => {
                 </button>
 
                 {profileMenuOpen && (
-                  <div className="absolute right-0 mt-2.5 w-84 sm:w-88 rounded-3xl bg-white border border-slate-200/90 shadow-2xl p-3.5 z-50 animate-in fade-in-50 duration-150">
+                  <div className="absolute right-0 mt-2.5 w-[calc(100vw-1.5rem)] max-w-sm sm:w-88 rounded-3xl bg-white border border-slate-200/90 shadow-2xl p-3.5 z-50 animate-in fade-in-50 duration-150">
                     {/* 1. Header Profil Pengguna */}
                     <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                       <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-2xs shrink-0 overflow-hidden ${
@@ -281,25 +284,25 @@ export const Navbar: React.FC = () => {
                         <>
                           <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Pre-Test Terisi</span>
+                            <span>{currentUser && intakeForms[currentUser.id] ? 'Pre-Test Terisi' : 'Pre-Test Belum Diisi'}</span>
                           </span>
-                          <span className="text-slate-400 font-medium">WhatsApp: {currentUser?.phone || '0812-3456-7890'}</span>
+                          <span className="text-slate-400 font-medium">WhatsApp: {currentUser?.phone || '-'}</span>
                         </>
                       ) : currentRole === 'PSYCHOLOGIST' ? (
                         <>
                           <span className="flex items-center gap-1.5 text-sky-700 font-bold">
                             <ShieldCheck className="w-3.5 h-3.5" />
-                            <span>SIP.503/042-DPMPTSP/2022</span>
+                            <span>{currentPsychologistProfile?.sipNumber || 'Profil Praktik'}</span>
                           </span>
-                          <span className="text-slate-400 font-medium">Klinik Aktif</span>
+                          <span className="text-slate-400 font-medium">Pengelola</span>
                         </>
                       ) : (
                         <>
                           <span className="flex items-center gap-1.5 text-purple-700 font-bold">
                             <Shield className="w-3.5 h-3.5" />
-                            <span>Akses Monitoring Penuh</span>
+                            <span>Monitoring Operasional</span>
                           </span>
-                          <span className="text-slate-400 font-medium">Super Admin</span>
+                          <span className="text-slate-400 font-medium">Admin Operasional</span>
                         </>
                       )}
                     </div>
@@ -519,10 +522,13 @@ export const Navbar: React.FC = () => {
 
             {/* Modal Body Form */}
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                showToast('Profil Disimpan', 'Data profil Anda telah berhasil diperbarui.', 'success');
-                setIsProfileModalOpen(false);
+                if (isSavingProfile) return;
+                setIsSavingProfile(true);
+                try {
+                  if (await saveAccountProfile(profileFormData)) setIsProfileModalOpen(false);
+                } finally { setIsSavingProfile(false); }
               }}
               className="py-4 space-y-4"
             >
@@ -547,7 +553,7 @@ export const Navbar: React.FC = () => {
                   <input
                     type="email"
                     value={profileFormData.email}
-                    onChange={(e) => setProfileFormData(p => ({ ...p, email: e.target.value }))}
+                    readOnly
                     className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-teal-600 bg-slate-50/50"
                     required
                   />
@@ -579,17 +585,6 @@ export const Navbar: React.FC = () => {
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-teal-600 bg-slate-50/50"
                     />
                   </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Catatan Singkat / Riwayat
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={profileFormData.notes}
-                      onChange={(e) => setProfileFormData(p => ({ ...p, notes: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-teal-600 bg-slate-50/50 resize-none"
-                    />
-                  </div>
                 </>
               )}
 
@@ -600,10 +595,10 @@ export const Navbar: React.FC = () => {
                     <span>Izin Praktik & Legalitas Klinis</span>
                   </div>
                   <p className="text-[11px] text-sky-800">
-                    STR: STR-PSI-2021-09842 • SIP: SIP.503/042-DPMPTSP/2022
+                    STR: {currentPsychologistProfile?.strNumber || '-'} / SIP: {currentPsychologistProfile?.sipNumber || '-'}
                   </p>
                   <p className="text-[10px] text-sky-700">
-                    Praktik Mandiri Psikolog Klinis Dewasa & Interpersonal.
+                    {currentPsychologistProfile?.title || 'Profil Praktik'}
                   </p>
                 </div>
               )}
@@ -615,25 +610,26 @@ export const Navbar: React.FC = () => {
                     <span>Otoritas Administrator Operasional</span>
                   </div>
                   <p className="text-[11px] text-purple-800">
-                    Memiliki wewenang verifikasi transfer DP administrasi Rp 100.000, monitoring status user, dan moderasi kelayakan ulasan pasien.
+                    Memiliki wewenang memeriksa bukti dan memverifikasi DP flat Rp 100.000, monitoring user, serta moderasi ulasan pasien.
                   </p>
                 </div>
               )}
 
               {/* Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+              <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2.5 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setIsProfileModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
                 >
                   Tutup
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                  disabled={isSavingProfile}
+                  className="w-full sm:w-auto px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
-                  Simpan Perubahan
+                  {isSavingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
                 </button>
               </div>
             </form>

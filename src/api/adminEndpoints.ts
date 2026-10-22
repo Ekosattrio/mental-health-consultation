@@ -1,5 +1,5 @@
 import { ApiClient, ApiResponse, ApiError } from './apiClient';
-import { Review, ConsultationPackage, Appointment } from '../types';
+import { Review } from '../types';
 
 export class AdminEndpoints {
   public static readonly BASE_URL = '/api/v1/admin';
@@ -24,63 +24,6 @@ export class AdminEndpoints {
         } else {
           return allReviews.filter(r => r.id !== reviewId);
         }
-      }
-    );
-  }
-
-  /**
-   * POST /api/v1/admin/packages
-   */
-  public static async savePackage(
-    pkg: ConsultationPackage,
-    allPackages: ConsultationPackage[]
-  ): Promise<ApiResponse<ConsultationPackage[]>> {
-    return ApiClient.post(
-      `${this.BASE_URL}/packages`,
-      pkg,
-      () => {
-        const index = allPackages.findIndex(p => p.id === pkg.id);
-        if (index >= 0) {
-          const updated = [...allPackages];
-          updated[index] = pkg;
-          return updated;
-        } else {
-          return [pkg, ...allPackages];
-        }
-      }
-    );
-  }
-
-  /**
-   * DELETE /api/v1/admin/packages/:packageId
-   */
-  public static async deletePackage(
-    packageId: string,
-    allPackages: ConsultationPackage[]
-  ): Promise<ApiResponse<ConsultationPackage[]>> {
-    return ApiClient.delete(
-      `${this.BASE_URL}/packages/${packageId}`,
-      () => {
-        return allPackages.filter(p => p.id !== packageId);
-      }
-    );
-  }
-
-  /**
-   * PUT /api/v1/admin/appointments/:appointmentId/status
-   */
-  public static async updateAppointmentStatus(
-    appointmentId: string,
-    status: Appointment['status'],
-    allAppointments: Appointment[]
-  ): Promise<ApiResponse<Appointment[]>> {
-    return ApiClient.put(
-      `${this.BASE_URL}/appointments/${appointmentId}/status`,
-      { status },
-      () => {
-        return allAppointments.map(a =>
-          a.id === appointmentId ? { ...a, status } : a
-        );
       }
     );
   }

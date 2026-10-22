@@ -1,6 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { useApp } from '../../context/AppContext';
+import { ImageWithFallback } from './ImageWithFallback';
 import { Printer, X, Building2, Calendar, FileText, CheckCircle2 } from 'lucide-react';
 
 export interface PrintColumn<T = any> {
@@ -33,7 +34,7 @@ export const OfficialPrintModal: React.FC<OfficialPrintModalProps> = ({
   summaryNode,
   signerTitle
 }) => {
-  const { psychologistCms } = useApp();
+  const { psychologistCms, landingCms } = useApp();
 
   if (!isOpen) return null;
 
@@ -100,7 +101,7 @@ export const OfficialPrintModal: React.FC<OfficialPrintModalProps> = ({
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-14 h-14 rounded-2xl bg-teal-600 text-white flex items-center justify-center font-black text-2xl shrink-0 print:border print:border-slate-800">
-                  <Building2 className="w-8 h-8 text-white" />
+                  <ImageWithFallback src={landingCms.clinicKopLogoUrl || landingCms.logoUrl} alt="Logo praktik" className="h-full w-full object-contain" fallback={<Building2 className="w-8 h-8 text-white" />} />
                 </div>
                 <div>
                   <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight uppercase leading-tight">

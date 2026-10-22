@@ -16,8 +16,8 @@ interface FaqItem {
 const FAQS_DATA: FaqItem[] = [
   {
     category: 'RESERVASI',
-    question: 'Bagaimana cara menjadwalkan konsultasi tatap muka?',
-    answer: 'Pilih paket konsultasi di tab Booking, pilih tanggal (minimal H+1), isi formulir pre-test keluhan, lalu bayar DP administrasi Rp 100.000 dan unggah bukti transfer. Admin kami akan segera memverifikasi jadwal Anda.'
+    question: 'Bagaimana cara menjadwalkan konsultasi?',
+    answer: 'Pilih paket tatap muka atau telelayanan di tab Booking, pilih tanggal minimal H+1, isi pre-test, lalu bayar DP flat Rp 100.000 dan unggah bukti transfer. Admin akan memeriksa bukti sebelum mengonfirmasi jadwal Anda.'
   },
   {
     category: 'RESERVASI',
@@ -26,18 +26,18 @@ const FAQS_DATA: FaqItem[] = [
   },
   {
     category: 'PEMBAYARAN',
-    question: 'Mengapa sistem memberlakukan DP administrasi Rp 100.000?',
-    answer: 'DP administrasi Rp 100.000 diberlakukan untuk mengunci slot jadwal secara eksklusif agar tidak diisi oleh pasien lain, sekaligus membantu proses administrasi berkas konsultasi.'
+    question: 'Mengapa sistem memberlakukan pembayaran DP?',
+    answer: 'DP flat Rp 100.000 digunakan sebagai bagian dari konfirmasi reservasi. Booking baru dikonfirmasi setelah bukti pembayaran diperiksa admin.'
   },
   {
     category: 'PEMBAYARAN',
     question: 'Kapan pelunasan sisa biaya konsultasi dilakukan?',
-    answer: 'Pelunasan sisa biaya paket dilakukan di meja registrasi klinik saat pasien hadir atau setelah sesi tatap muka selesai, baik melalui transfer bank, tunai, QRIS, maupun EDC sesuai arahan administrasi.'
+    answer: 'Pelunasan sisa biaya paket dilakukan sesuai arahan administrasi saat pasien hadir atau setelah sesi selesai, baik melalui transfer bank, tunai, QRIS, maupun EDC.'
   },
   {
     category: 'JADWAL',
     question: 'Bagaimana jika saya ingin mengajukan reschedule jadwal?',
-    answer: 'Permintaan reschedule dapat diajukan minimal H+1 sebelum jadwal sesi dengan menghubungi admin operasional via WhatsApp atau menggunakan bantuan admin di menu Jadwal & Riwayat.'
+    answer: 'Pilih tanggal pengganti minimal keesokan hari (H+1 dari hari pengajuan) melalui Jadwal & Riwayat atau minta bantuan admin. Jadwal baru dari pasien menunggu konfirmasi admin; pembayaran yang sudah terverifikasi tetap berlaku tanpa DP kedua.'
   },
   {
     category: 'JADWAL',
@@ -85,7 +85,7 @@ export const FaqTab: React.FC<FaqTabProps> = ({ patientCms, onNavigateTab }) => 
               Pertanyaan yang Sering Diajukan (FAQ)
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Temukan jawaban cepat seputar reservasi sesi tatap muka, DP administrasi Rp 100.000, jadwal, dan kebijakan kerahasiaan klinik.
+              Temukan jawaban cepat seputar reservasi tatap muka/telelayanan, DP flat Rp 100.000, jadwal, dan kebijakan kerahasiaan.
             </p>
           </div>
 

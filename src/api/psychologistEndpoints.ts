@@ -1,8 +1,9 @@
 import { ApiClient, ApiResponse, ApiError } from './apiClient';
-import { ScheduleSlot, PsychologistProfile } from '../types';
+import { ConsultationPackage, ScheduleSlot, PsychologistProfile } from '../types';
 
 export class PsychologistEndpoints {
   public static readonly BASE_URL = '/api/v1/psychologists';
+  public static readonly PACKAGE_BASE_URL = '/api/v1/packages';
 
   /**
    * POST /api/v1/psychologists/:id/schedules/slot
@@ -105,6 +106,42 @@ export class PsychologistEndpoints {
           p.userId === psychologistId ? { ...p, ...profileData } : p
         );
       }
+    );
+  }
+
+  /**
+   * POST /api/v1/packages atau PUT /api/v1/packages/:packageId
+   */
+  public static async savePackage(
+    pkg: ConsultationPackage,
+    allPackages: ConsultationPackage[]
+  ): Promise<ApiResponse<ConsultationPackage[]>> {
+    const index = allPackages.findIndex(item => item.id === pkg.id);
+    if (index < 0) {
+      return ApiClient.post(this.PACKAGE_BASE_URL, pkg, () => [pkg, ...allPackages]);
+    }
+
+    return ApiClient.put(
+      `${this.PACKAGE_BASE_URL}/${pkg.id}`,
+      pkg,
+      () => {
+        const updated = [...allPackages];
+        updated[index] = pkg;
+        return updated;
+      }
+    );
+  }
+
+  /**
+   * DELETE /api/v1/packages/:packageId
+   */
+  public static async deletePackage(
+    packageId: string,
+    allPackages: ConsultationPackage[]
+  ): Promise<ApiResponse<ConsultationPackage[]>> {
+    return ApiClient.delete(
+      `${this.PACKAGE_BASE_URL}/${packageId}`,
+      () => allPackages.filter(item => item.id !== packageId)
     );
   }
 }

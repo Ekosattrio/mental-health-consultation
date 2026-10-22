@@ -1,17 +1,24 @@
 import { apiClient, ApiResponse } from './client';
 import { LandingPageCmsConfig, PatientPageCmsConfig, PsychologistPageCmsConfig } from '../../types';
 
+// Backend must omit cashier/bank configuration from the public Resource.
+export type PublicLandingCmsConfig = Omit<LandingPageCmsConfig, 'bankName' | 'bankAccountNumber' | 'bankAccountHolder' | 'qrisImageUrl'>;
+
 export const cmsService = {
   /**
    * Mengambil konten CMS Landing Page publik
    * Endpoint Laravel: GET /api/v1/cms/landing
    */
-  async getLandingCms(): Promise<ApiResponse<LandingPageCmsConfig>> {
-    return apiClient.get<LandingPageCmsConfig>('/cms/landing');
+  async getLandingCms(): Promise<ApiResponse<PublicLandingCmsConfig>> {
+    return apiClient.get<PublicLandingCmsConfig>('/cms/landing');
+  },
+
+  async getLandingForManagement(): Promise<ApiResponse<LandingPageCmsConfig>> {
+    return apiClient.get<LandingPageCmsConfig>('/psychologist/cms/landing');
   },
 
   /**
-   * Memperbarui konten CMS Landing Page (Admin/Psikolog)
+   * Memperbarui konten CMS Landing Page (hanya psikolog/pengelola)
    * Endpoint Laravel: PUT /api/v1/cms/landing
    */
   async updateLandingCms(payload: Partial<LandingPageCmsConfig>): Promise<ApiResponse<LandingPageCmsConfig>> {

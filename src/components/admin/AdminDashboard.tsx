@@ -29,7 +29,6 @@ export const AdminDashboard: React.FC = () => {
     setActiveAdminTab,
     approveReview,
     rejectReview,
-    updateAppointmentStatus,
     isSidebarCollapsed,
     setIsSidebarCollapsed
   } = useApp();
@@ -53,10 +52,10 @@ export const AdminDashboard: React.FC = () => {
   const currentTabObj = adminTabs.find(t => t.id === activeAdminTab) || adminTabs[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 w-full max-w-full">
 
       {/* DESKTOP SIDEBAR + CONTENT */}
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
+      <div className="flex flex-col lg:flex-row gap-6 items-start w-full max-w-full min-w-0">
         {/* DESKTOP SIDEBAR */}
         <aside className={`hidden lg:block ${isSidebarCollapsed ? 'w-20' : 'w-64'} shrink-0 transition-all duration-200`}>
           <nav className="p-2 bg-slate-100/90 rounded-3xl border border-slate-200/80 flex flex-col gap-1.5 sticky top-24 shadow-2xs">
@@ -116,11 +115,10 @@ export const AdminDashboard: React.FC = () => {
         </aside>
 
         {/* MAIN TAB CONTENT */}
-        <main className="flex-1 min-w-0 w-full space-y-6">
+        <main className="flex-1 min-w-0 w-full max-w-full space-y-6">
           {activeAdminTab === 'reservations' && (
             <ReservationsTab
               appointments={appointments}
-              updateAppointmentStatus={updateAppointmentStatus}
             />
           )}
 

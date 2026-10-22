@@ -1,22 +1,23 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Appointment } from '../../../types';
-import { Search, ChevronLeft, ChevronRight, CheckCircle2, CheckCheck, History, CalendarPlus, X, UserX, XCircle } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, CheckCircle2, CheckCheck, History, CalendarPlus, CalendarClock, X, UserX, XCircle } from 'lucide-react';
+import { RescheduleModal } from '../../patient/RescheduleModal';
 import { Tooltip } from '../../common/Tooltip';
+import { computeDynamicSlotsForDate, loadScheduleSettings } from '../../../data/scheduleConfig';
+import { getMinimumBookingDate } from '../../../utils/bookingPolicy';
 
 interface HistoryTabProps {
   myAppointments: Appointment[];
-  onCompleteAppointment: (appointmentId: string) => void;
-  onMarkNoShow: (appointmentId: string) => void;
-  onCancelAppointment: (appointmentId: string) => void;
+  onCompleteAppointment: (appointmentId: string) => Promise<boolean>;
+  onMarkNoShow: (appointmentId: string, reason: string) => Promise<boolean>;
+  onCancelAppointment: (appointmentId: string, reason: string) => Promise<boolean>;
   onScheduleNextSession: (appointmentId: string, date: string, startTime: string, endTime: string) => Promise<boolean>;
+  onReschedule: (appointmentId: string, date: string, startTime: string, endTime: string, reason?: string, expectedVersion?: number) => Promise<boolean>;
 }
 
 const getTomorrowDate = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-  return localDate.toISOString().slice(0, 10);
+  return getMinimumBookingDate();
 };
 
 export const HistoryTab: React.FC<HistoryTabProps> = ({
@@ -24,9 +25,12 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   onCompleteAppointment,
   onMarkNoShow,
   onCancelAppointment,
-  onScheduleNextSession
+  onScheduleNextSession,
+  onReschedule
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const rescheduleAppointment = myAppointments.find(item => item.id === rescheduleId) || null;
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [nextSessionSource, setNextSessionSource] = useState<Appointment | null>(null);
@@ -38,6 +42,8 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
     appointment: Appointment;
     type: 'COMPLETE' | 'NO_SHOW' | 'CANCEL';
   } | null>(null);
+  const [statusReason, setStatusReason] = useState('');
+  useEffect(() => { setStatusReason(''); }, [pendingStatusAction]);
   const itemsPerPage = 8;
 
   // Reset page when search or filter changes
@@ -64,6 +70,41 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
     return filteredAppointments.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredAppointments, startIndex, itemsPerPage]);
 
+  const nextSessionAvailability = useMemo(() => {
+    if (!nextSessionSource || !nextDate) return { slots: [], reason: '' };
+    const toMinutes = (time: string) => {
+      const [hour, minute] = time.split(':').map(Number);
+      return hour * 60 + minute;
+    };
+    const duration = Math.max(
+      toMinutes(nextSessionSource.endTime) - toMinutes(nextSessionSource.startTime),
+      30
+    );
+    return computeDynamicSlotsForDate(
+      nextDate,
+      loadScheduleSettings(),
+      myAppointments,
+      nextSessionSource.psychologistId,
+      duration
+    );
+  }, [myAppointments, nextDate, nextSessionSource]);
+
+  const availableNextSessionSlots = useMemo(
+    () => nextSessionAvailability.slots.filter(slot => slot.isAvailable),
+    [nextSessionAvailability.slots]
+  );
+
+  useEffect(() => {
+    if (!nextSessionSource) return;
+    const selectedStillAvailable = availableNextSessionSlots.some(
+      slot => slot.startTime === nextStartTime && slot.endTime === nextEndTime
+    );
+    if (!selectedStillAvailable) {
+      setNextStartTime(availableNextSessionSlots[0]?.startTime || '');
+      setNextEndTime(availableNextSessionSlots[0]?.endTime || '');
+    }
+  }, [availableNextSessionSlots, nextEndTime, nextSessionSource, nextStartTime]);
+
   const getPlanAppointments = (apt: Appointment) => {
     if (apt.treatmentPlanId) {
       return myAppointments.filter(item => item.treatmentPlanId === apt.treatmentPlanId);
@@ -83,6 +124,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
     if (
       apt.status !== 'COMPLETED' ||
       apt.treatmentPlanStatus === 'DISCONTINUED' ||
+      !(['DP_PAID', 'PAID'] as Appointment['paymentStatus'][]).includes(apt.paymentStatus) ||
       totalSessions <= 1 ||
       currentNumber >= totalSessions
     ) return false;
@@ -106,19 +148,23 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
   const handleScheduleNext = async () => {
     if (!nextSessionSource) return;
+    const selectedSlotAvailable = availableNextSessionSlots.some(
+      slot => slot.startTime === nextStartTime && slot.endTime === nextEndTime
+    );
+    if (!selectedSlotAvailable) return;
     setIsSchedulingNext(true);
     const success = await onScheduleNextSession(nextSessionSource.id, nextDate, nextStartTime, nextEndTime);
     setIsSchedulingNext(false);
     if (success) closeNextSessionModal();
   };
 
-  const confirmStatusAction = () => {
+  const confirmStatusAction = async () => {
     if (!pendingStatusAction) return;
     const { appointment, type } = pendingStatusAction;
-    if (type === 'COMPLETE') onCompleteAppointment(appointment.id);
-    if (type === 'NO_SHOW') onMarkNoShow(appointment.id);
-    if (type === 'CANCEL') onCancelAppointment(appointment.id);
-    setPendingStatusAction(null);
+    const success = await (type === 'COMPLETE' ? onCompleteAppointment(appointment.id)
+      : type === 'NO_SHOW' ? onMarkNoShow(appointment.id, statusReason)
+      : onCancelAppointment(appointment.id, statusReason));
+    if (success) setPendingStatusAction(null);
   };
 
   return (
@@ -221,13 +267,20 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center justify-between gap-3 pt-2 border-t border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
                 <span className="text-[10px] font-bold text-indigo-700">
                   {apt.continuousSessionTotal && apt.continuousSessionTotal > 1
                     ? `Sesi ${apt.continuousSessionNumber || 1}/${apt.continuousSessionTotal}`
                     : 'Sesi tunggal'}
                 </span>
                 <div className="flex items-center gap-2">
+                  {['CONFIRMED', 'NO_SHOW'].includes(apt.status) && !['DISCONTINUED', 'COMPLETED'].includes(apt.treatmentPlanStatus || '') && (
+                    <Tooltip content="Konfirmasi dan jadwalkan ulang tanpa DP tambahan">
+                      <button type="button" onClick={() => setRescheduleId(apt.id)} className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center" aria-label="Konfirmasi dan jadwalkan ulang">
+                        <CalendarClock className="w-4 h-4" />
+                      </button>
+                    </Tooltip>
+                  )}
                   {apt.status === 'CONFIRMED' && (
                     <>
                       <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'COMPLETE' })} className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center" aria-label="Tandai sesi selesai">
@@ -236,7 +289,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                       <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'NO_SHOW' })} className="w-9 h-9 rounded-xl bg-orange-50 text-orange-700 border border-orange-200 flex items-center justify-center" aria-label="Tandai pasien tidak hadir">
                         <UserX className="w-4 h-4" />
                       </button>
-                      <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan sesi">
+                      <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-9 h-9 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan seluruh layanan setelah lunas" title="Batalkan seluruh layanan setelah lunas">
                         <XCircle className="w-4 h-4" />
                       </button>
                     </>
@@ -244,6 +297,11 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   {canScheduleNextSession(apt) && (
                     <button type="button" onClick={() => openNextSessionModal(apt)} className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center" aria-label="Jadwalkan sesi berikutnya">
                       <CalendarPlus className="w-4 h-4" />
+                    </button>
+                  )}
+                  {['PENDING', 'NO_SHOW'].includes(apt.status) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
+                    <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-9 h-9 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan seluruh layanan setelah lunas" title="Batalkan seluruh layanan setelah lunas">
+                      <XCircle className="w-4 h-4" />
                     </button>
                   )}
                   {apt.status === 'COMPLETED' && !canScheduleNextSession(apt) && (
@@ -338,12 +396,12 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                                 <UserX className="w-4 h-4" />
                               </button>
                             </Tooltip>
-                            <Tooltip content="Batalkan sesi oleh psikolog" position="left">
+                            <Tooltip content="Batalkan seluruh layanan setelah lunas" position="left">
                               <button
                                 type="button"
                                 onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })}
                                 className="w-8 h-8 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 flex items-center justify-center transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95"
-                                aria-label="Batalkan sesi oleh psikolog"
+                                aria-label="Batalkan seluruh layanan setelah lunas"
                               >
                                 <XCircle className="w-4 h-4" />
                               </button>
@@ -375,7 +433,21 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                           </Tooltip>
                         )}
 
-                        {apt.status !== 'CONFIRMED' && apt.status !== 'COMPLETED' && (
+                        {['CONFIRMED', 'NO_SHOW'].includes(apt.status) && !['DISCONTINUED', 'COMPLETED'].includes(apt.treatmentPlanStatus || '') && (
+                          <Tooltip content="Konfirmasi dan jadwalkan ulang tanpa DP tambahan">
+                            <button type="button" onClick={() => setRescheduleId(apt.id)} className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center" aria-label="Konfirmasi dan jadwalkan ulang">
+                              <CalendarClock className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        )}
+                        {['PENDING', 'NO_SHOW'].includes(apt.status) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
+                          <Tooltip content="Batalkan seluruh layanan setelah lunas">
+                            <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan seluruh layanan setelah lunas">
+                              <XCircle className="w-4 h-4" />
+                            </button>
+                          </Tooltip>
+                        )}
+                        {apt.status === 'CANCELLED' && (
                           <span className="text-[11px] text-slate-400 font-semibold">-</span>
                         )}
                       </div>
@@ -467,45 +539,57 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                   type="date"
                   value={nextDate}
                   onChange={e => setNextDate(e.target.value)}
+                  min={getTomorrowDate()}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Jam Mulai</label>
-                  <input
-                    type="time"
-                    value={nextStartTime}
-                    onChange={e => setNextStartTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">Jam Selesai</label>
-                  <input
-                    type="time"
-                    value={nextEndTime}
-                    onChange={e => setNextEndTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">Slot Praktik Tersedia</label>
+                {availableNextSessionSlots.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-56 overflow-y-auto pr-1">
+                    {availableNextSessionSlots.map(slot => {
+                      const selected = slot.startTime === nextStartTime && slot.endTime === nextEndTime;
+                      return (
+                        <button
+                          key={slot.id}
+                          type="button"
+                          onClick={() => {
+                            setNextStartTime(slot.startTime);
+                            setNextEndTime(slot.endTime);
+                          }}
+                          className={`min-h-11 px-3 py-2 rounded-xl border text-xs font-black transition-colors ${
+                            selected
+                              ? 'bg-indigo-600 border-indigo-600 text-white'
+                              : 'bg-white border-slate-200 text-slate-700 hover:border-indigo-300 hover:bg-indigo-50'
+                          }`}
+                        >
+                          {slot.startTime} - {slot.endTime}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs font-semibold text-amber-900">
+                    {nextSessionAvailability.reason || 'Tidak ada slot tersedia pada tanggal ini. Pilih tanggal lain.'}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-2 bg-slate-50/70">
+            <div className="px-4 sm:px-5 py-4 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 bg-slate-50/70">
               <button
                 type="button"
                 onClick={closeNextSessionModal}
-                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 bg-white text-slate-600 text-xs font-bold hover:bg-slate-50 cursor-pointer"
               >
                 Tutup
               </button>
               <button
                 type="button"
                 onClick={handleScheduleNext}
-                disabled={isSchedulingNext}
-                className="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+                disabled={isSchedulingNext || availableNextSessionSlots.length === 0 || !nextStartTime || !nextEndTime}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isSchedulingNext ? 'Menyimpan...' : 'Simpan Jadwal'}
               </button>
@@ -514,6 +598,16 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
         </div>,
         document.body
       )}
+
+      <RescheduleModal
+        key={rescheduleId || 'closed'}
+        isOpen={Boolean(rescheduleAppointment)}
+        onClose={() => setRescheduleId(null)}
+        appointment={rescheduleAppointment}
+        appointments={myAppointments}
+        onConfirmReschedule={onReschedule}
+        requiresAdminConfirmation={false}
+      />
 
       {pendingStatusAction && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-4">
@@ -529,15 +623,22 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
             </div>
             <div className="p-5 text-sm text-slate-700 leading-relaxed">
               {pendingStatusAction.type === 'COMPLETE' && 'Pastikan konsultasi benar-benar selesai sebelum mengubah status sesi.'}
-              {pendingStatusAction.type === 'NO_SHOW' && 'Pasien akan dicatat tidak hadir. Status ini memengaruhi progres paket berjalan.'}
-              {pendingStatusAction.type === 'CANCEL' && 'Sesi akan dibatalkan oleh psikolog. Tindakan ini tidak tersedia untuk admin.'}
+              {pendingStatusAction.type === 'NO_SHOW' && 'Catat ketidakhadiran setelah konfirmasi manual. Sesi tidak otomatis selesai atau dibatalkan; psikolog dapat menetapkan jadwal pengganti tanpa DP tambahan.'}
+              {pendingStatusAction.type === 'CANCEL' && 'Seluruh sisa jadwal pada rencana ini akan dibatalkan dan layanan dihentikan. Pembayaran wajib lunas terlebih dahulu.'}
+              {pendingStatusAction.type !== 'COMPLETE' && (
+                <label className="block mt-4 text-xs font-bold">
+                  Alasan *
+                  <textarea value={statusReason} onChange={event => setStatusReason(event.target.value)} rows={3} className="mt-2 w-full border border-slate-200 rounded-lg p-3 resize-none" />
+                </label>
+              )}
             </div>
-            <div className="px-5 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
-              <button type="button" onClick={() => setPendingStatusAction(null)} className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600">Kembali</button>
+            <div className="px-4 sm:px-5 py-4 border-t border-slate-100 bg-slate-50 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+              <button type="button" onClick={() => setPendingStatusAction(null)} className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600">Kembali</button>
               <button
                 type="button"
                 onClick={confirmStatusAction}
-                className={`px-4 py-2 rounded-xl text-white text-xs font-bold ${
+                disabled={pendingStatusAction.type !== 'COMPLETE' && !statusReason.trim()}
+                className={`w-full sm:w-auto px-4 py-2 rounded-xl text-white text-xs font-bold ${
                   pendingStatusAction.type === 'COMPLETE' ? 'bg-sky-600' : pendingStatusAction.type === 'NO_SHOW' ? 'bg-orange-600' : 'bg-rose-600'
                 }`}
               >

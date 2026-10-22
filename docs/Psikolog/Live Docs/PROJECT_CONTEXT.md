@@ -8,9 +8,11 @@ JiwaSehat - Platform Booking Konsultasi Psikologi.
 
 JiwaSehat adalah aplikasi untuk membantu pasien melakukan booking konsultasi psikologi secara terjadwal. Fokus utama aplikasi adalah booking, pre-test, pembayaran, pemantauan admin, pengelolaan jadwal oleh psikolog/pengelola, dan laporan.
 
-Aplikasi ini bukan platform konsultasi online/chat di web. Konsultasi dilakukan berdasarkan jadwal yang dibooking, sedangkan web dipakai untuk alur administratif dan persiapan konsultasi.
+Aplikasi ini bukan platform chat konsultasi. Konsultasi dilakukan berdasarkan jadwal yang dibooking dan dapat berupa tatap muka atau telelayanan; web dipakai untuk alur administratif dan persiapan konsultasi, bukan sebagai ruang chat.
 
 ## Role Utama
+
+Keputusan flow terbaru (21 Oktober 2026): pembatalan oleh psikolog menghentikan seluruh sisa rencana dan wajib setelah pembayaran lunas. Admin dapat mencatat pelunasan penghentian; tidak dapat membatalkan. Tidak ada fitur permintaan unggah ulang bukti. Reschedule terbayar dikonfirmasi ulang tanpa DP kedua; setiap booking baru menyimpan snapshot pre-test dan consent versi aktif.
 
 Hierarki role terbaru:
 
@@ -62,18 +64,20 @@ Membangun sistem yang mendukung:
 - Pasien wajib mengunggah bukti pembayaran transfer.
 - Pasien wajib mencantumkan nama pemilik rekening pengirim (`transferSenderName`).
 - Admin melihat dan memverifikasi bukti transfer dan nama pengirim tanpa melihat nominal harga/tagihan.
-- Skema pembayaran resmi: nominal DP ditentukan psikolog/pengelola per paket dan tidak boleh melebihi total setelah diskon; sisa biaya paket dilunasi saat hadir di klinik tatap muka.
+- Skema pembayaran resmi: DP ditetapkan sistem secara flat Rp100.000 dan tidak boleh melebihi total setelah diskon. Psikoterapi ditarifkan per sesi dengan rencana awal empat sesi; DP mengurangi biaya pertemuan dan sisa proyeksi dapat dibayar bertahap. Jika terapi perlu dilanjutkan setelah sesi keempat, pasien booking lagi dengan DP dan ledger baru.
 - Admin mencatat nominal pelunasan yang benar-benar diterima tanpa melihat harga paket atau nominal tagihan yang seharusnya. Setelah disimpan, nominal pelunasan tidak dapat dibaca kembali dari portal admin dan hanya masuk ke laporan uang masuk psikolog.
 - Status sesi `COMPLETED` dan status pembayaran `PAID` adalah dua proses terpisah: psikolog menyelesaikan sesi, admin mencatat pelunasan.
 - Riwayat pembayaran dan mutasi kas tersimpan di sistem.
-- Sistem membutuhkan invoice/kwitansi yang memuat DP sesuai paket, sisa pelunasan, metode bayar, channel bank/QRIS/cash, nama pengirim, nomor referensi, dan bukti pembayaran.
+- Sistem membutuhkan invoice/kwitansi yang memuat DP flat Rp100.000, sisa pelunasan, metode bayar, channel bank/QRIS/cash, nama pengirim, status, dan bukti pembayaran. Nomor referensi transaksi tidak digunakan.
 
 ### Paket Multi-Sesi
 
 - Paket berkelanjutan memakai halaman khusus **Paket Berjalan / Rencana Terapi** di portal psikolog.
 - Isi minimum halaman: pasien, nama paket, total sesi, sesi selesai, sesi berikutnya, tombol jadwalkan sesi berikutnya, dan status aktif/selesai/dihentikan.
 - Sesi ke-2 dan seterusnya dijadwalkan oleh psikolog/pengelola, bukan dibuat sekaligus saat pasien membeli paket.
+- Untuk psikoterapi, psikolog menjadwalkan sesi ke-2 sampai ke-4 dalam rencana awal. Tidak ada fitur tambah jatah; pertemuan klinis ke-5 dan seterusnya memakai booking baru serta dicatat sebagai lanjutan pada rekam medis eksternal.
 - Psikolog/pengelola berwenang menandai sesi selesai, tidak hadir, dibatalkan, atau menghentikan paket.
+- Keterlambatan dikonfirmasi manual oleh psikolog, tanpa auto-cancel. Sesuai hasil konfirmasi, sesi dapat dijadwalkan ulang minimal H+1; DP hanya di awal booking/rencana, tidak dibayar lagi saat reschedule. Pemulihan `NO_SHOW` memakai appointment dan nomor sesi yang sama dengan histori pembayaran tetap utuh.
 
 ### Notifikasi
 
@@ -90,7 +94,7 @@ Membangun sistem yang mendukung:
 
 ### Landing Page & Footer
 
-- Landing page menampilkan paket tatap muka aktif yang dikelola psikolog, profil kredensial psikolog, dan biografi.
+- Landing page menampilkan paket tatap muka dan telelayanan aktif yang dikelola psikolog, profil kredensial psikolog, dan biografi.
 - **Penyembunyian Tarif Awal**: Nominal harga paket disembunyikan untuk pengunjung yang belum sign in akun.
 - Section pengalaman konseling dibuat carousel sekitar 10 item, bisa bergerak otomatis dan manual.
 - **Kondisional Footer**: Komponen Footer hanya ditampilkan pada Landing Page (`GUEST`), dan disembunyikan sepenuhnya saat user masuk ke akun dashboard mana pun.
@@ -99,7 +103,7 @@ Membangun sistem yang mendukung:
 
 - Panduan alur konseling dan FAQ interaktif.
 - Verifikasi kelengkapan profil data diri sebelum memilih paket konsultasi.
-- Pemesanan jadwal konsultasi dengan formulir keluhan pre-test dan upload bukti DP sesuai paket.
+- Pemesanan jadwal konsultasi dengan formulir keluhan pre-test dan upload bukti DP flat Rp100.000.
 - Jadwal & Riwayat Konsultasi berformat Data Table rapi dengan modal detail janji temu.
 - Pengajuan reschedule mandiri dengan tanggal pengganti minimal H+1 dan validasi slot.
 - Pemberian review ulasan setelah sesi konsultasi selesai.
@@ -114,13 +118,13 @@ Membangun sistem yang mendukung:
 - Detail pasien terstandarisasi (`PatientDetailModal`) untuk profil, pre-test, dan riwayat sesi tanpa SOAP.
 - Halaman khusus Paket Berjalan untuk memantau rencana terapi/paket multi-sesi.
 - Export data klinis pasien untuk owner/psikolog dengan perlindungan role.
-- Tidak ada ruang chat konsultasi online di web.
+- Tidak ada ruang chat konsultasi di web. Paket telelayanan memakai media sesi yang diinformasikan setelah booking dikonfirmasi.
 
 ### Dashboard Admin
 
 - Memantau akun pengguna secara strictly **Read-Only Monitoring** (tanpa wewenang edit/blokir akun user).
 - Melayani pembuatan walk-in booking bagi pasien yang hadir langsung ke klinik.
-- Verifikasi bukti transfer DP sesuai paket dan nama pengirim transfer tanpa menampilkan nominal kepada admin.
+- Verifikasi bukti transfer DP flat Rp100.000 dan nama pengirim transfer tanpa menampilkan rincian harga paket kepada admin.
 - Mengubah status booking dari `PENDING` ke `CONFIRMED`; status `COMPLETED` ditandai oleh psikolog/pengelola setelah sesi selesai.
 - Moderasi ulasan pasien dengan antarmuka card metrik skor terpadu.
 

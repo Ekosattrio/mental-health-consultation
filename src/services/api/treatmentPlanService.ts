@@ -15,6 +15,9 @@ export interface TreatmentPlan {
   completed_sessions: number;
   next_session?: Appointment | null;
   appointments?: Appointment[];
+  total_amount?: number;
+  paid_amount?: number;
+  remaining_amount?: number;
   started_at?: string | null;
   completed_at?: string | null;
   discontinued_at?: string | null;

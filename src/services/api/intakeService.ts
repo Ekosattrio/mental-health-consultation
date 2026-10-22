@@ -12,14 +12,14 @@ export interface UpsertPreTestPayload {
   };
   primary_concerns: string[];
   concern_description: string;
-  previous_therapy: boolean;
+  previous_therapy?: boolean;
   previous_diagnosis?: string;
   current_medications?: string;
   current_stress_level: number;
   sleep_quality: IntakeForm['sleepQuality'];
-  suicide_risk_flag: boolean;
+  suicide_risk_flag?: boolean;
   goals: string;
-  consent_given: boolean;
+  form_version: string;
 }
 
 export const intakeService = {
@@ -37,6 +37,10 @@ export const intakeService = {
 
   update(id: string, payload: UpsertPreTestPayload): Promise<ApiResponse<IntakeForm>> {
     return apiClient.put<IntakeForm>(`/patient/pre-tests/${id}`, payload);
+  },
+
+  getAppointmentPreTest(appointmentId: string): Promise<ApiResponse<IntakeForm>> {
+    return apiClient.get<IntakeForm>(`/psychologist/appointments/${appointmentId}/pre-test`);
   },
 
   getPatientPreTest(patientId: string): Promise<ApiResponse<IntakeForm>> {

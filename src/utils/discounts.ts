@@ -33,15 +33,20 @@ export const calculatePackageDiscount = (
 };
 
 export const calculatePackagePayableAmount = (pkg: ConsultationPackage | undefined) => {
-  const subtotalAmount = Math.max(pkg?.price || 0, 0);
+  const sessionCount = pkg?.type === 'PSYCHOTHERAPY' ? 4 : 1;
+  const unitPrice = Math.max(pkg?.price || 0, 0);
   const discount = calculatePackageDiscount(pkg);
-  const discountAmount = discount?.amount || 0;
+  const subtotalAmount = unitPrice * sessionCount;
+  const discountAmount = (discount?.amount || 0) * sessionCount;
   const totalAmount = Math.max(subtotalAmount - discountAmount, 0);
 
   return {
     subtotalAmount,
     discount,
     discountAmount,
-    totalAmount
+    totalAmount,
+    sessionCount,
+    unitPrice,
+    unitPayableAmount: Math.max(unitPrice - (discount?.amount || 0), 0)
   };
 };

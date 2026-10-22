@@ -1,4 +1,5 @@
 import { User } from './User';
+import { buildCashInReportRows } from '../utils/payments';
 import {
   User as UserEntity,
   Appointment,
@@ -46,9 +47,8 @@ export class Admin extends User {
     const totalAppointments = appointments.length;
     const completedSessions = appointments.filter(a => a.status === 'COMPLETED').length;
 
-    const totalRevenue = appointments
-      .filter(a => a.paymentStatus === 'PAID')
-      .reduce((sum, a) => sum + (a.totalAmount || 0), 0);
+    const totalRevenue = buildCashInReportRows(appointments)
+      .reduce((sum, event) => sum + event.cashInAmount, 0);
 
     const activePatients = allUsers.filter(
       u => u.role === 'PATIENT' && u.status === 'ACTIVE'

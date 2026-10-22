@@ -4,6 +4,29 @@ Dokumen ini merupakan panduan implementasi teknis backend **Laravel 12+** untuk 
 
 ---
 
+## Addendum 22 Oktober 2026 - Conditional Reschedule dan CMS Owner
+
+- Payload semua reschedule menyertakan `expected_version` integer. Dalam transaction/row lock appointment, tolak versi usang dengan `409 SCHEDULE_VERSION_CONFLICT`, periksa kembali role/status/H+1/durasi/kuota/overlap, increment `schedule_version` dan insert histori atomik. Resource seluruh role menyertakan `scheduleVersion`; admin tidak menerima field keuangan/klinis hanya karena memerlukan versi.
+- `GET /cms/landing` berupa allowlist publik tanpa rekening/QRIS kasir. `GET /psychologist/cms/landing` mengembalikan konfigurasi lengkap hanya owner. Semua update CMS tetap Policy psikolog; admin tidak berwenang.
+- Hold menyimpan snapshot instruksi rekening server, diekspos kepada pemilik dengan `payment_channel_detail`/`account_holder` sesuai flow consent. Perubahan CMS tidak mengubah instruksi hold lama; jangan menerima rekening dari payload pasien sebagai sumber kebenaran.
+- Detail editor ada di [[CMS_AUDIT]] dan aturan konflik di [[API]]. Fallback versi legacy frontend bukan pengganti backfill/validasi server. Backend dan adapter runtime belum diimplementasikan.
+
+## Addendum Kontrak Frontend - 21 Oktober 2026
+
+Detail endpoint ada di [[API]] bagian Pengaman Booking dan Kas. Addendum ini berlaku bila contoh lama di bawah belum memuat field baru.
+
+- `src/services/api/slotHoldService.ts` menyiapkan create/get/release `/slot-holds`, dengan status, server_time, expires_at, dan package_version. Prototype sudah memiliki implementasi hold lokal sebelum rekening; service server belum runtime. Default lokal 15 menit, bukan TTL produksi final.
+- Booking pasien menambahkan `slot_hold_id` dan `expected_total_amount`. Validasi quote/snapshot tetap server-side; expected amount tidak boleh menjadi sumber harga. Perubahan quote wajib conflict dan persetujuan ulang.
+- Walk-in menambahkan `initial_payment_amount`, `payment_phase`, `received_date`, dan `reconciliation_id` opsional. FULL tetap pending sampai verifikasi. Validasi nominal aktual dan penyimpanan pasien/booking/ledger/konfirmasi atomik diperlukan; admin tetap menerima Resource tanpa nominal.
+- `paymentReconciliationService` menyiapkan list/create `/payment-reconciliations`: file privat, pemilik hold, idempotency/keunikan per hold, status OPEN/BOOKED, dan appointmentId pengganti. Memprosesnya melalui walk-in H+1 memakai bukti yang sudah ada, bukan transfer/unggah ulang; jangan mengakui kas sebelum verifikasi. Detail pada [[API]].
+- Verifikasi DP menerima `received_date`; input pembayaran lanjutan menyertakan `received_date`. Simpan tanggal penerimaan terpisah dari `recorded_at/verified_at` server dan jangan menerima tanggal masa depan.
+- Kas terverifikasi berasal dari ledger, tidak dari status FULL atau harga paket semata. Finance/CSV/Excel/PDF menggunakan satu row setiap penerimaan pada tanggal uang diterima. Tanggal historis tidak pasti ditandai estimasi, bukan diisi tanggal konsultasi.
+- Lock kapasitas per psikolog/tanggal sebelum memeriksa overlap/kuota/hold; gunakan protokol sama pada perubahan jadwal dan reschedule. Lock plan/ledger pada pembayaran serta sesi. Tambahkan idempotency dan re-fetch resource setelah mutasi.
+- Reservasi server harus aktif sebelum pasien diarahkan transfer. Jika uang sudah dikirim tetapi hold tidak valid, simpan kasus rekonsiliasi privat dan cegah pembayaran/booking dobel; jangan auto-hapus bukti atau membuat refund diam-diam.
+- Integrasi backend wajib mengganti full-array LocalStorage mutations. Transaction DB tidak menyelesaikan snapshot overwrite bila frontend masih menulis ulang store mock setelah response API.
+
+---
+
 ## 1. Konsep & Arsitektur Utama
 
 - **Framework**: Laravel 12.x (PHP 8.3+)
@@ -109,17 +132,17 @@ Dokumen ini merupakan panduan implementasi teknis backend **Laravel 12+** untuk 
 | `id` | `uuid` / `bigIncrements` | Primary key |
 | `name` | `string(150)` | Nama paket (misal: "Konsultasi Offline 60 Menit") |
 | `category` | `enum('COUNSELING','ASSESSMENT','PSYCHOTHERAPY')` | Kategori paket resmi |
+| `delivery_mode` | `enum('OFFLINE_CLINIC','ONLINE_TELE')` | Metode sesi; asesmen/psikoterapi dapat memakai default tatap muka |
 | `session_type` | `enum('SINGLE_SESSION','CONTINUOUS_CARE')` | Sesi tunggal atau rawat jalan |
 | `duration_minutes` | `integer` | 60, 75, 90, atau 180 menit |
-| `price` | `decimal(12,2)` | Harga resmi paket konsultasi |
-| `dp_amount` | `decimal(12,2)` | Nominal DP yang ditetapkan psikolog untuk paket |
+| `price` | `decimal(12,2)` | Psikoterapi: tarif per sesi; layanan lain: tarif paket |
 | `discount_type` | `enum('NONE','PERCENT','FIXED')` | Jenis diskon langsung tanpa voucher |
 | `discount_value` | `decimal(12,2)` | Nilai persentase atau nominal diskon |
 | `discount_label` | `string(150)` | Nullable, label potongan yang tampil ke pasien |
 | `description` | `text` | Rincian dan deskripsi paket |
 | `benefits` | `json` | Poin manfaat / fasilitas include |
 | `continuous_care_note` | `text` | Nullable, panduan rencana rawat jalan berkala |
-| `total_sessions` | `integer` | Default 1 (misal 4 untuk psikoterapi intensif) |
+| `total_sessions` | `integer` | Default 1; psikoterapi wajib 4 sesi awal per booking |
 | `frequency` | `string(50)` | Nullable, misal: "1x seminggu" |
 | `is_active` | `boolean` | Status on/off paket |
 
@@ -173,23 +196,27 @@ Catatan: paket 4/5/8/10 sesi memakai `treatment_plans` sebagai induk. Appointmen
 | `date` | `date` | Tanggal sesi |
 | `start_time` | `time` | Jam mulai sesi |
 | `end_time` | `time` | Jam berakhir sesi |
-| `session_type` | `string(20)` | Default dan nilai aktif `'OFFLINE'` (klinik tatap muka) |
+| `session_type` | `enum('OFFLINE_CLINIC','ONLINE_TELE')` | Telelayanan hanya booking di website; pertemuan melalui platform pihak ketiga |
 | `status` | `enum('PENDING','CONFIRMED','IN_PROGRESS','COMPLETED','CANCELLED','NO_SHOW')` |
 | `payment_status` | `enum('PENDING','DP_PENDING_VERIFICATION','DP_PAID','PAID','REFUNDED')` |
 | `subtotal_amount` | `decimal(12,2)` | Snapshot harga paket sebelum diskon |
 | `discount_label` | `string(150)` | Nullable, snapshot label potongan |
 | `discount_amount` | `decimal(12,2)` | Snapshot nominal potongan |
 | `total_amount` | `decimal(12,2)` | Total paket setelah diskon |
-| `dp_amount` | `decimal(12,2)` | Snapshot DP dari konfigurasi paket saat booking |
+| `dp_amount` | `decimal(12,2)` | Snapshot DP flat Rp100.000 yang dihitung server saat booking |
 | `remaining_amount` | `decimal(12,2)` | Sisa tagihan pelunasan di klinik |
 | `transfer_sender_name` | `string(150)` | Nullable, nama pemilik rekening pengirim |
 | `payment_proof_url` | `string` | Nullable, path foto berkas transfer DP |
-| `final_payment_amount` | `decimal(12,2)` | Nullable, nominal pelunasan aktual yang dicatat admin dan hanya dapat dibaca psikolog/owner |
-| `final_payment_method` | `enum('CASH','BANK_TRANSFER','QRIS','EDC','OTHER')` | Nullable, metode pelunasan |
-| `final_payment_channel_detail` | `string(150)` | Nullable, nama bank/channel pelunasan |
-| `final_payment_reference` | `string(150)` | Nullable, referensi transaksi pelunasan |
-| `final_payment_recorded_at` | `timestamp` | Nullable, waktu pencatatan pelunasan |
-| `final_payment_recorded_by` | `foreignId` | Nullable, admin pencatat pelunasan |
+| `payment_proof_name` | `string(255)` | Nullable, nama asli berkas untuk tampilan audit |
+| `payment_proof_mime_type` | `string(100)` | Nullable, MIME hasil validasi server |
+| `payment_verified_at` | `timestamp` | Nullable, waktu bukti diverifikasi |
+| `payment_verified_by` | `foreignId` | Nullable, admin yang memverifikasi |
+| `payment_verification_note` | `text` | Nullable, catatan pemeriksaan admin |
+| `final_payment_amount` | `decimal(12,2)` | Opsional untuk kompatibilitas data lama; sumber uang masuk baru adalah `payment_transactions` |
+| `final_payment_method` | `enum('CASH','BANK_TRANSFER','QRIS','EDC','OTHER')` | Opsional untuk kompatibilitas data lama |
+| `final_payment_channel_detail` | `string(150)` | Opsional untuk kompatibilitas data lama |
+| `final_payment_recorded_at` | `timestamp` | Opsional untuk kompatibilitas data lama |
+| `final_payment_recorded_by` | `foreignId` | Opsional untuk kompatibilitas data lama |
 | `continuous_session_number`| `integer` | Nullable, nomor sesi ke-N jika rawat jalan |
 | `continuous_session_total`| `integer` | Nullable, total sesi dalam paket |
 | `admin_notes` | `text` | Catatan verifikator admin |
@@ -204,7 +231,9 @@ Constraint penting:
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | `id` | `uuid` | |
-| `appointment_id`| `foreignId` | Relasi ke `appointments.id` |
+| `appointment_id`| `foreignId nullable` | Draft sebelum booking; diikat dalam transaction create appointment, immutable setelah terikat |
+| `form_version` | `string` | Versi pertanyaan pre-test |
+| `answers_json` | `json` | Snapshot primary_concerns, concern_description, current_stress_level, sleep_quality, goals, serta field riwayat opsional sesuai intakeService |
 | `patient_id` | `foreignId` | Relasi ke `users.id` |
 | `birth_date` | `date` | Tanggal lahir pasien |
 | `gender` | `string(20)` | |
@@ -214,23 +243,37 @@ Constraint penting:
 | `emergency_phone`| `string(25)` | Telepon kontak darurat |
 | `chief_complaint`| `text` | Keluhan utama |
 | `duration` | `string(100)` | Durasi gejala |
-| `consent_given` | `boolean` | Persetujuan informed consent |
+| `completed_at` | `timestamp` | Waktu penyimpanan draft; consent final dicatat terpisah saat booking |
 | `created_at` | `timestamp` | |
 
-### 3.9. Tabel `dass21_results` (Asesmen Mandiri)
+### 3.9. Tabel `payment_transactions` (DP dan Pembayaran Bertahap)
 | Kolom | Tipe | Keterangan |
 |---|---|---|
-| `id` | `uuid` | |
-| `patient_id` | `foreignId` | |
-| `appointment_id`| `foreignId` | Nullable |
-| `depression_score` | `integer` | Skor subskala depresi |
-| `anxiety_score` | `integer` | Skor subskala kecemasan |
-| `stress_score` | `integer` | Skor subskala stres |
-| `severity_level` | `string(30)` | Normal, Ringan, Sedang, Berat, Sangat Berat |
-| `interpretation` | `text` | Interpretasi klinis |
-| `created_at` | `timestamp` | |
+| `id` | `uuid` | Primary key |
+| `treatment_plan_id` | `foreignId` | Nullable untuk booking sesi tunggal |
+| `appointment_id` | `foreignId` | Booking awal/invoice terkait |
+| `kind` | `enum('DP','INSTALLMENT')` | DP dicatat sekali, sisanya boleh bertahap |
+| `purpose` | `enum('CONSULTATION','CANCELLATION_SETTLEMENT')` | Pelunasan untuk penghentian dapat diterima sebelum sesi pertama |
+| `amount` | `decimal(12,2)` | Hanya terlihat oleh psikolog/owner |
+| `method` | `enum('CASH','BANK_TRANSFER','QRIS','EDC','OTHER')` | Cara bayar |
+| `channel_detail` | `string(150)` | Nullable, bank/channel |
+| `recorded_by` | `foreignId` | Admin pencatat |
+| `idempotency_key` | `string(100)` | Unik untuk mencegah duplikasi |
+| `verified_at` | `timestamp` | Waktu verifikasi |
+| `created_at` | `timestamp` | Waktu catat |
 
-### 3.10. Tabel `reviews` (Ulasan & Rating)
+### 3.10. Consent dan Audit Jadwal
+
+- `consents`: id, patient_id, appointment_id, document_version, privacy_version, accepted_at, ip_address, user_agent. Metadata request berasal dari server.
+- `appointment_reschedules`: from/to tanggal dan jam, pelaku/role, alasan, created_at. Setiap reschedule menambah record.
+- `appointment_status_events`: appointment_id, from_status, to_status, actor_id, reason, created_at.
+- Create booking menerima draft pre-test dan consent versi aktif beserta bukti multipart; semuanya diikat dalam transaction. Tidak perlu appointment lebih dahulu untuk membuat draft.
+- Cancel/discontinue mengunci ledger dan rencana, menolak saldo tersisa atau pembayaran belum `PAID`, lalu menghentikan rencana dan membatalkan seluruh sisa appointment. Sesi completed dan seluruh pembayaran tetap menjadi histori.
+- Konfirmasi ulang reschedule tidak mengubah nominal/status/audit pembayaran awal. Response admin wajib Resource administratif tanpa harga, saldo, ledger, consent, atau data klinis.
+- Keputusan 22 Oktober 2026: keterlambatan/ketidakhadiran dikonfirmasi manual psikolog. Tidak ada auto-cancel/auto-no-show; psikolog penanggung jawab dapat reschedule `NO_SHOW -> CONFIRMED` pada appointment yang sama, minimal H+1, dengan alasan dan slot valid. Simpan histori status/jadwal, jangan menambah nomor/jatah sesi atau mengubah DP/ledger; tidak ada DP kedua. Admin/pasien tidak dapat memulihkan NO_SHOW sendiri. Tolak rencana terminal, pembayaran awal belum terverifikasi, atau rencana yang sudah memiliki sesi lanjutan/aktif lain.
+- Tidak ada fitur minta unggah ulang bukti. Admin menahan konfirmasi bila transaksi belum dapat dicocokkan secara manual.
+
+### 3.11. Tabel `reviews` (Ulasan & Rating)
 | Kolom | Tipe | Keterangan |
 |---|---|---|
 | `id` | `uuid` | |
@@ -296,7 +339,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/patients/me/profile', [AuthController::class, 'patientProfile']);
             Route::put('/patients/me/profile', [AuthController::class, 'updatePatientProfile']);
             Route::post('/appointments', [AppointmentController::class, 'store']);
-            Route::post('/appointments/{id}/payment-proof', [AppointmentController::class, 'uploadProof']);
             Route::post('/appointments/{id}/reschedule', [AppointmentController::class, 'requestReschedule']);
             Route::get('/appointments/{id}/receipt', [AppointmentController::class, 'patientReceipt']);
             Route::post('/patient/pre-tests', [IntakeController::class, 'store']);
@@ -330,8 +372,10 @@ Route::prefix('v1')->group(function () {
             Route::put('/psychologists/{id}/schedules/date-overrides/{date}', [ScheduleController::class, 'upsertDateOverride']);
             Route::delete('/psychologists/{id}/schedules/date-overrides/{date}', [ScheduleController::class, 'deleteDateOverride']);
             Route::get('/psychologist/patients/{patientId}/pre-test', [IntakeController::class, 'patientPreTest']);
+            Route::get('/psychologist/appointments/{id}/pre-test', [IntakeController::class, 'appointmentPreTest']);
             Route::patch('/psychologist/appointments/{id}/complete', [AppointmentController::class, 'completeByPsychologist']);
             Route::patch('/psychologist/appointments/{id}/no-show', [AppointmentController::class, 'markNoShow']);
+            Route::patch('/psychologist/appointments/{id}/reschedule', [AppointmentController::class, 'rescheduleByPsychologist']);
             Route::patch('/psychologist/appointments/{id}/cancel', [AppointmentController::class, 'cancelByPsychologist']);
             Route::get('/treatment-plans', [TreatmentPlanController::class, 'index']);
             Route::post('/treatment-plans', [TreatmentPlanController::class, 'store']);
@@ -350,8 +394,8 @@ Route::prefix('v1')->group(function () {
 
             // Reservasi & Walk-in Booking
             Route::post('/admin/appointments/walk-in', [AppointmentController::class, 'storeWalkIn']);
-            Route::patch('/admin/appointments/{id}/confirm', [AppointmentController::class, 'confirm']);
             Route::post('/admin/appointments/{id}/verify-payment', [AppointmentController::class, 'verifyPayment']);
+            Route::post('/admin/appointments/{id}/confirm-reschedule', [AppointmentController::class, 'confirmReschedule']);
             Route::post('/admin/appointments/{id}/final-payment', [AppointmentController::class, 'recordFinalPayment']);
             Route::patch('/admin/appointments/{id}/reschedule', [AppointmentController::class, 'rescheduleByAdmin']);
             Route::get('/admin/appointments/{id}/receipt', [AppointmentController::class, 'adminReceipt']);
@@ -371,6 +415,7 @@ Route::prefix('v1')->group(function () {
                 ->whereIn('format', ['pdf', 'xlsx', 'csv']);
 
             // CMS Update
+            Route::get('/psychologist/cms/landing', [CmsController::class, 'getLandingForManagement']);
             Route::put('/cms/landing', [CmsController::class, 'updateLanding']);
             Route::put('/cms/patient', [CmsController::class, 'updatePatientCms']);
             Route::post('/cms/assets', [CmsController::class, 'uploadAsset']);

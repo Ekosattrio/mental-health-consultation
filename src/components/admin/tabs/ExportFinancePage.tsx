@@ -23,7 +23,9 @@ import {
   Eye
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
-import { getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
+import { ImageWithFallback } from '../../common/ImageWithFallback';
+import { csvRow, downloadCsv, escapeHtml, spreadsheetText } from '../../../utils/exportEncoding';
+import { buildCashInReportRows, formatCashInDate, getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
 
 interface ExportFinancePageProps {
   appointments: Appointment[];
@@ -89,7 +91,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
   appointments,
   onBack
 }) => {
-  const { psychologistCms } = useApp();
+  const { psychologistCms, landingCms } = useApp();
 
   // Konfigurasi Kop Surat Resmi dari CMS
   const clinicName = psychologistCms?.letterheadClinicName || 'Praktik Mandiri Psikolog Klinis JiwaSehat';
@@ -126,7 +128,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
 
   // Filter Data Transaksi (100% utuh)
   const filteredData = useMemo(() => {
-    let result = appointments;
+    let result = buildCashInReportRows(appointments);
 
     if (filterMode === 'MONTH_YEAR') {
       if (selectedYear !== 'ALL') {
@@ -283,11 +285,11 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
         return `
           <tr>
             <td style="text-align: center;">${idx + 1}</td>
-            <td>${a.date}</td>
-            <td style="font-family: monospace;">${a.bookingCode}</td>
-            <td><strong>${a.patientName}</strong></td>
-            <td>${a.packageName}</td>
-            <td>${skema}</td>
+            <td>${formatCashInDate(a)}</td>
+            <td style="font-family: monospace;">${escapeHtml(spreadsheetText(a.bookingCode))}</td>
+            <td><strong>${escapeHtml(spreadsheetText(a.patientName))}</strong></td>
+            <td>${escapeHtml(spreadsheetText(a.packageName))}</td>
+            <td>${escapeHtml(spreadsheetText(skema))}</td>
             <td style="text-align: right; mso-number-format: '\\Rp\\ #\\,##0';">${nominalMasuk}</td>
             <td style="text-align: center;">${status}</td>
           </tr>
@@ -325,9 +327,9 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
         </style>
       </head>
       <body>
-        <div class="title">${clinicName.toUpperCase()}</div>
-        <div class="subtitle">Laporan Resmi Arus Kas & Uang Masuk • Periode: ${getPeriodeLabel()}</div>
-        <div class="meta">${doctorName} • SIP: ${sipNumber} • STR: ${strNumber} • Dicetak: ${printDateFormatted}</div>
+        <div class="title">${escapeHtml(clinicName.toUpperCase())}</div>
+        <div class="subtitle">Laporan Resmi Arus Kas & Uang Masuk • Periode: ${escapeHtml(getPeriodeLabel())}</div>
+        <div class="meta">${escapeHtml(doctorName)} • SIP: ${escapeHtml(sipNumber)} • STR: ${escapeHtml(strNumber)} • Dicetak: ${printDateFormatted}</div>
         <table>
           <thead>
             <tr>
@@ -389,37 +391,30 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
       const skema = getPaymentSchemeLabel(a);
       const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Admin Diterima' : 'Verifikasi Bukti';
 
-      return [
+      return csvRow([
         idx + 1,
-        `"${a.date}"`,
-        `"${a.bookingCode}"`,
-        `"${a.patientName}"`,
-        `"${a.packageName}"`,
-        `"${skema}"`,
+        formatCashInDate(a),
+        a.bookingCode,
+        a.patientName,
+        a.packageName,
+        skema,
         nominalMasuk,
-        `"${status}"`
-      ].join(',');
+        status
+      ]);
     });
 
-    rows.push([
+    rows.push(csvRow([
       '',
       '',
       '',
-      '"TOTAL AKUMULASI"',
+      'TOTAL AKUMULASI',
       '',
       '',
       totalCashIn,
-      `"${filteredData.length} Transaksi"`
-    ].join(','));
+      `${filteredData.length} Transaksi`
+    ]));
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.href = encodedUri;
-    link.download = `Laporan_Keuangan_JiwaSehat_${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`Laporan_Keuangan_JiwaSehat_${new Date().toISOString().slice(0, 10)}.csv`, [csvRow(headers), ...rows]);
   };
 
   const handlePrintDocument = () => {
@@ -869,7 +864,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                         <div className="border-b-4 border-double border-slate-900 pb-4 mb-5 text-center relative">
                           <div className="flex items-center justify-center gap-3 mb-1">
                             <div className="w-11 h-11 rounded-2xl bg-teal-800 text-white flex items-center justify-center font-black text-xl shadow-xs">
-                              JS
+                              <ImageWithFallback src={landingCms.clinicKopLogoUrl || landingCms.logoUrl} alt="Logo praktik" className="h-full w-full object-contain" fallback={<>JS</>} />
                             </div>
                             <div className="text-left">
                               <h2 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight leading-none uppercase">
@@ -898,7 +893,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                         <div className="border-b-2 border-slate-800 pb-2 mb-4 flex items-center justify-between text-xs font-bold text-slate-800">
                           <div className="flex items-center gap-2">
                             <span className="w-5 h-5 rounded bg-teal-800 text-white text-[10px] font-black flex items-center justify-center">
-                              JS
+                              <ImageWithFallback src={landingCms.clinicKopLogoUrl || landingCms.logoUrl} alt="" className="h-full w-full object-contain" fallback={<>JS</>} />
                             </span>
                             <span className="uppercase text-[11px]">{clinicName}</span>
                           </div>
@@ -957,7 +952,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                                       {page.startIndex + index + 1}
                                     </td>
                                     <td className="py-1.5 px-2.5 border-r border-slate-200 whitespace-nowrap font-medium text-slate-800">
-                                      {item.date}
+                                      {formatCashInDate(item)}
                                     </td>
                                     <td className="py-1.5 px-2.5 border-r border-slate-200 font-bold text-slate-900 whitespace-nowrap">
                                       {item.bookingCode}
@@ -1150,7 +1145,7 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
                               {(safeExcelPage - 1) * EXCEL_PAGE_SIZE + idx + 1}
                             </td>
                             <td className="py-1.5 px-3 border border-slate-200 text-slate-800 whitespace-nowrap">
-                              {item.date}
+                              {formatCashInDate(item)}
                             </td>
                             <td className="py-1.5 px-3 border border-slate-200 font-bold text-slate-900 whitespace-nowrap">
                               {item.bookingCode}

@@ -1,122 +1,55 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect, useCallback, useId } from 'react';
 import { createPortal } from 'react-dom';
+import { fitTooltip, TooltipPosition } from '../../utils/tooltipPosition';
 
 interface TooltipProps {
   content: string;
   children: React.ReactNode;
-  position?: 'top' | 'bottom' | 'left' | 'right';
+  position?: TooltipPosition;
   className?: string;
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({
-  content,
-  children,
-  position = 'top',
-  className = ''
-}) => {
+export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 'top', className = '' }) => {
   const [isVisible, setIsVisible] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
   const triggerRef = useRef<HTMLDivElement>(null);
-
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const id = useId();
   const updatePosition = useCallback(() => {
-    if (!triggerRef.current) return;
-    const rect = triggerRef.current.getBoundingClientRect();
-
-    let top = 0;
-    let left = 0;
-    const offset = 8;
-
-    switch (position) {
-      case 'top':
-        top = rect.top - offset;
-        left = rect.left + rect.width / 2;
-        break;
-      case 'bottom':
-        top = rect.bottom + offset;
-        left = rect.left + rect.width / 2;
-        break;
-      case 'left':
-        top = rect.top + rect.height / 2;
-        left = rect.left - offset;
-        break;
-      case 'right':
-        top = rect.top + rect.height / 2;
-        left = rect.right + offset;
-        break;
-    }
-
-    setCoords({ top, left });
+    if (!triggerRef.current || !tooltipRef.current) return;
+    setCoords(fitTooltip(triggerRef.current.getBoundingClientRect(), tooltipRef.current.getBoundingClientRect(),
+      { width: document.documentElement.clientWidth, height: window.innerHeight }, position));
   }, [position]);
 
-  const showTooltip = () => {
-    updatePosition();
-    setIsVisible(true);
-  };
-
-  const hideTooltip = () => {
-    setIsVisible(false);
-  };
+  useLayoutEffect(() => {
+    if (isVisible) updatePosition();
+  }, [isVisible, content, updatePosition]);
 
   useEffect(() => {
-    if (isVisible) {
-      const handleScrollOrResize = () => {
-        updatePosition();
-      };
-      window.addEventListener('scroll', handleScrollOrResize, { passive: true, capture: true });
-      window.addEventListener('resize', handleScrollOrResize, { passive: true });
-      return () => {
-        window.removeEventListener('scroll', handleScrollOrResize, { capture: true });
-        window.removeEventListener('resize', handleScrollOrResize);
-      };
-    }
+    if (!isVisible) return;
+    const dismiss = (event: KeyboardEvent) => { if (event.key === 'Escape') setIsVisible(false); };
+    window.addEventListener('scroll', updatePosition, { passive: true, capture: true });
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('keydown', dismiss);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, { capture: true });
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('keydown', dismiss);
+    };
   }, [isVisible, updatePosition]);
 
-  const getTransform = () => {
-    switch (position) {
-      case 'top':
-        return 'translate(-50%, -100%)';
-      case 'bottom':
-        return 'translate(-50%, 0)';
-      case 'left':
-        return 'translate(-100%, -50%)';
-      case 'right':
-        return 'translate(0, -50%)';
-    }
-  };
-
-  const arrowClasses = {
-    top: 'top-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-t-4 border-t-slate-900 border-b-0',
-    bottom: 'bottom-full left-1/2 -translate-x-1/2 border-x-4 border-x-transparent border-b-4 border-b-slate-900 border-t-0',
-    left: 'left-full top-1/2 -translate-y-1/2 border-y-4 border-y-transparent border-l-4 border-l-slate-900 border-r-0',
-    right: 'right-full top-1/2 -translate-y-1/2 border-y-4 border-y-transparent border-r-4 border-r-slate-900 border-l-0'
-  };
-
+  const hide = () => { setIsVisible(false); setCoords(null); };
   return (
-    <div
-      ref={triggerRef}
-      onMouseEnter={showTooltip}
-      onMouseLeave={hideTooltip}
-      onFocus={showTooltip}
-      onBlur={hideTooltip}
-      className={`inline-flex items-center justify-center ${className}`}
-    >
+    <div ref={triggerRef} onMouseEnter={() => setIsVisible(true)} onMouseLeave={hide}
+      onFocus={() => setIsVisible(true)} onBlur={hide} aria-describedby={isVisible ? id : undefined}
+      className={`inline-flex items-center justify-center ${className}`}>
       {children}
       {isVisible && typeof document !== 'undefined' && createPortal(
-        <div
-          role="tooltip"
-          style={{
-            position: 'fixed',
-            top: `${coords.top}px`,
-            left: `${coords.left}px`,
-            transform: getTransform(),
-            zIndex: 999999
-          }}
-          className="pointer-events-none whitespace-nowrap px-2.5 py-1 text-[11px] font-semibold text-white bg-slate-900/95 backdrop-blur-xs rounded-lg shadow-xl border border-slate-700/50 animate-in fade-in zoom-in-95 duration-100"
-        >
+        <div id={id} ref={tooltipRef} role="tooltip" style={{ position: 'fixed', top: coords?.top ?? 0,
+          left: coords?.left ?? 0, visibility: coords ? 'visible' : 'hidden', zIndex: 999999 }}
+          className="pointer-events-none w-max max-w-[min(18rem,calc(100vw-1rem))] whitespace-normal break-words rounded-lg border border-slate-700/50 bg-slate-900/95 px-2.5 py-1.5 text-[11px] font-semibold leading-4 text-white shadow-xl">
           {content}
-          <div className={`absolute w-0 h-0 ${arrowClasses[position]}`} />
-        </div>,
-        document.body
+        </div>, document.body
       )}
     </div>
   );

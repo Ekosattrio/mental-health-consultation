@@ -13,19 +13,23 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { Tooltip } from '../common/Tooltip';
-import { computeDynamicSlotsForDate, loadScheduleSettings } from '../../data/scheduleConfig';
+import { computeDynamicSlotsForDate, loadScheduleSettings, SCHEDULE_SETTINGS_STORAGE_KEY, SCHEDULE_SETTINGS_UPDATED_EVENT } from '../../data/scheduleConfig';
+import { getMinimumBookingDate, timeSlotKey, findTimeSlot } from '../../utils/bookingPolicy';
+import { getScheduleVersion } from '../../utils/reschedulePolicy';
 
 interface RescheduleModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: Appointment | null;
   appointments: Appointment[];
+  requiresAdminConfirmation?: boolean;
   onConfirmReschedule: (
     aptId: string,
     newDate: string,
     newStartTime: string,
     newEndTime: string,
-    reason?: string
+    reason?: string,
+    expectedVersion?: number
   ) => Promise<boolean>;
 }
 
@@ -52,20 +56,34 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   onClose,
   appointment,
   appointments,
-  onConfirmReschedule
+  onConfirmReschedule,
+  requiresAdminConfirmation = true
 }) => {
   // Hitung tanggal minimal H+1
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDateStr = getLocalDateString(tomorrow);
+  const minDateStr = getMinimumBookingDate();
 
-  // Default tanggal baru = H+2 dari hari ini
-  const defaultNextDate = new Date();
-  defaultNextDate.setDate(defaultNextDate.getDate() + 2);
-  const defaultDateStr = getLocalDateString(defaultNextDate);
+  // Default tanggal baru = H+1 dari hari ini
+  const defaultDateStr = minDateStr;
 
   const [newDate, setNewDate] = useState<string>(defaultDateStr);
-  const [selectedSlotIndex, setSelectedSlotIndex] = useState<number>(0);
+  const [selectedSlotKey, setSelectedSlotKey] = useState('');
+  const [scheduleSettings, setScheduleSettings] = useState(loadScheduleSettings);
+  const [submitError, setSubmitError] = useState('');
+  const [confirmedSlot, setConfirmedSlot] = useState<{ start: string; end: string } | null>(null);
+  const [expectedVersion, setExpectedVersion] = useState<number>();
+  useEffect(() => {
+    if (isOpen && appointment) setExpectedVersion(getScheduleVersion(appointment));
+  }, [isOpen, appointment?.id]);
+  useEffect(() => {
+    const sync = () => setScheduleSettings(loadScheduleSettings());
+    const storage = (event: StorageEvent) => { if (event.key === SCHEDULE_SETTINGS_STORAGE_KEY) sync(); };
+    window.addEventListener('storage', storage);
+    window.addEventListener(SCHEDULE_SETTINGS_UPDATED_EVENT, sync);
+    return () => {
+      window.removeEventListener('storage', storage);
+      window.removeEventListener(SCHEDULE_SETTINGS_UPDATED_EVENT, sync);
+    };
+  }, []);
   const [selectedReason, setSelectedReason] = useState<string>('Kondisi Kesehatan / Sakit Mendadak');
   const [note, setNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -79,7 +97,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
     );
     const availability = computeDynamicSlotsForDate(
       newDate,
-      loadScheduleSettings(),
+      scheduleSettings,
       appointments.filter(item => item.id !== appointment.id),
       appointment.psychologistId,
       appointmentDuration
@@ -91,36 +109,55 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
         end: slot.endTime,
         label: `${slot.startTime} - ${slot.endTime} WIB (${slot.label})`
       }));
-  }, [appointment, appointments, newDate]);
+  }, [appointment, appointments, newDate, scheduleSettings]);
 
   useEffect(() => {
-    setSelectedSlotIndex(0);
+    setSelectedSlotKey('');
+    setSubmitError('');
+    setIsSuccess(false);
+    setConfirmedSlot(null);
   }, [newDate, appointment?.id]);
+
+  useEffect(() => {
+    setSelectedReason(requiresAdminConfirmation
+      ? 'Kondisi Kesehatan / Sakit Mendadak'
+      : 'Konfirmasi psikolog atas keterlambatan / ketidakhadiran');
+    setNote('');
+  }, [appointment?.id, requiresAdminConfirmation]);
 
   if (!isOpen || !appointment) return null;
 
-  const selectedSlot = availableTimeSlots[selectedSlotIndex] || availableTimeSlots[0];
+  const selectedSlot = findTimeSlot(availableTimeSlots, selectedSlotKey);
+  const staleSchedule = expectedVersion !== undefined && getScheduleVersion(appointment) !== expectedVersion;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newDate || !selectedSlot) return;
+    if (!newDate || !selectedSlot || staleSchedule || expectedVersion === undefined) return;
 
     setIsSubmitting(true);
     const fullReason = note.trim()
       ? `${selectedReason}: ${note.trim()}`
       : selectedReason;
 
+    try {
+    setSubmitError('');
     const ok = await onConfirmReschedule(
       appointment.id,
       newDate,
       selectedSlot.start,
       selectedSlot.end,
-      fullReason
+      fullReason,
+      expectedVersion
     );
 
-    setIsSubmitting(false);
     if (ok) {
+      setConfirmedSlot(selectedSlot);
       setIsSuccess(true);
+    }
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Perubahan jadwal gagal disimpan. Coba kembali.');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -144,10 +181,10 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
 
             <div className="space-y-1">
               <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                Pengajuan Reschedule Terkirim
+                {requiresAdminConfirmation ? 'Pengajuan Reschedule Terkirim' : 'Jadwal Berhasil Diubah'}
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
-                Jadwal baru telah dicatat dan menunggu konfirmasi admin. Pembayaran yang sudah tercatat tetap melekat pada booking ini.
+                {requiresAdminConfirmation ? 'Jadwal baru menunggu konfirmasi admin.' : 'Jadwal pengganti telah dicatat sesuai konfirmasi psikolog.'} Pembayaran tetap berlaku tanpa DP tambahan.
               </p>
             </div>
 
@@ -160,7 +197,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
               <div className="flex justify-between pb-2 border-b border-slate-200/60">
                 <span className="text-slate-500 font-semibold">Jadwal Baru:</span>
                 <span className="font-black text-emerald-700">
-                  {newDate} ({selectedSlot?.start || '-'} - {selectedSlot?.end || '-'} WIB)
+                  {newDate} ({confirmedSlot?.start || '-'} - {confirmedSlot?.end || '-'} WIB)
                 </span>
               </div>
               <div className="flex justify-between pb-2 border-b border-slate-200/60">
@@ -179,7 +216,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 onClick={handleCloseAndReset}
                 className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
               >
-                Selesai & Lihat Jadwal Saya
+                Selesai
               </button>
             </div>
           </div>
@@ -194,10 +231,10 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-black text-slate-900 tracking-tight">
-                    Pengajuan Reschedule Jadwal
+                    {requiresAdminConfirmation ? 'Pengajuan Reschedule Jadwal' : 'Konfirmasi Jadwal Pengganti'}
                   </h3>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    Pindahkan sesi konsultasi Anda ke tanggal atau jam yang lebih sesuai.
+                    {requiresAdminConfirmation ? appointment.packageName : appointment.patientName}
                   </p>
                 </div>
               </div>
@@ -239,11 +276,14 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             <div className="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-start gap-2.5 text-xs text-emerald-950">
               <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
               <div className="text-[11px] leading-relaxed">
-                <strong>Kebijakan Praktik:</strong> Tanggal pengganti wajib minimal keesokan hari (H+1), tidak dapat dijadwalkan untuk hari ini. DP Rp {(appointment.dpAmount || 0).toLocaleString('id-ID')} atau pelunasan yang sudah tercatat otomatis dialihkan ke jadwal baru tanpa biaya tambahan.
+                <strong>Kebijakan Praktik:</strong> Tanggal pengganti wajib minimal keesokan hari (H+1). Pembayaran yang sudah tercatat tetap berlaku tanpa DP tambahan. Nomor sesi tidak berubah.
               </div>
             </div>
 
             {/* Langkah 1: Pilih Tanggal Baru */}
+            {submitError && <p role="alert" className="text-xs text-rose-700">{submitError}</p>}
+            {staleSchedule && !isSuccess && <p role="alert" className="text-xs text-amber-800">Jadwal sudah diubah. Tutup formulir dan periksa jadwal terbaru sebelum memilih ulang.</p>}
+            {selectedSlotKey && !selectedSlot && <p role="alert" className="text-xs text-amber-800">Jam yang dipilih sudah tidak tersedia. Pilih ulang jam konsultasi.</p>}
             <div className="space-y-1.5 text-xs">
               <label className="block font-bold text-slate-800">
                 1. Pilih Tanggal Baru (Minimal H+1)
@@ -271,13 +311,14 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                     Tidak ada slot yang tersedia pada tanggal ini. Pilih tanggal lain.
                   </div>
                 )}
-                {availableTimeSlots.map((slot, index) => {
-                  const isSelected = selectedSlotIndex === index;
+                {availableTimeSlots.map(slot => {
+                  const slotKey = timeSlotKey(slot);
+                  const isSelected = selectedSlotKey === slotKey;
                   return (
                     <button
-                      key={index}
+                      key={slotKey}
                       type="button"
-                      onClick={() => setSelectedSlotIndex(index)}
+                      onClick={() => setSelectedSlotKey(slotKey)}
                       className={`p-2.5 rounded-xl border text-left text-xs font-bold transition-all cursor-pointer flex items-center justify-between ${
                         isSelected
                           ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-2xs'
@@ -305,6 +346,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
                 onChange={e => setSelectedReason(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden bg-white cursor-pointer"
               >
+                {!requiresAdminConfirmation && <option value="Konfirmasi psikolog atas keterlambatan / ketidakhadiran">Konfirmasi psikolog atas keterlambatan / ketidakhadiran</option>}
                 {RESCHEDULE_REASONS.map(r => (
                   <option key={r.id} value={r.label}>
                     {r.label}
@@ -316,13 +358,13 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             {/* Catatan Tambahan (Opsional) */}
             <div className="space-y-1.5 text-xs">
               <label className="block font-semibold text-slate-700">
-                Catatan Tambahan untuk Psikolog (Opsional)
+                {requiresAdminConfirmation ? 'Catatan untuk Psikolog (Opsional)' : 'Hasil Konfirmasi dengan Pasien (Opsional)'}
               </label>
               <textarea
                 rows={2}
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                placeholder="Misal: Mohon maaf dokter, ada jadwal rapat mendadak di kantor."
+                placeholder={requiresAdminConfirmation ? 'Alasan tambahan perubahan jadwal' : 'Catat kesepakatan jadwal pengganti dengan pasien'}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
               />
             </div>
@@ -344,19 +386,19 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             </div>
 
             {/* Actions */}
-            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+            <div className="pt-2 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={onClose}
-                disabled={isSubmitting || !selectedSlot}
-                className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                disabled={isSubmitting || !selectedSlot || staleSchedule || expectedVersion === undefined}
+                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
               >
                 {isSubmitting ? (
                   <>

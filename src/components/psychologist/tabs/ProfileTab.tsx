@@ -20,7 +20,7 @@ interface ProfileTabProps {
   profile: PsychologistProfile | undefined;
   currentUser: User | null;
   psychologistId: string;
-  updatePsychologistProfile: (profile: Partial<PsychologistProfile>, id?: string) => void;
+  updatePsychologistProfile: (profile: Partial<PsychologistProfile>, id?: string) => Promise<boolean>;
 }
 
 export const ProfileTab: React.FC<ProfileTabProps> = ({
@@ -58,6 +58,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     'Menjunjung tinggi standar etika kerahasiaan profesi psikologi klinis. Seluruh informasi sesi dilindungi kerahasiaan medis, non-judgmental, dan berbasis informed consent.'
   );
   const [profileSavedMsg, setProfileSavedMsg] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -113,9 +114,13 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
     }
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    updatePsychologistProfile({
+    if (isSaving) return;
+    setIsSaving(true);
+    setProfileSavedMsg(false);
+    try {
+    const success = await updatePsychologistProfile({
       avatarUrl: avatarUrl.trim(),
       title: profileTitle,
       sipNumber: profileSipNumber,
@@ -132,8 +137,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       clinicAddress: profileClinicAddress,
       practicePolicy: profilePracticePolicy
     }, psychologistId);
-    setProfileSavedMsg(true);
+    setProfileSavedMsg(success);
     setTimeout(() => setProfileSavedMsg(false), 2500);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -447,10 +455,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
           <div className="flex items-center justify-end gap-3 pt-2">
             <button
               type="submit"
-              className="px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+              disabled={isSaving}
+              className="px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white rounded-2xl text-xs font-bold shadow-xs flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              Simpan Seluruh Perubahan Kredensial
+              {isSaving ? 'Menyimpan...' : 'Simpan Seluruh Perubahan Kredensial'}
             </button>
           </div>
         </form>

@@ -19,11 +19,13 @@ import {
   X,
   TrendingUp,
   Tag,
+  Video,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
 import { calculatePackagePayableAmount } from '../../../utils/discounts';
+import { FLAT_DP_AMOUNT } from '../../../utils/payments';
 
 export interface PackagesTabProps {
   packages: ConsultationPackage[];
@@ -60,15 +62,15 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
   // Form states
   const [name, setName] = useState('');
   const [category, setCategory] = useState<'KONSELING' | 'ASESMEN' | 'PSIKOTERAPI'>('KONSELING');
+  const [consultationMode, setConsultationMode] = useState<'OFFLINE_CLINIC' | 'ONLINE_TELE'>('OFFLINE_CLINIC');
   const [durationMinutes, setDurationMinutes] = useState(60);
   const [price, setPrice] = useState(250000);
-  const [dpAmount, setDpAmount] = useState(100000);
   const [discountType, setDiscountType] = useState<'NONE' | 'PERCENT' | 'FIXED'>('NONE');
   const [discountValue, setDiscountValue] = useState(0);
   const [discountLabel, setDiscountLabel] = useState('');
   const [badge, setBadge] = useState('');
   const [description, setDescription] = useState('');
-  const [benefitsList, setBenefitsList] = useState<string[]>(['Konsultasi privat tatap muka langsung di ruang klinik.']);
+  const [benefitsList, setBenefitsList] = useState<string[]>(['Konsultasi privat sesuai metode layanan yang dipilih.']);
   const [newBenefit, setNewBenefit] = useState('');
   const [notes, setNotes] = useState('');
   const [isContinuousCare, setIsContinuousCare] = useState(false);
@@ -78,15 +80,15 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
   const resetForm = () => {
     setName('');
     setCategory('KONSELING');
+    setConsultationMode('OFFLINE_CLINIC');
     setDurationMinutes(60);
     setPrice(250000);
-    setDpAmount(100000);
     setDiscountType('NONE');
     setDiscountValue(0);
     setDiscountLabel('');
     setBadge('');
     setDescription('');
-    setBenefitsList(['Konsultasi privat tatap muka langsung di ruang klinik.']);
+    setBenefitsList(['Konsultasi privat sesuai metode layanan yang dipilih.']);
     setNewBenefit('');
     setNotes('');
     setIsContinuousCare(false);
@@ -103,15 +105,15 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
     setEditingPackage(pkg);
     setName(pkg.name);
     setCategory(pkg.category || 'KONSELING');
+    setConsultationMode(pkg.type === 'ONLINE_TELE' ? 'ONLINE_TELE' : 'OFFLINE_CLINIC');
     setDurationMinutes(pkg.durationMinutes);
     setPrice(pkg.price);
-    setDpAmount(pkg.dpAmount || 100000);
     setDiscountType(pkg.discountType || 'NONE');
     setDiscountValue(pkg.discountValue || 0);
     setDiscountLabel(pkg.discountLabel || '');
     setBadge(pkg.badge || '');
     setDescription(pkg.description);
-    setBenefitsList(pkg.benefits && pkg.benefits.length > 0 ? pkg.benefits : ['Konsultasi privat tatap muka langsung di ruang klinik.']);
+    setBenefitsList(pkg.benefits && pkg.benefits.length > 0 ? pkg.benefits : ['Konsultasi privat sesuai metode layanan yang dipilih.']);
     setNewBenefit('');
     setNotes(pkg.notes || '');
     setIsContinuousCare(!!pkg.isContinuousCare);
@@ -129,11 +131,10 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
 
     const normalizedPrice = Number(price);
     const normalizedDuration = Number(durationMinutes);
-    const normalizedDp = Number(dpAmount);
     const normalizedSessionCount = Number(sessionCount);
 
     if (!Number.isFinite(normalizedPrice) || normalizedPrice < 0) {
-      showToast('Tarif Belum Valid', 'Total biaya paket tidak boleh negatif.', 'error');
+      showToast('Tarif Belum Valid', 'Tarif layanan tidak boleh negatif.', 'error');
       return;
     }
 
@@ -142,12 +143,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       return;
     }
 
-    if (!Number.isFinite(normalizedDp) || normalizedDp < 0) {
-      showToast('DP Belum Valid', 'Nominal DP tidak boleh negatif.', 'error');
-      return;
-    }
-
-    if (isContinuousCare && (!Number.isInteger(normalizedSessionCount) || normalizedSessionCount < 2 || normalizedSessionCount > 50)) {
+    if (category !== 'PSIKOTERAPI' && isContinuousCare && (!Number.isInteger(normalizedSessionCount) || normalizedSessionCount < 2 || normalizedSessionCount > 50)) {
       showToast('Jumlah Sesi Belum Valid', 'Paket berkelanjutan harus memiliki 2-50 sesi.', 'error');
       return;
     }
@@ -164,45 +160,39 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       }
 
       if (discountType === 'FIXED' && discountValue > price) {
-        showToast('Diskon Belum Valid', 'Nominal diskon tidak boleh melebihi total biaya paket.', 'error');
+        showToast('Diskon Belum Valid', 'Nominal diskon tidak boleh melebihi tarif layanan.', 'error');
         return;
       }
-    }
-
-    const normalizedDiscount = discountType === 'PERCENT'
-      ? Math.floor(normalizedPrice * (Number(discountValue) / 100))
-      : discountType === 'FIXED'
-      ? Number(discountValue)
-      : 0;
-    const payableAfterDiscount = Math.max(normalizedPrice - normalizedDiscount, 0);
-    if (normalizedDp > payableAfterDiscount) {
-      showToast('DP Belum Valid', 'Nominal DP tidak boleh melebihi total paket setelah diskon.', 'error');
-      return;
     }
 
     const benefitsArray = benefitsList
       .map(b => b.trim())
       .filter(b => b.length > 0);
 
+    const packageType: PackageType = category === 'ASESMEN'
+      ? 'BUNDLING_ASSESSMENT'
+      : category === 'PSIKOTERAPI'
+      ? 'PSYCHOTHERAPY'
+      : consultationMode;
+
     const updatedPackage: ConsultationPackage = {
       id: editingPackage ? editingPackage.id : `pkg-${Date.now()}`,
       name: name.trim(),
       category,
-      type: 'OFFLINE_CLINIC',
+      type: packageType,
       durationMinutes: normalizedDuration,
       price: normalizedPrice,
-      dpAmount: normalizedDp,
       discountType,
       discountValue: discountType === 'NONE' ? 0 : Number(discountValue),
       discountLabel: discountType === 'NONE' ? undefined : discountLabel.trim() || 'Potongan dari psikolog/pengelola',
-      isContinuousCare,
-      sessionCount: isContinuousCare ? normalizedSessionCount : 1,
+      isContinuousCare: category === 'PSIKOTERAPI' || isContinuousCare,
+      sessionCount: category === 'PSIKOTERAPI' ? 4 : isContinuousCare ? normalizedSessionCount : 1,
       badge: badge.trim() || undefined,
       description: description.trim(),
-      benefits: benefitsArray.length > 0 ? benefitsArray : ['Konsultasi privat tatap muka langsung di ruang klinik.'],
+      benefits: benefitsArray.length > 0 ? benefitsArray : ['Konsultasi privat sesuai metode layanan yang dipilih.'],
       notes: notes.trim() || undefined,
       isActive: editingPackage ? editingPackage.isActive : true,
-      iconName: 'Building2'
+      iconName: packageType === 'ONLINE_TELE' ? 'Video' : 'Building2'
     };
 
     savePackage(updatedPackage);
@@ -293,7 +283,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                 Manajemen Paket Konsultasi ({packages.length})
               </h2>
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Kelola paket tatap muka klinik, konsultasi rawat jalan berkelanjutan, durasi, dan ketentuan biaya DP administrasi.
+                Kelola paket tatap muka, telelayanan, rawat jalan berkelanjutan, durasi, dan ketentuan biaya DP administrasi.
               </p>
             </div>
           </div>
@@ -336,11 +326,11 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
           </select>
 
           {/* Filter Jenis Sesi */}
-          <div className="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs font-bold">
+          <div className="grid grid-cols-3 w-full sm:w-auto p-1 bg-slate-100 rounded-xl border border-slate-200/80 text-xs font-bold">
             <button
               type="button"
               onClick={() => setTypeFilter('ALL')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`min-w-0 px-2 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 typeFilter === 'ALL'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -351,7 +341,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
             <button
               type="button"
               onClick={() => setTypeFilter('SINGLE')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`min-w-0 px-2 sm:px-3 py-1 rounded-lg transition-all cursor-pointer ${
                 typeFilter === 'SINGLE'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -362,7 +352,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
             <button
               type="button"
               onClick={() => setTypeFilter('CONTINUOUS')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`min-w-0 px-2 sm:px-3 py-1 rounded-lg transition-all cursor-pointer leading-tight ${
                 typeFilter === 'CONTINUOUS'
                   ? 'bg-white text-slate-900 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800'
@@ -376,7 +366,83 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
 
       {/* 3. TABEL DATA PAKET KONSULTASI */}
       <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100">
+          {paginatedPackages.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400 italic">
+              Tidak ditemukan paket konsultasi yang sesuai filter.
+            </div>
+          ) : paginatedPackages.map(pkg => {
+            const pricing = calculatePackagePayableAmount(pkg);
+            return (
+              <article key={pkg.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black text-slate-900 break-words">{pkg.name}</h3>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 text-[10px] font-black">
+                        {pkg.category || 'KONSELING'}
+                      </span>
+                      {pkg.badge && (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black">
+                          {pkg.badge}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => togglePackageStatus(pkg.id)}
+                    className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-bold border ${pkg.isActive !== false ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}
+                  >
+                    {pkg.isActive !== false ? 'Aktif' : 'Nonaktif'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+                  <div>
+                    <span className="block text-slate-400 font-bold uppercase">Metode</span>
+                    <strong className="text-slate-800">{pkg.type === 'ONLINE_TELE' ? 'Telelayanan' : 'Tatap Muka'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold uppercase">Durasi</span>
+                    <strong className="text-slate-800">{pkg.durationMinutes} menit</strong>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold uppercase">Sesi</span>
+                    <strong className="text-slate-800">{pkg.isContinuousCare ? `${pkg.sessionCount || 1} sesi` : 'Sesi tunggal'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold uppercase">DP</span>
+                    <strong className="text-purple-700">Rp {FLAT_DP_AMOUNT.toLocaleString('id-ID')}</strong>
+                  </div>
+                </div>
+
+                <div className="flex items-end justify-between gap-3 pt-2 border-t border-slate-100">
+                  <div className="min-w-0">
+                    <span className="block text-[10px] text-slate-400 font-bold uppercase">{pkg.type === 'PSYCHOTHERAPY' ? 'Tarif per Sesi' : 'Tarif Paket'}</span>
+                    <strong className="text-sm text-slate-900">Rp {(pkg.type === 'PSYCHOTHERAPY' ? pricing.unitPayableAmount : pricing.totalAmount).toLocaleString('id-ID')}{pkg.type === 'PSYCHOTHERAPY' ? ' / sesi' : ''}</strong>
+                    {pricing.discount && (
+                      <span className="block text-[10px] text-emerald-700 font-bold">Potongan Rp {(pkg.type === 'PSYCHOTHERAPY' ? pricing.discountAmount / pricing.sessionCount : pricing.discountAmount).toLocaleString('id-ID')}{pkg.type === 'PSYCHOTHERAPY' ? ' / sesi' : ''}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button type="button" onClick={() => setPreviewPackage(pkg)} aria-label={`Preview ${pkg.name}`} className="w-9 h-9 rounded-xl border border-slate-200 text-slate-700 flex items-center justify-center">
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => handleOpenEditModal(pkg)} aria-label={`Edit ${pkg.name}`} className="w-9 h-9 rounded-xl border border-sky-200 bg-sky-50 text-sky-700 flex items-center justify-center">
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => setDeleteConfirmPkgId(pkg.id)} aria-label={`Hapus ${pkg.name}`} className="w-9 h-9 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 flex items-center justify-center">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -443,6 +509,10 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                       ) : (
                         <span className="text-slate-600 text-xs">Sesi Tunggal (1 Sesi)</span>
                       )}
+                      <span className={`mt-1 flex items-center gap-1 text-[10px] font-bold ${pkg.type === 'ONLINE_TELE' ? 'text-sky-700' : 'text-slate-500'}`}>
+                        {pkg.type === 'ONLINE_TELE' ? <Video className="w-3 h-3" /> : <Building2 className="w-3 h-3" />}
+                        {pkg.type === 'ONLINE_TELE' ? 'Telelayanan' : 'Tatap Muka'}
+                      </span>
                     </td>
 
                     {/* Durasi */}
@@ -455,10 +525,10 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
 
                     {/* Tarif */}
                     <td className="py-3 px-4 whitespace-nowrap font-bold text-slate-900">
-                      Rp {pkg.price.toLocaleString('id-ID')}
+                      Rp {pkg.price.toLocaleString('id-ID')}{pkg.type === 'PSYCHOTHERAPY' ? ' / sesi' : ''}
                       {pricing.discount && (
                         <span className="block text-[10px] text-emerald-700 font-black">
-                          Jadi Rp {pricing.totalAmount.toLocaleString('id-ID')}
+                          Jadi Rp {(pkg.type === 'PSYCHOTHERAPY' ? pricing.unitPayableAmount : pricing.totalAmount).toLocaleString('id-ID')}{pkg.type === 'PSYCHOTHERAPY' ? ' / sesi' : ''}
                         </span>
                       )}
                     </td>
@@ -466,7 +536,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                     <td className="py-3 px-4 whitespace-nowrap text-emerald-700 font-bold text-xs">
                       {pricing.discount ? (
                         <div>
-                          <span className="block">- Rp {pricing.discountAmount.toLocaleString('id-ID')}</span>
+                          <span className="block">- Rp {(pkg.type === 'PSYCHOTHERAPY' ? pricing.discountAmount / pricing.sessionCount : pricing.discountAmount).toLocaleString('id-ID')}{pkg.type === 'PSYCHOTHERAPY' ? ' / sesi' : ''}</span>
                           <span className="block text-[10px] text-slate-500 font-semibold">{pricing.discount.label}</span>
                         </div>
                       ) : (
@@ -476,7 +546,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
 
                     {/* DP Admin */}
                     <td className="py-3 px-4 whitespace-nowrap text-purple-700 font-bold text-xs">
-                      Rp {(pkg.dpAmount || 100000).toLocaleString('id-ID')}
+                      Rp {FLAT_DP_AMOUNT.toLocaleString('id-ID')}
                     </td>
 
                     {/* Status Switch (Aktif/Nonaktif) */}
@@ -637,7 +707,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                   <span className="text-2xl font-black">
                     Rp {previewPackage.price.toLocaleString('id-ID')}
                   </span>
-                  <span className="text-xs text-slate-500">/ paket</span>
+                  <span className="text-xs text-slate-500">/ {previewPackage.type === 'PSYCHOTHERAPY' ? 'sesi' : 'paket'}</span>
                 </div>
 
                 <div className="p-3 bg-teal-50/70 rounded-xl border border-teal-100 text-xs space-y-1">
@@ -647,7 +717,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                   </div>
                   <div className="flex items-center justify-between text-teal-900">
                     <span>DP Penguncian Jadwal:</span>
-                    <strong className="font-bold">Rp {(previewPackage.dpAmount || 100000).toLocaleString('id-ID')}</strong>
+                    <strong className="font-bold">Rp {FLAT_DP_AMOUNT.toLocaleString('id-ID')}</strong>
                   </div>
                   {previewPackage.isContinuousCare && (
                     <div className="flex items-center justify-between text-teal-950 pt-1 border-t border-teal-200/60 font-bold">
@@ -757,27 +827,52 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                 </div>
               </div>
 
+              {category === 'KONSELING' && (
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1.5">Metode Konsultasi</label>
+                  <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-100 border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setConsultationMode('OFFLINE_CLINIC')}
+                      className={`min-h-10 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${consultationMode === 'OFFLINE_CLINIC' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      <Building2 className="w-4 h-4" />
+                      Tatap Muka
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConsultationMode('ONLINE_TELE')}
+                      className={`min-h-10 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${consultationMode === 'ONLINE_TELE' ? 'bg-white text-sky-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                      <Video className="w-4 h-4" />
+                      Telelayanan
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Pilihan Konsultasi Berkelanjutan (Rawat Jalan) */}
               <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
                     <strong className="text-xs text-indigo-950 block">Konsultasi Berkelanjutan (Rawat Jalan)</strong>
                     <span className="text-[11px] text-indigo-700">
-                      Aktifkan jika paket mencakup beberapa rangkaian sesi terapi berkelanjutan.
+                      {category === 'PSIKOTERAPI' ? 'Rencana awal psikoterapi selalu empat sesi; kelanjutan dibuat lewat booking baru.' : 'Aktifkan jika paket mencakup beberapa rangkaian sesi terapi berkelanjutan.'}
                     </span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={isContinuousCare}
+                      checked={category === 'PSIKOTERAPI' || isContinuousCare}
                       onChange={e => setIsContinuousCare(e.target.checked)}
+                      disabled={category === 'PSIKOTERAPI'}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
                 </div>
 
-                {isContinuousCare && (
+                {category !== 'PSIKOTERAPI' && isContinuousCare && (
                   <div className="pt-3 border-t border-indigo-200/60 space-y-3 animate-fadeIn">
                     <div>
                       <span className="text-xs font-bold text-indigo-950 block">Jumlah Rangkaian Sesi Terjadwal</span>
@@ -786,7 +881,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                       </span>
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[3, 5, 8, 10].map(cnt => (
+                      {[4, 5, 8, 10].map(cnt => (
                         <button
                           key={cnt}
                           type="button"
@@ -835,7 +930,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Total Biaya Paket (Rp) *</label>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">{category === 'PSIKOTERAPI' ? 'Tarif per Sesi (Rp) *' : 'Total Biaya Paket (Rp) *'}</label>
                   <input
                     type="number"
                     required
@@ -848,16 +943,10 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                 </div>
 
                 <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">Nominal DP Flat (Rp) *</label>
-                  <input
-                    type="number"
-                    required
-                    min="50000"
-                    step="25000"
-                    value={dpAmount}
-                    onChange={e => setDpAmount(Number(e.target.value))}
-                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white font-bold text-purple-700 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-                  />
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">DP Penguncian Jadwal</label>
+                  <div className="w-full px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50 font-bold text-purple-700">
+                    Rp {FLAT_DP_AMOUNT.toLocaleString('id-ID')} (tetap)
+                  </div>
                 </div>
               </div>
 
@@ -866,10 +955,10 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                   <div className="flex items-start gap-2 min-w-0">
                     <Tag className={`w-4 h-4 shrink-0 mt-0.5 ${hasDiscount ? 'text-emerald-700' : 'text-slate-500'}`} />
                     <div>
-                      <strong className={`text-xs block ${hasDiscount ? 'text-emerald-950' : 'text-slate-800'}`}>Diskon Paket</strong>
+                      <strong className={`text-xs block ${hasDiscount ? 'text-emerald-950' : 'text-slate-800'}`}>{category === 'PSIKOTERAPI' ? 'Diskon per Sesi' : 'Diskon Paket'}</strong>
                       <span className={`text-[11px] ${hasDiscount ? 'text-emerald-700' : 'text-slate-500'}`}>
                         {hasDiscount
-                          ? 'Diskon ini otomatis diterapkan ke harga paket yang dilihat pasien.'
+                          ? category === 'PSIKOTERAPI' ? 'Diskon diterapkan pada setiap sesi dalam rencana awal.' : 'Diskon ini otomatis diterapkan ke harga paket yang dilihat pasien.'
                           : 'Belum ada diskon aktif pada paket ini.'}
                       </span>
                     </div>
@@ -1037,17 +1126,17 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
               </div>
 
               {/* Submit Buttons */}
-              <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setIsFormModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold text-xs cursor-pointer"
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold text-xs cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center gap-2 cursor-pointer shadow-xs active:scale-95 transition-colors"
+                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95 transition-colors"
                 >
                   <CheckCircle2 className="w-4 h-4" />
                   <span>{editingPackage ? 'Simpan Perubahan' : 'Buat Paket Sekarang'}</span>

@@ -1,5 +1,138 @@
 # Changelog
 
+## 2026-10-22 - Perbaikan Audit Simulasi dan CMS
+
+- Menghubungkan simpan profil navbar dengan validasi/ownership/allowlist dan persist-before-success; email SSO read-only. Menambah menu Profil Praktik desktop/mobile dan guard submit saat menyimpan kredensial. Navbar membaca kredensial/telepon aktual, bukan fallback identitas palsu.
+- Memperbaiki label Admin Operasional, tooltip panjang yang melewati viewport, dan pilihan slot admin agar tidak diam-diam berpindah ke jam pertama.
+- Menambahkan guard versi reschedule lintas aktor beserta kontrak `expected_version`; form lama wajib ditutup dan memilih ulang setelah jadwal berubah. Mempertahankan guard H+1, role, durasi, kuota, dan ledger.
+- Mengabaikan hold expired untuk pemulihan/guard reservasi baru tanpa menghapus record atau bukti; tetap mendukung rekonsiliasi bukti dari tab lama. Panel lanjutkan/lepaskan tidak dikembalikan.
+- Menampilkan timeline seluruh reschedule pada detail dan receipt pasien.
+- Menyambungkan CMS ke footer/kontak/Instagram, judul/autoplay/interval carousel, gambar hero/tentang, banner/tip/pengumuman pasien, rekening DP, gambar QRIS kasir, dan logo kop laporan. Menambah field editor yang dibutuhkan dan mengganti placeholder klaim enkripsi lama dengan informasi netral.
+- CMS dan profil praktik ditulis sebelum state/toast sukses; CMS menerima pembaruan lintas-tab. Hold baru menyimpan snapshot bank/pemilik rekening. Kontrak baca CMS publik dipisahkan dari konfigurasi lengkap owner; response hold menyiapkan instruksi penerima.
+- Membuat `CMS_AUDIT.md`; memperbarui panduan role, TODO, isu, handoff, serta kontrak API/data. FAQ/legal/SEO/branding penuh belum menjadi editor CMS.
+- Verifikasi: TypeScript exit 0 dan 36/36 tes regresi terfokus; tambahan tes expiry/rekonsiliasi, reschedule paralel/versi, profil, storage CMS gagal, validasi, render footer/banner/timeline, dan posisi tooltip. Tidak menjalankan browser/dev/build/Git.
+
+## 2026-10-22 - Panduan Fitur per Role
+
+- Membuat `PANDUAN_FITUR_PER_ROLE.md` dari pembacaan source: arti ikon aksi psikolog, pembatalan setelah lunas, reschedule/sesi berikutnya, daftar menu/fitur guest-pasien-admin-psikolog, fungsi, cara kerja, serta batas implementasi.
+- Membedakan implementasi mock, simulasi/placeholder, kontrak backend, CSV ringkasan vs backup penuh, `.xls` HTML vs workbook `.xlsx`, dan audit ringkas vs timeline lengkap.
+- Mencatat temuan profil navbar, label admin, entry point profil psikolog, tooltip, penggantian jam admin, dan hold expired pada KNOWN_ISSUES/TODO. Tidak memperbaiki source aplikasi pada sesi ini.
+- Menautkan panduan ke indeks vault dan README dokumentasi. Verifikasi hanya kelengkapan dokumen/link lokal; tidak menjalankan Git/dev/build/test/checker aplikasi baru.
+
+## 2026-10-22 - Hapus Panel Reservasi Pasien
+
+- Menghapus banner Reservasi sebelumnya dan kedua aksi lanjutkan/lepaskan dari seluruh tab dashboard pasien, beserta facade pelepasan manual yang tidak lagi dipakai.
+- Menyesuaikan pesan guard agar tidak menyebut tombol yang dihapus. Penguncian slot internal, alur booking, data/bukti pembayaran, serta banner pencocokan pembayaran tetap dipertahankan.
+- Verifikasi: TypeScript exit 0, 25/25 tes regresi lolos, dan tidak ada lagi referensi panel/tombol atau `releaseBookingHold` di source. Belum QA browser; dev/build/Git tidak dijalankan.
+
+## 2026-10-22 - Pemadatan Formulir Pre-Test
+
+- Mengurangi padding dan jarak langkah 2 booking, mengecilkan heading, serta merapikan empat field pekerjaan/kontak darurat dalam grid responsif.
+- Mengganti tombol pill keluhan dengan checkbox multi-select berarea tekan minimal 44 px. Daftar pilihan dan handler pemilihan tetap sama; label field dihubungkan dengan kontrolnya.
+- Menempatkan deskripsi/harapan berdampingan pada layar memadai, memendekkan textarea awal, dan merapatkan slider stres, kualitas tidur, serta footer tanpa menghapus data/validasi.
+- Membuat indikator langkah lebih ringkas pada ponsel dan tombol kembali memakai ikon ber-tooltip; label tombol lanjut dipersingkat menjadi Konfirmasi Booking, tetap menuju langkah 3, bukan langsung mengirim booking.
+- Tidak mengubah harga, DP, pre-test payload, persistensi, atau reservasi slot. QA visual/interaksi browser belum dijalankan.
+- Verifikasi setelah perubahan: `npx tsc --noEmit` exit 0 dan suite regresi terfokus 25/25 lolos. Suite belum menguji interaksi form pre-test; dev/build/Git tidak dijalankan.
+
+## 2026-10-22 - Perapian Pilih Layanan
+
+- Mengubah katalog booking menjadi satu baris kartu horizontal dengan scroll-snap, navigasi panah, dan area geser pada ponsel; filter, pencarian, pengurutan, dan pagination tetap tersedia.
+- Menambahkan pembeda kategori, hierarki harga/durasi/metode, ringkasan manfaat, serta status layanan terpilih yang lebih jelas. Rincian lengkap memakai dialog dengan fokus dan Escape bawaan browser.
+- Notes tampil penuh langsung di setiap kartu; notes kosong memiliki empty state tanpa menambahkan ketentuan biaya baru. Notes ikut dapat dicari.
+- Tidak mengubah data paket, harga/diskon, DP, reservasi slot, atau reschedule. State navigasi hanya diperbarui saat posisi batas scroll berubah agar tidak merender ulang semua kartu setiap gerakan.
+- TypeScript exit 0; 25/25 tes lolos, termasuk tiga tes render statis katalog. QA visual/interaksi browser belum dilakukan; dev/build/Git tidak dijalankan.
+
+## 2026-10-22 - Konfirmasi Manual dan Jadwal Pengganti
+
+- Menetapkan keputusan developer: keterlambatan dikonfirmasi manual psikolog, reschedule mengikuti hasil konfirmasi, tanpa cancel otomatis atau DP kedua.
+- Membuka reschedule `NO_SHOW` hanya untuk psikolog yang menangani, memakai appointment/nomor sesi/rencana yang sama dan mengembalikan status `CONFIRMED`. Alasan, histori status, jadwal, DP, cicilan, saldo, dan audit verifikasi dipertahankan.
+- Menambahkan ikon jadwal pengganti pada Riwayat Sesi/Paket Berjalan psikolog dan service kontrak `rescheduleByPsychologist`. Mempertahankan guard H+1, slot/kuota, status terminal, dan kepemilikan di dalam lock workflow.
+- Memperjelas modal reschedule sesuai peran serta tidak menonaktifkan tombol kembali hanya karena slot belum dipilih.
+- Menyelaraskan dokumentasi flow/API dan sumber activity diagram 12/13; kedua SVG swimlane di-render ulang serta lolos validasi XML.
+- TypeScript exit 0; 22/22 tes regresi terfokus lolos. QA browser/backend tetap diperlukan; dev server, build, dan Git tidak dijalankan.
+
+## 2026-10-21 - Perbaikan Tujuh Temuan Audit FE
+
+- Menambahkan error boundary agar kegagalan membaca data saat startup tidak menjadi layar kosong; data rusak tidak diganti diam-diam dengan data demo dan pengguna diingatkan tidak transfer ulang.
+
+- Menambahkan `workflowStore`: satu Web Lock untuk mutasi kritis dan snapshot atomik yang di-upgrade in-place dari array appointment lama. Menghapus commit snapshot/debounce appointment dan sukses prematur dari controller booking/pre-test.
+- Mengaktifkan reservasi lokal sebelum rekening ditampilkan, masa berlaku prototype yang dapat dikonfigurasi, pemulihan setelah refresh, pelepasan dengan konfirmasi belum membayar, serta idempotency dari hold terkonversi. Consent diperlukan sebelum instruksi transfer.
+- Menyimpan bukti setelah expiry/quote tidak valid sebagai kasus pencocokan, menampilkannya pada pasien/admin, dan menghubungkannya dengan booking pengganti H+1 tanpa menggandakan bukti/uang masuk. Service kontrak backend rekonsiliasi disiapkan.
+- Mempertahankan FULL walk-in sebagai pending sebelum verifikasi, menambahkan tanggal penerimaan aktual, guard klik ganda, dan mencegah pembuatan booking kedua jika penyimpanan sudah sukses tetapi verifikasi belum selesai.
+- Menambahkan CSRF cookie/header Sanctum, pemilihan jam berbasis identitas, data modal/receipt terbaru berdasarkan ID, dan encoder CSV/HTML dengan penetralan formula serta Blob download.
+- Guard perubahan jadwal turut memeriksa hold aktif dan memakai urutan lock yang sama. No-show tetap menunggu keputusan jatah/pengganti; tooltip diperjelas tanpa mengubah aturan klinis.
+- Verifikasi setelah izin: `npx tsc --noEmit` 0 error; `npx tsx --test tests/frontend-regressions.test.ts` 17/17 lolos. Tes memakai storage/lock simulasi; bukan E2E atau QA visual. Tidak menjalankan dev/build/Git.
+
+## 2026-10-21 - Verifikasi TypeScript
+
+- Developer memberi izin eksplisit untuk `npx tsc --noEmit`. Pemeriksaan selesai dengan exit code 0, tanpa error; tidak memerlukan perubahan source.
+- Memperbarui status verifikasi pada TODO, Known Issues, Decisions, dan Session Handoff. Dev server, build, Git, serta test runtime tidak dijalankan; QA browser/backend tetap diperlukan.
+
+## 2026-10-21 - Katalog dan Konsistensi Pembayaran/Jadwal
+
+- Katalog booking: pencarian, tiga kategori, urutan nama/harga, pagination enam layanan, radio selection, rincian manfaat/notes, dan layout responsif. Data custom tetap dipertahankan.
+- Pasien/psikolog: progres terbayar dari total serta sisa berdasarkan pembayaran aktual. Penerimaan langsung lunas dibedakan dari DP pada detail/receipt.
+- Walk-in: wajib input nominal awal aktual; DP/FULL divalidasi tanpa mengekspos target pada admin. Pencatatan penerimaan awal dibedakan dari verifikasi.
+- Verifikasi DP/pembayaran lanjutan: tanggal uang diterima dapat dicatat terpisah dari timestamp pencatatan; tanggal masa depan ditolak.
+- Laporan/PDF/Excel/CSV: setiap penerimaan menjadi baris tersendiri, memakai tanggal uang diterima, bukan tanggal konsultasi. Tanggal lama yang tidak diketahui diberi label estimasi; sesi lanjutan tidak menduplikasi kas.
+- Harga paket lintas-tab disinkronkan; expected total yang berbeda ditolak dan consent direset bila total berubah.
+- Pengaturan jadwal menolak perubahan libur/jam/kuota yang berdampak pada booking aktif. Save gagal tidak lagi ditampilkan sebagai sukses pada form jadwal.
+- Appointment sesi baru memiliki histori status/jadwal sendiri, tanpa audit reschedule dan ledger awal sesi sebelumnya.
+- Kontrak `slotHoldService` untuk Laravel disiapkan, belum terhubung runtime. Risiko mutasi paralel mock dan persistensi storage masih terbuka.
+- Verifikasi revisi awal berupa tinjauan statis dan validasi dokumen/diagram; TypeScript checker kemudian lolos setelah izin developer (lihat entri di atas). Dev/build/test runtime tidak dijalankan; bukan klaim flow sudah aman produksi.
+
+## 2026-10-21
+
+- Memperjelas teks Paket Berjalan dan notifikasi penjadwalan menjadi "Selesaikan sesi yang terjadwal sebelum menjadwalkan sesi berikutnya." agar tidak disalahartikan sebagai sesi terakhir dalam keseluruhan rencana.
+- Cancel/discontinue kini mensyaratkan pembayaran lunas, menghentikan seluruh rencana, membatalkan sisa appointment, dan mempertahankan histori completed serta uang masuk. Admin dapat mencatat pelunasan untuk penghentian sebelum sesi pertama dengan purpose khusus; hak cancel tetap psikolog.
+- Memperbaiki konfirmasi ulang reschedule `PENDING + DP_PAID/PAID` tanpa DP kedua, menyimpan daftar histori reschedule/status, dan mempertahankan audit verifikasi awal.
+- Menyimpan snapshot pre-test/consent versi aktif pada booking, mengikat draft setelah booking berhasil, dan menampilkan pilihan histori pre-test di detail pasien. Pengisian baru tidak mengubah booking lama; field klinis yang tidak ditanyakan tidak diisi negatif palsu.
+- Menghapus isian contoh kontak darurat/keluhan/harapan tersembunyi dari pre-test baru, menampilkan field kontak darurat terstruktur, dan membatasi ringkasan psikolog ke form yang sudah terikat booking. DP yang mencakup seluruh tarif setelah diskon langsung menjadi lunas saat verifikasi.
+- Menunda persistensi pasien walk-in sampai booking berhasil, menyelaraskan H+1 ke WIB, serta membebaskan cache slot yang appointment-nya telah dipindah/dibatalkan.
+- Memperketat kontrak API dengan DTO admin administratif, binding draft/multipart booking, consent version, serta endpoint konfirmasi ulang. Fitur permintaan unggah ulang bukti tidak ditambahkan sesuai keputusan developer.
+- Memperbarui aturan bisnis, spesifikasi API/database, TODO, daftar isu, handoff, dan sumber/gambar activity diagram. Verifikasi kode berupa peninjauan statis; test/checker/build/dev server tidak dijalankan.
+
+## 2026-10-19
+
+- Mengganti 23 tautan Obsidian mentah pada `FEATURE_FLOWS.md` dengan gambar SVG inline memakai sintaks Markdown standar, sehingga activity diagram tampil langsung di pratinjau VS Code maupun Obsidian.
+- Revisi keputusan klien: psikoterapi kini Rp500.000 per sesi dengan rencana awal empat sesi. Sesudah sesi keempat, pasien booking baru; tidak ada penambahan jatah pada plan lama. Tarif katalog/editor, rincian booking, dan CTA booking ulang disesuaikan.
+- Menghapus aksi dan kontrak endpoint penambahan sesi dari frontend serta spesifikasi backend. Migrasi LocalStorage v9 memperbarui tarif resmi per sesi sambil menjaga status aktif dan diskon. Data demo yang pernah diperpanjang memerlukan penanganan manual jika ingin dipakai ulang.
+- Memperbarui activity diagram psikoterapi menjadi alur swimlane pasien/sistem/admin/psikolog, lalu merender 23 diagram PlantUML menjadi SVG yang langsung terlihat di Obsidian.
+- Catatan berikut adalah histori implementasi sebelum revisi klien di atas, bukan spesifikasi aktif.
+- Menambahkan aksi **Tambah Sesi** khusus psikolog pada Paket Berjalan. Alasan dan kesepakatan pasien dicatat, jatah sesi serta tagihan diperbarui menurut tarif snapshot awal, dan paket selesai dapat diaktifkan kembali tanpa membuat DP kedua.
+- Mendukung pembayaran bertahap setelah DP: setiap uang masuk disimpan sebagai record terpisah, status lunas hanya saat saldo nol, dan admin tetap tidak melihat tarif maupun nominal yang pernah dicatat.
+- Menampilkan tambahan sesi dan saldo terkini pada tabel psikolog serta detail/receipt pasien. Sesi lanjutan tetap dijadwalkan psikolog satu per satu minimal H+1.
+- Menambahkan kontrak endpoint penambahan sesi dan rancangan amendment/payment ledger Laravel, serta mencatat keputusan klien tentang tiga kategori paket, telelayanan pihak ketiga, notes layanan, dan DP yang mengurangi total.
+- Mengganti 23 flowchart Mermaid pada dokumen audit dengan tautan ke 24 UML activity diagram PlantUML berswimlane di `ACTIVITY_DIAGRAMS.md`.
+- Verifikasi sesi ini berupa audit statis source dan dokumen; dev server, build, test, dan TypeScript checker tidak dijalankan sesuai `AGENTS.md`.
+- Menghapus nomor referensi transaksi dari seluruh alur aktif pasien/admin, type appointment, payload service API, receipt, modal verifikasi, dan spesifikasi database/backend. Nomor invoice/booking tetap menjadi identitas transaksi.
+- Menambahkan migrasi LocalStorage v8 untuk membersihkan `paymentReference` dan `finalPaymentReference` lama dari appointment browser.
+- Memperbaiki tampilan mobile: toast kini masuk alur halaman pada ponsel sehingga tidak menutupi kartu dashboard, dropdown profil dibatasi sesuai viewport, dan padding dashboard dipadatkan.
+- Menambahkan tampilan mobile khusus pada Manajemen Paket, Data Pasien, Jadwal Mingguan, Monitoring User, Moderasi Review, dan Transaksi serta menumpuk tombol footer modal/receipt secara vertikal agar tidak terpotong.
+- Membatasi area QA mobile yang masih khusus ke workspace pratinjau/ekspor dokumen karena format kertas dan hasil cetak memang mempertahankan kanvas tabel.
+- Mencatat tiga keputusan klien yang belum final: fitur prorata kelebihan waktu, scope asesmen dalam web, dan skema pembayaran psikoterapi minimal 4 sesi.
+- Memindahkan ownership CRUD paket dari controller/endpoint admin ke psikolog serta menyelaraskan route mock ke `/api/v1/packages`; guard role psikolog tetap diterapkan di AppContext dan wajib ditegakkan Laravel Policy.
+- Mengoreksi wording Monitoring Pengguna admin agar tidak lagi menyiratkan kewenangan verifikasi kredensial atau mutasi akun.
+- Menghapus checkbox dan kalimat pernyataan "Saya sudah memeriksa..." dari modal verifikasi pembayaran; admin sekarang langsung memeriksa preview, mengisi catatan opsional, lalu menekan aksi verifikasi.
+- Memastikan bukti JPG/PNG/WEBP hasil upload pasien tampil sebagai gambar pada modal admin, baik dari data URL prototype maupun URL storage backend, sedangkan PDF tersedia melalui tombol buka. Data legacy yang hanya menyimpan nama file tetap tidak dapat dipreview.
+- Menambahkan kembali paket resmi Konsultasi Telelayanan 60 menit seharga Rp750.000 berdasarkan data katalog terbaru developer, tanpa menambahkan ruang chat web.
+- Menambahkan tipe paket `ONLINE_TELE`, pilihan metode konsultasi pada CRUD paket psikolog, lokasi booking kondisional, dan label riwayat telelayanan.
+- Menormalkan Paket Psikoterapi Intensif menjadi paket berjalan 4 sesi dengan total Rp2.000.000 (Rp500.000 per sesi).
+- Menambahkan migrasi LocalStorage v7 agar katalog browser lama tersinkron dengan 15 paket resmi terbaru, termasuk telelayanan dan metadata psikoterapi multi-sesi, sambil mempertahankan status aktif, diskon, serta paket custom.
+- Memperjelas data dummy asesmen anak/remaja dan dewasa sesuai cakupan layanan yang diberikan developer.
+- Mengoreksi aturan pembayaran berdasarkan penegasan developer: DP kembali dikunci flat Rp100.000 untuk semua paket berbayar dan tidak dapat diedit dari Manajemen Paket.
+- Menghapus `dpAmount/dp_amount` dari kontrak paket frontend; appointment tetap menyimpan snapshot DP yang dihitung server/sistem.
+- Menambahkan migrasi LocalStorage v6 untuk menghapus field DP lama pada paket yang sudah tersimpan di browser.
+- Memisahkan pemeriksaan bukti pembayaran dari perubahan status biasa. Admin kini membuka modal verifikasi, melihat bukti dan data transaksi, lalu sistem mengubah pembayaran dan booking secara atomik.
+- Menambahkan audit verifikasi pembayaran berupa waktu, admin pelaksana, dan catatan opsional pada appointment serta receipt administratif.
+- Mengganti input nama file simulasi pasien dengan upload JPG/PNG/WEBP/PDF yang dapat dipreview admin pada prototype LocalStorage.
+- Menutup jalur konfirmasi booking langsung yang dapat melewati verifikasi pembayaran.
+- Memperkuat paket berjalan: pembayaran awal wajib terverifikasi, sesi sebelumnya wajib selesai, tanggal sesi berikutnya minimal H+1, dan jam dipilih dari availability engine.
+- Menghapus input jam bebas untuk sesi lanjutan pada tab Paket Berjalan dan Riwayat Psikolog.
+- Mencegah status `COMPLETED` sebelum waktu konsultasi berakhir dan menyelesaikan treatment plan otomatis setelah seluruh sesi selesai.
+- Menyesuaikan kontrak service Laravel agar endpoint verifikasi pembayaran juga mengonfirmasi booking.
+- Test/build/TypeScript checker tidak dijalankan karena belum diizinkan pada sesi ini.
+
 ## 2026-10-06
 
 - Melakukan hardening frontend menyeluruh setelah audit flow:

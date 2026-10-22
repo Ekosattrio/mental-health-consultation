@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Appointment, User, PsychologistProfile, Review, AnalyticsSummary } from '../../../types';
 import { ExportFinanceModal } from './ExportFinanceModal';
 import { Tooltip } from '../../common/Tooltip';
-import { getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
+import { csvRow, downloadCsv } from '../../../utils/exportEncoding';
+import { FLAT_DP_AMOUNT, buildCashInReportRows, formatCashInDate, getCashInDate, getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
 import {
   DollarSign,
   TrendingUp,
@@ -63,7 +64,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
 
   // Filter appointments based on Month and Year
   const filteredAppointments = useMemo(() => {
-    let result = appointments;
+    let result = buildCashInReportRows(appointments);
 
     if (selectedYear !== 'ALL') {
       result = result.filter(a => a.date.startsWith(selectedYear));
@@ -94,16 +95,21 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
     a => getRecordedCashIn(a) > 0
   );
 
-  const pendingVerificationTransactions = filteredAppointments.filter(
-    a => a.paymentStatus === 'DP_PENDING_VERIFICATION' || a.paymentStatus === 'PENDING'
-  );
+  const pendingVerificationTransactions = appointments.filter(a => {
+    const date = getCashInDate(a.initialPaymentRecord?.receivedAt || a.createdAt);
+    const q = searchQuery.trim().toLowerCase();
+    return (a.paymentStatus === 'DP_PENDING_VERIFICATION' || a.paymentStatus === 'PENDING') && (a.continuousSessionNumber || 1) === 1 &&
+      (selectedYear === 'ALL' || date.startsWith(selectedYear)) &&
+      (selectedMonth === 'ALL' || date.slice(5, 7) === selectedMonth) &&
+      (!q || `${a.patientName} ${a.bookingCode} ${a.packageName}`.toLowerCase().includes(q));
+  });
 
   const totalCashIn = paidTransactions.reduce((acc, a) => {
     return acc + getRecordedCashIn(a);
   }, 0);
 
   const potentialPendingCash = pendingVerificationTransactions.reduce((acc, a) => {
-    return acc + (a.dpAmount || 100000);
+    return acc + (a.dpAmount ?? FLAT_DP_AMOUNT);
   }, 0);
 
   const avgPerPayment = paidTransactions.length > 0 ? Math.round(totalCashIn / paidTransactions.length) : 0;
@@ -116,27 +122,20 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
       const isDpPaid = a.paymentStatus === 'DP_PAID';
       const nominalMasuk = getRecordedCashIn(a);
       const skema = getPaymentSchemeLabel(a);
-      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Rp 100rb Diterima' : 'Verifikasi DP';
+      const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Diterima' : 'Verifikasi DP';
 
-      return [
-        `"${a.date}"`,
-        `"${a.bookingCode}"`,
-        `"${a.patientName.replace(/"/g, '""')}"`,
-        `"${a.packageName.replace(/"/g, '""')}"`,
-        `"${skema}"`,
+      return csvRow([
+        formatCashInDate(a),
+        a.bookingCode,
+        a.patientName,
+        a.packageName,
+        skema,
         nominalMasuk,
-        `"${status}"`
-      ].join(',');
+        status
+      ]);
     });
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Laporan_Keuangan_JiwaSehat_${selectedYear}_${selectedMonth}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`Laporan_Keuangan_JiwaSehat_${selectedYear}_${selectedMonth}.csv`, [csvRow(headers), ...rows]);
   };
 
   const handlePrint = () => {
@@ -173,7 +172,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </span>
           </div>
           <p className="text-xs font-medium text-slate-500 mt-0.5">
-            Pencatatan uang masuk dari pembayaran DP Administrasi Rp 100.000 dan pelunasan sesi konsultasi pasien.
+            Pencatatan uang masuk dari pembayaran DP flat Rp 100.000 dan pelunasan sesi konsultasi pasien.
           </p>
         </div>
 
@@ -290,7 +289,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
           </div>
           <span className="text-[11px] font-semibold text-slate-500 mt-2 block">
-            Rata-rata dari seluruh paket terbayar
+            Rata-rata dari setiap penerimaan pembayaran
           </span>
         </div>
 
@@ -349,7 +348,32 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100">
+          {paginatedAppointments.length === 0 ? (
+            <div className="py-8 px-4 text-center text-slate-400 text-xs italic">Tidak ada transaksi untuk filter yang dipilih.</div>
+          ) : paginatedAppointments.map(apt => {
+            const nominalMasuk = getRecordedCashIn(apt);
+            const statusLabel = apt.paymentStatus === 'PAID' ? 'Lunas' : apt.paymentStatus === 'DP_PAID' ? 'DP Diterima' : 'Verifikasi DP';
+            return (
+              <article key={apt.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-slate-900 break-words">{apt.patientName}</h4>
+                    <p className="text-[10px] text-slate-400">{formatCashInDate(apt)} - #{apt.bookingCode}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-1 rounded-md text-[10px] font-bold ${apt.paymentStatus === 'PAID' ? 'bg-emerald-100 text-emerald-900' : apt.paymentStatus === 'DP_PAID' ? 'bg-sky-100 text-sky-900' : 'bg-amber-100 text-amber-900'}`}>{statusLabel}</span>
+                </div>
+                <p className="text-xs font-semibold text-slate-700 break-words">{apt.packageName}</p>
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100 text-[11px]">
+                  <div><span className="block font-black uppercase text-slate-400">Skema</span><strong className="text-slate-700">{getPaymentSchemeLabel(apt)}</strong></div>
+                  <div className="text-right"><span className="block font-black uppercase text-slate-400">Nominal Masuk</span><strong className="text-slate-900">{nominalMasuk > 0 ? `Rp ${nominalMasuk.toLocaleString('id-ID')}` : '-'}</strong></div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full min-w-[720px] text-left text-xs">
             <thead className="bg-slate-50/70 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>
@@ -377,7 +401,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   return (
                     <tr key={apt.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-2.5 px-4 whitespace-nowrap">
-                        <div className="font-bold text-slate-900">{apt.date}</div>
+                        <div className="font-bold text-slate-900">{formatCashInDate(apt)}</div>
                         <span className="text-[10px] text-slate-400 font-semibold">#{apt.bookingCode}</span>
                       </td>
 
@@ -404,7 +428,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                           </span>
                         ) : isDpPaid ? (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-100 text-sky-900 font-bold text-[10px]">
-                            DP Rp 100rb Diterima
+                            DP Diterima
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold text-[10px]">

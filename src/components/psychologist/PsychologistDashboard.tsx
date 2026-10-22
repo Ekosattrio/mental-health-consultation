@@ -61,6 +61,7 @@ export const PsychologistDashboard: React.FC = () => {
     updateAppointmentStatus,
     scheduleNextContinuousSession,
     discontinueTreatmentPlan,
+    rescheduleAppointment,
     isSidebarCollapsed,
     setIsSidebarCollapsed
   } = useApp();
@@ -78,6 +79,16 @@ export const PsychologistDashboard: React.FC = () => {
     ? currentPsychologistModel.getScheduleSlots(schedules)
     : schedules.filter(s => s.psychologistId === psychologistId);
 
+  const clinicalIntakeForms = React.useMemo(() => {
+    const forms = Object.fromEntries(Object.entries(intakeForms).filter(([, form]) =>
+      !form.formVersion || Boolean(form.appointmentId)
+    ));
+    appointments.filter(item => item.psychologistId === psychologistId && item.preTestSnapshot)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .forEach(item => { forms[item.patientId] = item.preTestSnapshot!; });
+    return forms;
+  }, [appointments, intakeForms, psychologistId]);
+
   const handleNavigateTab = (tabId: PsychologistTabId) => {
     setActivePsychologistTab(tabId);
     setIsMobileMenuOpen(false);
@@ -91,7 +102,8 @@ export const PsychologistDashboard: React.FC = () => {
     { id: 'treatmentPlans', label: 'Paket Berjalan', icon: ClipboardList, badge: myAppointments.filter(a => (a.continuousSessionTotal || 1) > 1).length },
     { id: 'patients', label: 'Data Pasien & Pre-Test', icon: FileText },
     { id: 'cms', label: 'CMS Konten', icon: LayoutTemplate },
-    { id: 'history', label: 'Riwayat Sesi', icon: History, badge: myAppointments.length }
+    { id: 'history', label: 'Riwayat Sesi', icon: History, badge: myAppointments.length },
+    { id: 'profile', label: 'Profil Praktik', icon: Edit3 }
   ];
 
   if (isExportFinanceActive) {
@@ -110,7 +122,7 @@ export const PsychologistDashboard: React.FC = () => {
   const currentTabObj = tabs.find(t => t.id === activePsychologistTab) || tabs[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 w-full max-w-full">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 w-full max-w-full">
 
       {/* DESKTOP SIDEBAR + CONTENT */}
       <div className="flex flex-col lg:flex-row gap-6 items-start w-full max-w-full min-w-0">
@@ -173,7 +185,7 @@ export const PsychologistDashboard: React.FC = () => {
         </aside>
 
         {/* MAIN TAB CONTENT */}
-        <main className="flex-1 min-w-0 w-full max-w-full space-y-6 overflow-hidden">
+        <main className="flex-1 min-w-0 w-full max-w-full space-y-6">
           {activePsychologistTab === 'overview' && (
             <OverviewTab
               myAppointments={myAppointments}
@@ -238,7 +250,7 @@ export const PsychologistDashboard: React.FC = () => {
             <PatientsTab
               users={users}
               appointments={appointments}
-              intakeForms={intakeForms}
+              intakeForms={clinicalIntakeForms}
               psychologistId={psychologistId}
               selectedPatientId={selectedPatientId}
               setSelectedPatientId={setSelectedPatientId}
@@ -250,6 +262,7 @@ export const PsychologistDashboard: React.FC = () => {
               appointments={myAppointments}
               onScheduleNextSession={scheduleNextContinuousSession}
               onDiscontinuePlan={discontinueTreatmentPlan}
+              onReschedule={rescheduleAppointment}
             />
           )}
 
@@ -257,9 +270,10 @@ export const PsychologistDashboard: React.FC = () => {
             <HistoryTab
               myAppointments={myAppointments}
               onCompleteAppointment={(appointmentId) => updateAppointmentStatus(appointmentId, 'COMPLETED')}
-              onMarkNoShow={(appointmentId) => updateAppointmentStatus(appointmentId, 'NO_SHOW')}
-              onCancelAppointment={(appointmentId) => updateAppointmentStatus(appointmentId, 'CANCELLED')}
+              onMarkNoShow={(appointmentId, reason) => updateAppointmentStatus(appointmentId, 'NO_SHOW', reason)}
+              onCancelAppointment={(appointmentId, reason) => updateAppointmentStatus(appointmentId, 'CANCELLED', reason)}
               onScheduleNextSession={scheduleNextContinuousSession}
+              onReschedule={rescheduleAppointment}
             />
           )}
 

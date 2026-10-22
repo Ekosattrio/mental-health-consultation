@@ -1,3 +1,5 @@
+import { readXsrfCookie } from '../../utils/csrf';
+
 export interface PaginationMeta {
   current_page?: number;
   last_page?: number;
@@ -45,6 +47,7 @@ type RequestBody = unknown;
 class ApiClient {
   private readonly baseUrl: string;
   private readonly timeoutMs: number;
+  private csrfRequest: Promise<void> | null = null;
 
   constructor() {
     this.baseUrl = String(import.meta.env.VITE_API_BASE_URL || '/api/v1').replace(/\/$/, '');
@@ -79,6 +82,14 @@ class ApiClient {
     const headers = new Headers(customHeaders);
     headers.set('Accept', 'application/json');
     headers.set('X-Requested-With', 'XMLHttpRequest');
+    if (String(import.meta.env.VITE_SANCTUM_CSRF || 'false') === 'true') {
+      try {
+        const token = readXsrfCookie(document.cookie);
+        if (token) headers.set('X-XSRF-TOKEN', token);
+      } catch {
+        throw new HttpError({ message: 'Token sesi tidak valid. Masuk kembali untuk memperbarui sesi.', status: 419 });
+      }
+    }
 
     if (body !== undefined && !(body instanceof FormData)) {
       headers.set('Content-Type', 'application/json');
@@ -158,6 +169,10 @@ class ApiClient {
     options.signal?.addEventListener('abort', abortFromCaller, { once: true });
 
     try {
+      if (!['GET', 'HEAD', 'OPTIONS'].includes(method) && String(import.meta.env.VITE_SANCTUM_CSRF || 'false') === 'true' && !readXsrfCookie(document.cookie)) {
+        if (!this.csrfRequest) this.csrfRequest = this.initCsrf(timeoutController.signal).finally(() => { this.csrfRequest = null; });
+        await this.csrfRequest;
+      }
       const response = await fetch(this.buildUrl(endpoint, options.params), {
         method,
         credentials: 'include',
@@ -171,6 +186,7 @@ class ApiClient {
       });
       return await this.parseResponse<T>(response);
     } catch (error) {
+      if (error instanceof URIError) throw new HttpError({ message: 'Token sesi tidak valid. Masuk kembali untuk memperbarui sesi.', status: 419 });
       if (error instanceof DOMException && error.name === 'AbortError') {
         if (options.signal?.aborted) {
           throw new HttpError({
@@ -190,13 +206,14 @@ class ApiClient {
     }
   }
 
-  public async initCsrf(): Promise<void> {
+  public async initCsrf(signal?: AbortSignal): Promise<void> {
     const apiMarker = '/api/v1';
     const markerIndex = this.baseUrl.indexOf(apiMarker);
     const origin = markerIndex >= 0 ? this.baseUrl.slice(0, markerIndex) : '';
     const response = await fetch(`${origin}/sanctum/csrf-cookie`, {
       method: 'GET',
       credentials: 'include',
+      signal,
       headers: { 'X-Requested-With': 'XMLHttpRequest' }
     });
     if (!response.ok) {

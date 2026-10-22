@@ -1,9 +1,10 @@
 import React from 'react';
 import { useApp } from '../../context/AppContext';
 import { HeartHandshake, Instagram, MapPin, Phone, Mail, Clock } from 'lucide-react';
+import { ImageWithFallback } from '../common/ImageWithFallback';
 
 export const Footer: React.FC = () => {
-  const { setIsLoginModalOpen } = useApp();
+  const { setIsLoginModalOpen, landingCms } = useApp();
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-12 print:hidden">
@@ -13,17 +14,15 @@ export const Footer: React.FC = () => {
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-bold shadow-md shadow-teal-500/20">
-                <HeartHandshake className="w-6 h-6" />
+                <ImageWithFallback src={landingCms.logoUrl} alt="" className="h-full w-full object-contain" fallback={<HeartHandshake className="w-6 h-6" />} />
               </div>
-              <span className="text-2xl font-black text-white tracking-tight">JiwaSehat</span>
+              <span className="min-w-0 break-words text-xl font-bold text-white">{landingCms.clinicName}</span>
             </div>
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
               Praktik psikologi berbasis booking terjadwal. Pasien mengisi pre-test, mengajukan jadwal minimal H+1, dan admin memverifikasi pembayaran sebelum konsultasi.
             </p>
             <div className="pt-2 flex items-center gap-3 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800 text-teal-400 font-bold border border-slate-700">
-                <Instagram className="w-4 h-4" /> Instagram: @jiwasehat.id
-              </span>
+              {landingCms.instagramUrl && <a href={landingCms.instagramUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-teal-400 hover:text-white"><Instagram className="w-4 h-4" />Instagram</a>}
             </div>
           </div>
 
@@ -42,7 +41,7 @@ export const Footer: React.FC = () => {
                 </a>
               </li>
               <li>
-                <a href="#about" className="text-slate-400 hover:text-teal-400 transition-colors">
+                <a href="#about-psychologist" className="text-slate-400 hover:text-teal-400 transition-colors">
                   Profil Psikolog
                 </a>
               </li>
@@ -71,7 +70,7 @@ export const Footer: React.FC = () => {
               <li>Pre-Test Sebelum Konsultasi</li>
               <li>Sesi Praktik Terjadwal</li>
               <li>Pre-Test Profiling untuk Persiapan Sesi</li>
-              <li>Upload Bukti DP Rp 100.000 (Administrasi)</li>
+              <li>Upload Bukti DP Rp 100.000</li>
               <li>Riwayat dan Review Sesi</li>
             </ul>
           </div>
@@ -82,23 +81,23 @@ export const Footer: React.FC = () => {
             <div className="space-y-3 text-xs text-slate-400">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
-                <span>Jl. Senopati No. 88, Kebayoran Baru, Jakarta Selatan 12190</span>
+                <span className="min-w-0 break-words">{landingCms.clinicAddress}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>Senin - Sabtu: 08:00 - 21:00 WIB</span>
+                <span className="min-w-0 break-words">{landingCms.clinicHours}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>(021) 765-4321 / WhatsApp CS</span>
+                <span className="min-w-0 break-words">{landingCms.clinicPhone} / {landingCms.clinicWhatsapp}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>konseling@jiwasehat.id</span>
+                <span className="min-w-0 break-words">{landingCms.clinicEmail}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Instagram className="w-4 h-4 text-teal-400 shrink-0" />
-                <span>@jiwasehat.id</span>
+                <a href={landingCms.instagramUrl || undefined} target="_blank" rel="noreferrer" className="min-w-0 break-words">{landingCms.instagramUrl ? 'Instagram' : '-'}</a>
               </div>
             </div>
           </div>

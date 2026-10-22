@@ -74,18 +74,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
   const visibleTestimonials = testimonialItems.slice(testimonialPage, testimonialPage + 3);
 
   useEffect(() => {
-    if (testimonialItems.length <= 3) return;
+    if (testimonialItems.length <= 3 || !landingCms.sliderAutoPlay) return;
     const timer = window.setInterval(() => {
       setTestimonialPage(prev => (prev + 1) % Math.max(1, testimonialItems.length - 2));
-    }, 3500);
+    }, Math.max(2, landingCms.sliderIntervalSeconds) * 1000);
     return () => window.clearInterval(timer);
-  }, [testimonialItems.length]);
+  }, [testimonialItems.length, landingCms.sliderAutoPlay, landingCms.sliderIntervalSeconds]);
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* 1. HERO SECTION */}
       <section id="hero" className="relative overflow-hidden bg-gradient-to-b from-teal-900 via-teal-800 to-slate-900 text-white pt-16 pb-28 sm:pb-36 lg:pb-44">
         {/* Subtle background glow effect */}
+        {landingCms.heroImageUrl && <ImageWithFallback src={landingCms.heroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-25" fallback={null} />}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(20,184,166,0.15),transparent_50%)]" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -152,7 +153,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                     </span>
                     <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">
-                      Praktik Mandiri Aktif
+                      {soloPsychologist?.isAvailableToday ? 'Praktik Mandiri Aktif' : 'Jadwal Praktik Terbatas'}
                     </span>
                   </div>
                   <span className="text-[11px] font-bold text-slate-400">
@@ -176,8 +177,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                       </div>
                     )}
                     <span
-                      className="absolute bottom-1 right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full shadow-xs"
-                      title="Status: Praktik Aktif"
+                      className={`absolute bottom-1 right-1 w-3.5 h-3.5 ${soloPsychologist?.isAvailableToday === false ? 'bg-amber-500' : 'bg-emerald-500'} border-2 border-white rounded-full shadow-xs`}
+                      title={soloPsychologist?.isAvailableToday === false ? 'Status: Praktik Terbatas' : 'Status: Praktik Aktif'}
                     />
                   </div>
                   <div className="min-w-0 flex-1">
@@ -233,7 +234,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 text-xs text-slate-600 font-semibold">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Praktik Tatap Muka Terjadwal</span>
+                    <span>Konsultasi Terjadwal</span>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -280,6 +281,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Column: Doctor Identity & Badges */}
           <div className="lg:col-span-5 space-y-4">
+            {landingCms.aboutImageUrl && <ImageWithFallback src={landingCms.aboutImageUrl} alt={landingCms.clinicName} className="aspect-video w-full rounded-lg object-cover" fallback={null} />}
             <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200 bg-gradient-to-br from-teal-900 via-slate-900 to-slate-950 p-8 text-white flex flex-col justify-between min-h-[360px]">
               <div className="space-y-4">
                 <div className="w-20 h-20 rounded-3xl bg-teal-500/20 border border-teal-400/40 text-teal-300 flex items-center justify-center shadow-inner overflow-hidden">
@@ -548,7 +550,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                                 <span className="text-2xl font-black text-slate-900">
                                   Rp {pkg.price.toLocaleString('id-ID')}
                                 </span>
-                                <span className="text-xs text-slate-500 font-medium">/ paket</span>
+                                <span className="text-xs text-slate-500 font-medium">/ {pkg.type === 'PSYCHOTHERAPY' ? 'sesi' : 'paket'}</span>
                               </div>
                               {pkg.notes && (
                                 <p className="text-[11px] text-teal-800/90 mt-1 font-medium leading-relaxed bg-white/70 p-2 rounded-xl border border-teal-100">
@@ -740,10 +742,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
             <div>
               <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">Ulasan Pasien Nyata</span>
               <h2 className="text-3xl font-extrabold text-slate-900 mt-1">
-                Pengalaman Konseling Bersama {soloUser?.name}
+                {landingCms.sliderTitle}
               </h2>
               <p className="text-sm text-slate-500 mt-1">
-                Seluruh ulasan berasal dari pasien terverifikasi yang telah menyelesaikan sesi konsultasi.
+                {landingCms.sliderSubtitle}
               </p>
             </div>
 
@@ -880,7 +882,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               Pertanyaan yang Sering Diajukan (FAQ)
             </h2>
             <p className="text-sm text-slate-500 mt-2">
-              Jawaban seputar privasi data, mekanisme booking, DP administrasi Rp 100.000, dan alur konsultasi klinis.
+              Jawaban seputar privasi data, mekanisme booking, DP flat Rp 100.000, dan alur konsultasi klinis.
             </p>
           </div>
 
@@ -892,7 +894,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               },
               {
                 q: 'Bagaimana sistem pembayaran dan reservasi jadwal?',
-                a: 'Untuk mengunci slot waktu pada jadwal psikolog, pasien membayar DP administrasi flat Rp 100.000 melalui transfer bank resmi. Sisa biaya paket dilunasi saat hadir di klinik atau setelah sesi selesai sesuai arahan administrasi.'
+                a: 'Untuk mengunci slot waktu pada jadwal psikolog, pasien membayar DP flat Rp 100.000 melalui transfer bank. Sisa biaya paket dilunasi saat hadir atau setelah sesi selesai sesuai arahan administrasi.'
               },
               {
                 q: 'Apakah saya bisa mengajukan perubahan jadwal (reschedule)?',
@@ -900,7 +902,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               },
               {
                 q: 'Apakah saya wajib mengisi pre-test keluhan sebelum konsultasi?',
-                a: 'Pengisian pre-test singkat langsung terintegrasi di langkah pemesanan jadwal. Hal ini sangat dianjurkan agar psikolog dapat memetakan fokus permasalahan Anda terlebih dahulu sebelum sesi tatap muka berlangsung sehingga durasi konsultasi menjadi jauh lebih efektif dan mendalam.'
+                a: 'Pengisian pre-test singkat langsung terintegrasi di langkah pemesanan jadwal. Hal ini membantu psikolog memetakan fokus permasalahan Anda sebelum sesi berlangsung sehingga durasi konsultasi menjadi lebih efektif dan mendalam.'
               },
               {
                 q: 'Di mana lokasi ruang praktik konsultasi tatap muka?',
@@ -1045,11 +1047,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
               </div>
             </div>
 
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+            <div className="pt-2 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setIsBioModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                className="w-full sm:w-auto px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
               >
                 Tutup
               </button>
@@ -1059,7 +1061,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onSelectBooking }) => 
                   setIsBioModalOpen(false);
                   requireAuth(() => onSelectBooking(soloPsychologist?.userId), 'reservasi jadwal');
                 }}
-                className="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 cursor-pointer"
+                className="w-full sm:w-auto px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Calendar className="w-3.5 h-3.5" />
                 Reservasi Jadwal

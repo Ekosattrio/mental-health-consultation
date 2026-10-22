@@ -30,6 +30,12 @@ Role tertinggi adalah psikolog/super admin/pengelola. Admin berfokus pada verifi
 
 Data prototype disimpan di `localStorage` dengan prefix `jiwasehat_v3_`. Service API sudah tersedia, tetapi belum dipasang sebagai sumber data runtime sampai backend tersedia.
 
+Workflow kritis melalui `src/utils/workflowStore.ts`: satu Web Lock lintas-tab untuk booking, hold, pembayaran, status, reschedule, sesi berikutnya, dan mutasi jadwal/paket terkait. Key `jiwasehat_v3_appointments` berisi envelope appointment, hold, pasien walk-in baru, dan kasus pencocokan. Array legacy di-upgrade in-place; key eksperimental `jiwasehat_v3_workflow_v1` tetap didukung bila sudah ada. Jangan membaca key ini sebagai array tanpa helper.
+
+Controller booking/pre-test hanya menyiapkan hasil. Facade mempersistenkan dahulu sebelum memperbarui state/toast, sehingga kegagalan quota tidak menjadi sukses semu. Snapshot ini tidak lagi ditulis ulang lewat debounce. Web Locks tidak tersedia berarti mutasi sensitif ditolak, bukan memakai fallback lease. Mekanisme ini hanya antar-tab browser/origin yang sama, bukan antarperangkat.
+
+Hold runtime prototype berlangsung sebelum instruksi transfer, termasuk pemulihan setelah refresh dan pencocokan bukti sesudah expiry. Service Laravel hold/rekonsiliasi masih kontrak. Komponen receipt/modal menyimpan ID dan mencari entity terbaru; CSV/HTML memakai encoder terpisah. Tes regresi logika tersedia di `tests/frontend-regressions.test.ts`; E2E browser belum ada.
+
 ## Backend Final
 
 - Laravel 12+ menjadi REST API terpisah.

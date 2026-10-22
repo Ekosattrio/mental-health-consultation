@@ -32,12 +32,19 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
   isOpen,
   onClose,
   patient,
-  intakeForm,
+  intakeForm: latestIntake,
   appointments
 }) => {
   const [activeTab, setActiveTab] = useState<'PRETEST' | 'APPOINTMENTS'>('PRETEST');
+  const [selectedBookingId, setSelectedBookingId] = useState('');
 
   if (!isOpen || !patient) return null;
+
+  const patientBookings = appointments.filter(item => item.patientId === patient.id);
+  const snapshotBookings = patientBookings.filter(item => item.preTestSnapshot)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const selectedBooking = snapshotBookings.find(item => item.id === selectedBookingId) || snapshotBookings[0];
+  const intakeForm = selectedBooking?.preTestSnapshot || latestIntake;
 
   // Helper formatting stres
   const stressLevel = intakeForm?.currentStressLevel ?? 0;
@@ -155,6 +162,15 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
           {activeTab === 'PRETEST' && (
             intakeForm ? (
               <div className="space-y-6">
+                {snapshotBookings.length > 0 && (
+                  <label className="block font-bold text-slate-700">
+                    Pre-test Janji Temu
+                    <select value={selectedBooking?.id || ''} onChange={event => setSelectedBookingId(event.target.value)} className="mt-2 w-full border border-slate-200 rounded-lg p-2.5 bg-white text-xs">
+                      {snapshotBookings.map(item => <option key={item.id} value={item.id}>{item.bookingCode} - {item.date} - {item.packageName}</option>)}
+                    </select>
+                  </label>
+                )}
+                {snapshotBookings.length === 0 && <p className="text-xs text-slate-500">Pre-test terakhir: {intakeForm.completedAt}</p>}
                 {/* 1. Baris Triage: Stres & Kualitas Tidur */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Card Tingkat Stres */}
@@ -280,7 +296,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
                     </span>
                     <div className="space-y-1 text-xs">
                       <p className="font-bold text-slate-800">
-                        {intakeForm.previousTherapy ? 'Pernah Menjalani Konseling/Terapi' : 'Belum Pernah Konseling Sebelumnya'}
+                        {intakeForm.previousTherapy === undefined ? 'Riwayat terapi belum dikumpulkan' : intakeForm.previousTherapy ? 'Pernah Menjalani Konseling/Terapi' : 'Belum Pernah Konseling Sebelumnya'}
                       </p>
                       {intakeForm.previousDiagnosis && (
                         <p className="text-slate-600 font-medium">Diagnosis terdahulu: {intakeForm.previousDiagnosis}</p>

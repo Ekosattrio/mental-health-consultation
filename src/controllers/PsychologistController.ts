@@ -2,6 +2,7 @@ import type React from 'react';
 import { BaseController, ToastCallback } from './BaseController';
 import { PsychologistEndpoints } from '../api/psychologistEndpoints';
 import {
+  ConsultationPackage,
   ScheduleSlot,
   PsychologistProfile
 } from '../types';
@@ -9,11 +10,12 @@ import {
 export interface PsychologistStateCallbacks {
   setSchedules: React.Dispatch<React.SetStateAction<ScheduleSlot[]>>;
   setPsychologists: React.Dispatch<React.SetStateAction<PsychologistProfile[]>>;
+  setPackages: React.Dispatch<React.SetStateAction<ConsultationPackage[]>>;
 }
 
 /**
  * PsychologistController (OOP Controller)
- * Orchestrates psychologist operations for schedule and professional profile management.
+ * Orchestrates psychologist operations for schedule, package, and professional profile management.
  */
 export class PsychologistController extends BaseController {
   private callbacks: PsychologistStateCallbacks;
@@ -116,7 +118,7 @@ export class PsychologistController extends BaseController {
     psychologistId: string,
     profileData: Partial<PsychologistProfile>,
     allProfiles: PsychologistProfile[]
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       const response = await PsychologistEndpoints.updateProfile(
         psychologistId,
@@ -131,11 +133,47 @@ export class PsychologistController extends BaseController {
       this.callbacks.setPsychologists(response.data);
       this.notify(
         'Profil Diperbarui',
-        'Data STR, bio, dan tarif konsultasi praktik Anda berhasil diperbarui.',
+        'Data profesional dan profil praktik Anda berhasil diperbarui.',
         'success'
       );
+      return true;
     } catch (err: any) {
       this.handleError(err, 'Gagal Memperbarui Profil');
+      return false;
+    }
+  }
+
+  public async savePackage(
+    pkg: ConsultationPackage,
+    allPackages: ConsultationPackage[]
+  ): Promise<void> {
+    try {
+      const response = await PsychologistEndpoints.savePackage(pkg, allPackages);
+      if (!response.success || !response.data) {
+        throw new Error(response.message);
+      }
+
+      this.callbacks.setPackages(response.data);
+      this.notify('Paket Konsultasi Disimpan', `Paket "${pkg.name}" berhasil diperbarui.`, 'success');
+    } catch (err: any) {
+      this.handleError(err, 'Gagal Menyimpan Paket');
+    }
+  }
+
+  public async deletePackage(
+    packageId: string,
+    allPackages: ConsultationPackage[]
+  ): Promise<void> {
+    try {
+      const response = await PsychologistEndpoints.deletePackage(packageId, allPackages);
+      if (!response.success || !response.data) {
+        throw new Error(response.message);
+      }
+
+      this.callbacks.setPackages(response.data);
+      this.notify('Paket Dihapus', 'Paket layanan telah dihapus dari katalog.', 'info');
+    } catch (err: any) {
+      this.handleError(err, 'Gagal Menghapus Paket');
     }
   }
 }

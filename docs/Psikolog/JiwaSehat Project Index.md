@@ -15,6 +15,8 @@ Vault ini menjadi sumber utama dokumentasi project psikolog. Seluruh dokumen akt
 - [[Live Docs/AGENTS|AGENTS]]
 - [[Live Docs/BUSINESS_RULES|Business Rules]]
 - [[Live Docs/ROLES_PERMISSIONS|Roles Permissions]]
+- [[Live Docs/PANDUAN_FITUR_PER_ROLE|Panduan Fitur per Role dan Aksi Psikolog]]
+- [[Live Docs/CMS_AUDIT|Audit dan Panduan CMS]]
 - [[Live Docs/FEATURES|Features]]
 - [[Live Docs/KNOWN_ISSUES|Known Issues]]
 

@@ -115,7 +115,7 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
           </div>
 
           {/* Key Metric Highlights */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-900 text-xs font-bold flex items-center gap-1.5 border border-amber-200">
               <Clock className="w-3.5 h-3.5 text-amber-600" />
               <span>{pendingCount} Menunggu</span>
@@ -278,7 +278,7 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
                 setSelectedStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 text-xs cursor-pointer focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+              className="min-w-0 flex-1 sm:flex-none px-3 py-2 rounded-xl border border-slate-200 bg-white font-semibold text-slate-700 text-xs cursor-pointer focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
             >
               <option value="ALL">Semua Status Publikasi</option>
               <option value="PENDING">Menunggu Persetujuan ({pendingCount})</option>
@@ -303,7 +303,38 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
 
       {/* 4. DATA TABEL ULASAN (Sesuai Permintaan: Review Dijadikan Tabel Bersih) */}
       <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="md:hidden divide-y divide-slate-100">
+          {paginatedReviews.length === 0 ? (
+            <div className="py-12 px-4 text-center text-slate-400 text-xs italic">Tidak ada ulasan yang cocok dengan kriteria filter saat ini.</div>
+          ) : paginatedReviews.map(rev => {
+            const reviewerName = rev.isAnonymous ? rev.anonymousAlias || 'Klien Anonim' : rev.patientName;
+            return (
+              <article key={rev.id} className={`p-4 space-y-3 ${!rev.isApproved ? 'bg-amber-50/30' : ''}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-slate-900 break-words">{reviewerName}</h4>
+                    <p className="text-[10px] text-slate-400">{rev.createdAt} - #{rev.appointmentId}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-1 rounded-full text-[10px] font-bold ${rev.isApproved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{rev.isApproved ? 'Disetujui' : 'Pending'}</span>
+                </div>
+                <div className="flex items-center gap-1" aria-label={`Rating ${rev.rating} dari 5`}>
+                  {[...Array(5)].map((_, i) => <Star key={i} className={`w-3.5 h-3.5 ${i < rev.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />)}
+                  <strong className="text-xs text-slate-800 ml-1">{rev.rating}.0</strong>
+                </div>
+                <p className="text-xs italic text-slate-700 line-clamp-3 break-words">"{rev.comment}"</p>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                  <button type="button" onClick={() => setSelectedReviewForModal(rev)} className="h-9 px-3 rounded-xl border border-slate-200 text-xs font-bold text-purple-700 flex items-center gap-1.5"><Eye className="w-3.5 h-3.5" /> Baca</button>
+                  <div className="flex items-center gap-1.5">
+                    {!rev.isApproved && <button type="button" onClick={() => approveReview(rev.id)} aria-label="Setujui Ulasan" className="w-9 h-9 bg-emerald-600 text-white rounded-xl flex items-center justify-center"><Check className="w-4 h-4" /></button>}
+                    <button type="button" onClick={() => rejectReview(rev.id)} aria-label={rev.isApproved ? 'Hapus Ulasan' : 'Tolak Ulasan'} className="w-9 h-9 bg-white text-rose-600 border border-rose-200 rounded-xl flex items-center justify-center"><Trash2 className="w-4 h-4" /></button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>

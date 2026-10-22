@@ -23,26 +23,26 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     <div className="space-y-6">
       {/* 4 Top KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Sesi Ditangani</span>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">{myAppointments.length} Sesi</div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Seluruh sesi tatap muka</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Tatap muka dan telelayanan</p>
         </div>
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Slot Waktu Aktif</span>
           <div className="text-2xl font-extrabold text-sky-700 mt-1">
             {mySchedules.filter(s => s.isAvailable).length} Slot
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">Tersedia untuk dibooking</p>
         </div>
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pasien Aktif</span>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">
             {new Set(myAppointments.map(a => a.patientId)).size} Orang
           </div>
           <p className="text-[11px] text-slate-500 mt-0.5">Memiliki riwayat terapi</p>
         </div>
-        <div className="p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Rating Praktik</span>
           <div className="text-2xl font-extrabold text-amber-600 mt-1">{profile?.rating || 4.9} ★</div>
           <p className="text-[11px] text-slate-500 mt-0.5">{profile?.reviewCount || 140} ulasan pasien</p>
@@ -51,7 +51,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
       {/* Active Consultation Banner */}
       {activeAppointment && (
-        <div className="p-6 bg-gradient-to-r from-sky-900 to-slate-900 rounded-3xl text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="p-4 sm:p-6 bg-gradient-to-r from-sky-900 to-slate-900 rounded-3xl text-white shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
           <div>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-500/20 text-sky-300 border border-sky-400/30">
               <span className="w-2 h-2 rounded-full bg-sky-400 animate-ping" />
@@ -64,16 +64,16 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               Jadwal: {activeAppointment.date} • {activeAppointment.startTime} - {activeAppointment.endTime} WIB • Lokasi: {activeAppointment.meetingLocation}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
             <button
               onClick={() => onOpenEmr(activeAppointment.patientId, activeAppointment.id)}
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-colors"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold border border-white/20 transition-colors"
             >
               Buka Rekam Medis Pasien
             </button>
             <button
               onClick={() => onOpenEmr(activeAppointment.patientId, activeAppointment.id)}
-              className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
             >
               <FileText className="w-4 h-4" />
               Buka Detail Booking

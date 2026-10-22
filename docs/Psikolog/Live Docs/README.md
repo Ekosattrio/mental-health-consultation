@@ -1,6 +1,6 @@
 # JiwaSehat - Platform Konsultasi Psikologi
 
-JiwaSehat adalah aplikasi frontend React untuk platform booking konsultasi psikologi tatap muka. Aplikasi memiliki landing page, dashboard pasien, dashboard psikolog/pengelola, dan dashboard admin operasional.
+JiwaSehat adalah aplikasi frontend React untuk booking konsultasi psikologi tatap muka dan telelayanan melalui platform pihak ketiga. Aplikasi memiliki landing page, dashboard pasien, dashboard psikolog/pengelola, dan dashboard admin operasional. Psikoterapi ditarifkan per sesi dengan rencana awal empat sesi; kelanjutan setelah sesi keempat melalui booking baru.
 
 ## Stack
 
@@ -24,6 +24,8 @@ Dokumentasi proyek dikelola melalui vault Obsidian di `docs/Psikolog`. Dokumen u
 - `DATABASE.md` - rancangan data dan persistence
 - `API.md` - kontrak API target
 - `ROLES_PERMISSIONS.md` - role dan izin
+- `PANDUAN_FITUR_PER_ROLE.md` - fitur per role, fungsi/cara kerja, arti ikon aksi psikolog, dan batas implementasi
+- `CMS_AUDIT.md` - pengaturan CMS, komponen pembaca, cara simpan, dan bagian yang masih statis
 - `FEATURES.md` - daftar fitur
 - `DECISIONS.md` - catatan keputusan teknis
 - `KNOWN_ISSUES.md` - isu yang sudah diketahui
@@ -47,6 +49,17 @@ npm run lint
 ```
 
 Catatan: jalankan script hanya saat memang diperlukan. Untuk sesi kerja AI saat ini, developer meminta AI tidak menjalankan `npm run dev` dan `npm run build`.
+
+## Verifikasi Frontend
+
+Setelah izin developer, checkpoint 22 Oktober 2026: TypeScript 0 error dan 36 tes regresi lolos, termasuk versi reschedule paralel, hold expired/rekonsiliasi, profil, CMS, timeline, dan render statis katalog. Belum QA visual/interaksi browser.
+
+```bash
+npx tsc --noEmit
+npx tsx --test tests/frontend-regressions.test.ts
+```
+
+Tes memakai storage/antrean lock simulasi, bukan QA browser atau jaminan antarperangkat. Workflow prototype membutuhkan Web Locks melalui localhost/HTTPS; tanpa dukungan tersebut mutasi sensitif ditolak. Default reservasi lokal 15 menit dapat diatur melalui `VITE_MOCK_HOLD_MINUTES`, bukan TTL produksi final. Detail di dokumentasi aktif.
 
 ## Aturan Git
 

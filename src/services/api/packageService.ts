@@ -16,7 +16,6 @@ export interface UpsertPackagePayload {
   type: PackageType;
   duration_minutes: number;
   price: number;
-  dp_amount?: number;
   discount_type?: 'NONE' | 'PERCENT' | 'FIXED';
   discount_value?: number;
   discount_label?: string;

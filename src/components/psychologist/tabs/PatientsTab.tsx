@@ -5,10 +5,12 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
-  Download
+  Download,
+  X
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
 import { PatientDetailModal } from '../../common/PatientDetailModal';
+import { csvRow, downloadCsv } from '../../../utils/exportEncoding';
 
 interface PatientsTabProps {
   users: User[];
@@ -90,22 +92,9 @@ export const PatientsTab: React.FC<PatientsTabProps> = ({
       'total_sesi',
       'sesi_selesai'
     ];
-    const csv = [
-      headers.join(','),
-      ...rows.map(row =>
-        headers
-          .map(header => `"${String((row as Record<string, unknown>)[header] ?? '').replace(/"/g, '""')}"`)
-          .join(',')
-      )
-    ].join('\n');
-
-    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `export-data-klinis-pasien-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadCsv(`export-data-klinis-pasien-${new Date().toISOString().slice(0, 10)}.csv`, [
+      csvRow(headers), ...rows.map(row => csvRow(headers.map(header => (row as Record<string, unknown>)[header])))
+    ]);
   };
 
   // Pagination calculation
@@ -148,8 +137,9 @@ export const PatientsTab: React.FC<PatientsTabProps> = ({
               type="button"
               onClick={() => setPatientSearchQuery('')}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 text-xs cursor-pointer font-bold"
+              aria-label="Hapus pencarian pasien"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
           </div>
@@ -167,7 +157,53 @@ export const PatientsTab: React.FC<PatientsTabProps> = ({
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100">
+          {paginatedPatients.length === 0 ? (
+            <div className="p-8 text-center text-xs text-slate-400 italic">
+              Tidak ada pasien yang sesuai dengan kata kunci pencarian.
+            </div>
+          ) : paginatedPatients.map(pat => {
+            const intake = intakeForms[pat.id];
+            const patientAppointments = appointments.filter(apt => apt.patientId === pat.id);
+            const completedSessions = patientAppointments.filter(apt => apt.status === 'COMPLETED').length;
+            return (
+              <article key={pat.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-black text-slate-900 break-words">{pat.name}</h3>
+                    <p className="text-[11px] text-slate-500 break-all">{pat.email}</p>
+                    <p className="text-[11px] text-slate-600">{pat.phone || 'Nomor telepon belum tersedia'}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openPatientModal(pat.id)}
+                    aria-label={`Lihat Detail Pasien ${pat.name}`}
+                    className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center shrink-0"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="block text-slate-400 font-bold uppercase">Pekerjaan</span>
+                    <strong className="text-slate-800 break-words">{intake?.occupation || '-'}</strong>
+                  </div>
+                  <div>
+                    <span className="block text-slate-400 font-bold uppercase">Riwayat Sesi</span>
+                    <strong className="text-slate-800">{completedSessions}/{patientAppointments.length} selesai</strong>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 text-[11px]">
+                  <span className="block text-slate-400 font-bold uppercase">Keluhan Pre-Test</span>
+                  <strong className="text-slate-900 break-words">{intake?.primaryConcerns?.[0] || 'Belum mengisi'}</strong>
+                  {intake && <p className="text-slate-500 mt-0.5">Stres {intake.currentStressLevel}/10, tidur {intake.sleepQuality}</p>}
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full min-w-[700px] text-left text-xs">
             <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-600 uppercase">
               <tr>

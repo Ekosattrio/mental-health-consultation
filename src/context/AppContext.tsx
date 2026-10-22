@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import {
   User as UserEntity,
   UserRole,
@@ -6,6 +6,7 @@ import {
   ConsultationPackage,
   ScheduleSlot,
   Appointment,
+  FinalPaymentRecord,
   IntakeForm,
   Review,
   AnalyticsSummary,
@@ -31,6 +32,15 @@ import {
   loadScheduleSettings,
   resetScheduleSettings
 } from '../data/scheduleConfig';
+import { getTreatmentPlanBalance } from '../utils/payments';
+import { calculatePackagePayableAmount } from '../utils/discounts';
+import { cancelPaidPlan } from '../utils/appointmentWorkflow';
+import { canRescheduleAppointment, rescheduleExistingAppointment, assertScheduleVersion } from '../utils/reschedulePolicy';
+import { AccountProfileInput, updateOwnAccountProfile } from '../utils/accountProfile';
+import { persistBrowserValue, validateLandingCms, mergePatientCms } from '../utils/cms';
+import { createRecordId, getPracticeDate, isValidBookingDate } from '../utils/bookingPolicy';
+import { BookingHold, PaymentReconciliation, WORKFLOW_STORAGE_KEY, COMPAT_WORKFLOW_STORAGE_KEY, WORKFLOW_UPDATED_EVENT, STORAGE_ERROR_EVENT,
+  readWorkflowState, commitWorkflow, withWorkflowLock, savePaymentReconciliation, findActivePatientHold } from '../utils/workflowStore';
 
 // OOP Domain Models
 import {
@@ -58,6 +68,9 @@ interface AppContextType {
   packages: ConsultationPackage[];
   schedules: ScheduleSlot[];
   appointments: Appointment[];
+  slotHolds: BookingHold[];
+  paymentReconciliations: PaymentReconciliation[];
+  reserveBookingSlot: (data: { packageId: string; psychologistId: string; date: string; startTime: string; endTime: string }) => Promise<BookingHold | null>;
   intakeForms: Record<string, IntakeForm>;
   reviews: Review[];
   analytics: AnalyticsSummary;
@@ -124,6 +137,7 @@ interface AppContextType {
   showToast: (title: string, message: string, type?: 'success' | 'info' | 'error' | 'warning') => void;
   dismissToast: () => void;
   updateUserProfile: (userId: string, data: Partial<UserEntity>) => void;
+  saveAccountProfile: (data: AccountProfileInput) => Promise<boolean>;
   bookAppointment: (data: {
     patientId: string;
     patientName: string;
@@ -138,9 +152,19 @@ interface AppContextType {
     endTime?: string;
     transferSenderName?: string;
     paymentProofUrl?: string;
+    paymentProofName?: string;
+    paymentProofMimeType?: string;
     paymentChannelDetail?: string;
-    paymentReference?: string;
-  }) => Promise<{ success: boolean; message: string; appointment?: Appointment }>;
+    preTestId?: string;
+    consentGiven?: boolean;
+    consentVersion?: string;
+    privacyVersion?: string;
+    initialPaymentAmount?: number;
+    initialPaymentReceivedDate?: string;
+    expectedTotalAmount?: number;
+    slotHoldId?: string;
+    reconciliationId?: string;
+  }) => Promise<{ success: boolean; message: string; appointment?: Appointment; reconciliationId?: string }>;
 
   submitIntakeForm: (formData: Omit<IntakeForm, 'id' | 'completedAt'>) => Promise<IntakeForm | null>;
   submitReview: (reviewData: {
@@ -152,35 +176,39 @@ interface AppContextType {
   }) => void;
   approveReview: (reviewId: string) => void;
   rejectReview: (reviewId: string) => void;
-  updatePsychologistProfile: (profile: Partial<PsychologistProfile>, specificPsychologistId?: string) => void;
+  updatePsychologistProfile: (profile: Partial<PsychologistProfile>, specificPsychologistId?: string) => Promise<boolean>;
   toggleSlotAvailability: (slotId: string) => void;
   addScheduleSlot: (psychologistId: string, date: string, startTime: string, endTime: string) => Promise<boolean>;
   deleteScheduleSlot: (slotId: string) => void;
   savePackage: (pkg: ConsultationPackage) => void;
   deletePackage: (packageId: string) => void;
   togglePackageStatus: (packageId: string) => void;
-  updateAppointmentStatus: (aptId: string, status: Appointment['status']) => void;
+  updateAppointmentStatus: (aptId: string, status: Appointment['status'], reason?: string) => Promise<boolean>;
+  confirmRescheduledBooking: (appointmentId: string) => Promise<boolean>;
+  verifyPaymentAndConfirmBooking: (appointmentId: string, note?: string, receivedDate?: string) => Promise<boolean>;
   recordFinalPayment: (appointmentId: string, payment: {
     amount: number;
     method: NonNullable<Appointment['finalPaymentMethod']>;
     channelDetail?: string;
-    reference?: string;
-  }) => boolean;
+    purpose?: FinalPaymentRecord['purpose'];
+    receivedDate?: string;
+  }) => Promise<boolean>;
   scheduleNextContinuousSession: (
     appointmentId: string,
     date: string,
     startTime: string,
     endTime: string
   ) => Promise<boolean>;
-  discontinueTreatmentPlan: (appointmentId: string, reason: string) => boolean;
+  discontinueTreatmentPlan: (appointmentId: string, reason: string) => Promise<boolean>;
   rescheduleAppointment: (
     aptId: string,
     newDate: string,
     newStartTime: string,
     newEndTime: string,
-    reason?: string
+    reason?: string,
+    expectedVersion?: number
   ) => Promise<boolean>;
-  resetAllToDefault: () => void;
+  resetAllToDefault: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -190,7 +218,11 @@ const STORAGE_PREFIX = 'jiwasehat_v3_';
 const useDebouncedLocalStorage = <T,>(key: string, value: T, delayMs = 120) => {
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
-      localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+      try {
+        localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+      } catch {
+        window.dispatchEvent(new Event(STORAGE_ERROR_EVENT));
+      }
     }, delayMs);
     return () => window.clearTimeout(timeoutId);
   }, [key, value, delayMs]);
@@ -199,8 +231,13 @@ const useDebouncedLocalStorage = <T,>(key: string, value: T, delayMs = 120) => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // Persistence helpers
   const loadState = <T,>(key: string, defaultVal: T): T => {
+    if (key === 'appointments') return readWorkflowState().appointments as T;
     try {
       const item = localStorage.getItem(STORAGE_PREFIX + key);
+      if (key === 'users') {
+        const stored = item ? JSON.parse(item) as UserEntity[] : defaultVal as UserEntity[];
+        return [...stored, ...readWorkflowState().walkInPatients.filter(user => !stored.some(existing => existing.id === user.id))] as T;
+      }
       return item ? JSON.parse(item) : defaultVal;
     } catch {
       return defaultVal;
@@ -208,17 +245,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const [currentRole, setCurrentRole] = useState<UserRole>('GUEST');
-  const [users, setUsers] = useState<UserEntity[]>(() => loadState('users', INITIAL_USERS));
-  const [psychologists, setPsychologists] = useState<PsychologistProfile[]>(() => loadState('psychologists', INITIAL_PSYCHOLOGISTS));
-  const [packages, setPackages] = useState<ConsultationPackage[]>(() => loadState('packages', INITIAL_PACKAGES));
+  const [baseUsers, setBaseUsers] = useState<UserEntity[]>(() => loadState('users', INITIAL_USERS));
+  const [workflow, setWorkflow] = useState(readWorkflowState);
+  const appointments = workflow.appointments;
+  const users = useMemo(() => [...baseUsers, ...workflow.walkInPatients.filter(item => !baseUsers.some(user => user.id === item.id))], [baseUsers, workflow.walkInPatients]);
+  const setUsers: React.Dispatch<React.SetStateAction<UserEntity[]>> = action => {
+    const raw = localStorage.getItem(STORAGE_PREFIX + 'users');
+    const stored = raw ? JSON.parse(raw) as UserEntity[] : baseUsers;
+    const current = [...stored, ...readWorkflowState().walkInPatients.filter(item => !stored.some(user => user.id === item.id))];
+    const next = typeof action === 'function' ? action(current) : action;
+    localStorage.setItem(STORAGE_PREFIX + 'users', JSON.stringify(next));
+    setBaseUsers(next);
+  };
+  const setAppointments: React.Dispatch<React.SetStateAction<Appointment[]>> = action => {
+    const next = commitWorkflow(current => ({ ...current,
+      appointments: typeof action === 'function' ? action(current.appointments) : action
+    }));
+    setWorkflow(next);
+  };
+  const [psychologists, setPsychologistsState] = useState<PsychologistProfile[]>(() => loadState('psychologists', INITIAL_PSYCHOLOGISTS));
+  const setPsychologists: React.Dispatch<React.SetStateAction<PsychologistProfile[]>> = action => {
+    const current = loadState('psychologists', INITIAL_PSYCHOLOGISTS);
+    const next = typeof action === 'function' ? action(current) : action;
+    persistBrowserValue('psychologists', next);
+    setPsychologistsState(next);
+  };
+  const [packages, setPackagesState] = useState<ConsultationPackage[]>(() => loadState('packages', INITIAL_PACKAGES));
+  const setPackages: React.Dispatch<React.SetStateAction<ConsultationPackage[]>> = action => {
+    const current = loadState<ConsultationPackage[]>('packages', INITIAL_PACKAGES);
+    const next = typeof action === 'function' ? action(current) : action;
+    localStorage.setItem(STORAGE_PREFIX + 'packages', JSON.stringify(next));
+    setPackagesState(next);
+  };
   const [schedules, setSchedules] = useState<ScheduleSlot[]>(() => loadState('schedules', INITIAL_SCHEDULES));
-  const [appointments, setAppointments] = useState<Appointment[]>(() => loadState('appointments', INITIAL_APPOINTMENTS));
   const [intakeForms, setIntakeForms] = useState<Record<string, IntakeForm>>(() => loadState('intakeForms', INITIAL_INTAKE_FORMS));
   const [reviews, setReviews] = useState<Review[]>(() => loadState('reviews', INITIAL_REVIEWS));
-  const [landingCms, setLandingCms] = useState<LandingPageCmsConfig>(() => loadState('landingCms', INITIAL_LANDING_CMS));
-  const [patientCms, setPatientCms] = useState<PatientPageCmsConfig>(() => loadState('patientCms', INITIAL_PATIENT_CMS));
-  const [psychologistCms, setPsychologistCms] = useState<PsychologistPageCmsConfig>(() => loadState('psychologistCms', INITIAL_PSYCHOLOGIST_CMS));
-  const activeDayLocksRef = useRef<Set<string>>(new Set());
+  const [landingCms, setLandingCms] = useState<LandingPageCmsConfig>(() => ({ ...INITIAL_LANDING_CMS, ...loadState('landingCms', INITIAL_LANDING_CMS) }));
+  const [patientCms, setPatientCms] = useState<PatientPageCmsConfig>(() => mergePatientCms(INITIAL_PATIENT_CMS, loadState('patientCms', INITIAL_PATIENT_CMS)));
+  const [psychologistCms, setPsychologistCms] = useState<PsychologistPageCmsConfig>(() => ({ ...INITIAL_PSYCHOLOGIST_CMS, ...loadState('psychologistCms', INITIAL_PSYCHOLOGIST_CMS) }));
 
   // Global Toast Notification
   const [toast, setToast] = useState<ToastNotification | null>(null);
@@ -241,38 +305,120 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
 
-  useDebouncedLocalStorage('users', users);
-  useDebouncedLocalStorage('psychologists', psychologists);
-  useDebouncedLocalStorage('packages', packages);
   useDebouncedLocalStorage('schedules', schedules);
-  useDebouncedLocalStorage('appointments', appointments);
   useDebouncedLocalStorage('intakeForms', intakeForms);
   useDebouncedLocalStorage('reviews', reviews);
-  useDebouncedLocalStorage('landingCms', landingCms);
-  useDebouncedLocalStorage('patientCms', patientCms);
-  useDebouncedLocalStorage('psychologistCms', psychologistCms);
 
   useEffect(() => {
-    const migrationKey = STORAGE_PREFIX + 'frontend_cleanup_v5';
-    if (localStorage.getItem(migrationKey)) return;
+    void withWorkflowLock(() => {
+      const migrationKey = STORAGE_PREFIX + 'frontend_cleanup_v5';
+      if (localStorage.getItem(migrationKey)) return;
+  
+      localStorage.removeItem(STORAGE_PREFIX + 'tests');
+      localStorage.removeItem(STORAGE_PREFIX + 'testResults');
+      localStorage.removeItem(STORAGE_PREFIX + 'clinicalNotes');
+  
+      setPsychologists(prev => prev.map(profile => {
+        const cleaned = { ...profile } as unknown as Record<string, unknown>;
+        delete cleaned.consultationFeeOnline;
+        delete cleaned.consultationFeeOffline;
+        return cleaned as unknown as PsychologistProfile;
+      }));
+      setAppointments(prev => prev.map(item => {
+        const cleaned = { ...item } as unknown as Record<string, unknown>;
+        delete cleaned.hasTestResult;
+        return cleaned as unknown as Appointment;
+      }));
+      localStorage.setItem(migrationKey, new Date().toISOString());
+    }).catch(() => window.dispatchEvent(new Event(STORAGE_ERROR_EVENT)));
+  }, []);
 
-    localStorage.removeItem(STORAGE_PREFIX + 'tests');
-    localStorage.removeItem(STORAGE_PREFIX + 'testResults');
-    localStorage.removeItem(STORAGE_PREFIX + 'clinicalNotes');
+  useEffect(() => {
+    void withWorkflowLock(() => {
+      const migrationKey = STORAGE_PREFIX + 'flat_dp_cleanup_v6';
+      if (localStorage.getItem(migrationKey)) return;
+  
+      setPackages(prev => prev.map(pkg => {
+        const cleaned = { ...pkg } as unknown as Record<string, unknown>;
+        delete cleaned.dpAmount;
+        return cleaned as unknown as ConsultationPackage;
+      }));
+      localStorage.setItem(migrationKey, new Date().toISOString());
+    }).catch(() => window.dispatchEvent(new Event(STORAGE_ERROR_EVENT)));
+  }, []);
 
-    setPackages(prev => prev.filter(pkg => String(pkg.type) !== 'ONLINE_TELE'));
-    setPsychologists(prev => prev.map(profile => {
-      const cleaned = { ...profile } as unknown as Record<string, unknown>;
-      delete cleaned.consultationFeeOnline;
-      delete cleaned.consultationFeeOffline;
-      return cleaned as unknown as PsychologistProfile;
-    }));
-    setAppointments(prev => prev.map(item => {
-      const cleaned = { ...item } as unknown as Record<string, unknown>;
-      delete cleaned.hasTestResult;
-      return cleaned as unknown as Appointment;
-    }));
-    localStorage.setItem(migrationKey, new Date().toISOString());
+  useEffect(() => {
+    void withWorkflowLock(() => {
+      const migrationKey = STORAGE_PREFIX + 'service_catalog_v7';
+      if (localStorage.getItem(migrationKey)) return;
+  
+      const officialCatalog = INITIAL_PACKAGES.filter(pkg =>
+        pkg.id.startsWith('pkg-konseling-') ||
+        pkg.id.startsWith('pkg-asesmen-') ||
+        pkg.id.startsWith('pkg-tes-') ||
+        pkg.id === 'pkg-psikoterapi-intensif'
+      );
+      setPackages(prev => {
+        const previousById = new Map(prev.map(pkg => [pkg.id, pkg] as const));
+        const officialIds = new Set(officialCatalog.map(pkg => pkg.id));
+        const synchronizedCatalog = officialCatalog.map(pkg => {
+          const previous = previousById.get(pkg.id);
+          if (!previous) return pkg;
+  
+          return {
+            ...pkg,
+            isActive: previous.isActive,
+            discountType: previous.discountType,
+            discountValue: previous.discountValue,
+            discountLabel: previous.discountLabel
+          };
+        });
+        const customAndLegacyPackages = prev.filter(pkg => !officialIds.has(pkg.id));
+  
+        return [...synchronizedCatalog, ...customAndLegacyPackages];
+      });
+      localStorage.setItem(migrationKey, new Date().toISOString());
+    }).catch(() => window.dispatchEvent(new Event(STORAGE_ERROR_EVENT)));
+  }, []);
+
+  useEffect(() => {
+    void withWorkflowLock(() => {
+      const migrationKey = STORAGE_PREFIX + 'payment_reference_cleanup_v8';
+      if (localStorage.getItem(migrationKey)) return;
+  
+      setAppointments(prev => prev.map(appointment => {
+        const cleaned = { ...appointment } as unknown as Record<string, unknown>;
+        delete cleaned.paymentReference;
+        delete cleaned.finalPaymentReference;
+        return cleaned as unknown as Appointment;
+      }));
+      localStorage.setItem(migrationKey, new Date().toISOString());
+    }).catch(() => window.dispatchEvent(new Event(STORAGE_ERROR_EVENT)));
+  }, []);
+
+  useEffect(() => {
+    void withWorkflowLock(() => {
+      const migrationKey = STORAGE_PREFIX + 'psychotherapy_unit_price_v9';
+      if (localStorage.getItem(migrationKey)) return;
+  
+      const officialPsychotherapy = INITIAL_PACKAGES.find(pkg => pkg.id === 'pkg-psikoterapi-intensif');
+      const previousPsychotherapy = loadState<ConsultationPackage[]>('packages', INITIAL_PACKAGES)
+        .find(pkg => pkg.id === 'pkg-psikoterapi-intensif');
+      if (officialPsychotherapy) {
+        setPackages(prev => prev.map(pkg => pkg.id === officialPsychotherapy.id
+          ? {
+              ...officialPsychotherapy,
+              isActive: pkg.isActive,
+              discountType: pkg.discountType,
+              discountValue: pkg.discountType === 'FIXED' && (previousPsychotherapy?.price || 0) > officialPsychotherapy.price
+                ? Math.round((pkg.discountValue || 0) / 4)
+                : pkg.discountValue,
+              discountLabel: pkg.discountLabel
+            }
+          : pkg));
+      }
+      localStorage.setItem(migrationKey, new Date().toISOString());
+    }).catch(() => window.dispatchEvent(new Event(STORAGE_ERROR_EVENT)));
   }, []);
 
   useEffect(() => {
@@ -280,12 +426,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (!event.newValue) return;
 
       try {
-        if (event.key === STORAGE_PREFIX + 'appointments') {
-          setAppointments(JSON.parse(event.newValue));
-        }
+        if (event.key === STORAGE_PREFIX + 'users') setBaseUsers(JSON.parse(event.newValue));
         if (event.key === STORAGE_PREFIX + 'schedules') {
           setSchedules(JSON.parse(event.newValue));
         }
+        if (event.key === STORAGE_PREFIX + 'packages') {
+          setPackagesState(JSON.parse(event.newValue));
+        }
+        if (event.key === STORAGE_PREFIX + 'psychologists') setPsychologistsState(JSON.parse(event.newValue));
+        if (event.key === STORAGE_PREFIX + 'landingCms') setLandingCms({ ...INITIAL_LANDING_CMS, ...JSON.parse(event.newValue) });
+        if (event.key === STORAGE_PREFIX + 'patientCms') setPatientCms(mergePatientCms(INITIAL_PATIENT_CMS, JSON.parse(event.newValue)));
+        if (event.key === STORAGE_PREFIX + 'psychologistCms') setPsychologistCms({ ...INITIAL_PSYCHOLOGIST_CMS, ...JSON.parse(event.newValue) });
       } catch {
         // Abaikan payload storage yang rusak; state aktif tetap dipertahankan.
       }
@@ -295,74 +446,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => window.removeEventListener('storage', handleCrossTabStorage);
   }, []);
 
-  const withLocalDaySlotLock = async <T,>(
-    psychologistId: string,
-    date: string,
-    action: () => Promise<T>
-  ): Promise<{ acquired: boolean; result?: T }> => {
-    const lockId = `${psychologistId}:${date}`;
-    const storageKey = `${STORAGE_PREFIX}day_slot_lock_${lockId}`;
-    const now = Date.now();
-
-    if (activeDayLocksRef.current.has(lockId)) {
-      return { acquired: false };
-    }
-
-    try {
-      const storedLock = JSON.parse(localStorage.getItem(storageKey) || 'null') as {
-        token?: string;
-        expiresAt?: number;
-      } | null;
-      if (storedLock?.expiresAt && storedLock.expiresAt > now) {
-        return { acquired: false };
-      }
-    } catch {
-      localStorage.removeItem(storageKey);
-    }
-
-    const token = `${now}-${Math.random().toString(36).slice(2)}`;
-    localStorage.setItem(storageKey, JSON.stringify({ token, expiresAt: now + 20000 }));
-
-    try {
-      const confirmedLock = JSON.parse(localStorage.getItem(storageKey) || 'null') as { token?: string } | null;
-      if (confirmedLock?.token !== token) {
-        return { acquired: false };
-      }
-    } catch {
-      return { acquired: false };
-    }
-
-    activeDayLocksRef.current.add(lockId);
-    try {
-      return { acquired: true, result: await action() };
-    } finally {
-      activeDayLocksRef.current.delete(lockId);
-      try {
-        const currentLock = JSON.parse(localStorage.getItem(storageKey) || 'null') as { token?: string } | null;
-        if (currentLock?.token === token) {
-          localStorage.removeItem(storageKey);
-        }
-      } catch {
-        localStorage.removeItem(storageKey);
-      }
-    }
-  };
-
   const withDaySlotLock = async <T,>(
-    psychologistId: string,
-    date: string,
+    _psychologistId: string,
+    _date: string,
     action: () => Promise<T>
-  ): Promise<{ acquired: boolean; result?: T }> => {
-    const lockName = `${STORAGE_PREFIX}booking:${psychologistId}:${date}`;
-    if (navigator.locks?.request) {
-      return navigator.locks.request(
-        lockName,
-        { mode: 'exclusive', ifAvailable: true },
-        async lock => lock ? { acquired: true, result: await action() } : { acquired: false }
-      );
+  ): Promise<{ acquired: boolean; result?: T; error?: string }> => {
+    try {
+      return await withWorkflowLock(async () => ({ acquired: true, result: await action() }));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Coba kembali setelah memeriksa riwayat.';
+      showToast('Transaksi Belum Disimpan', message, 'error');
+      return { acquired: false, error: message };
     }
-
-    return withLocalDaySlotLock(psychologistId, date, action);
   };
 
   const showToast = (title: string, message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success') => {
@@ -376,6 +471,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const dismissToast = () => {
     setToast(null);
   };
+
+  const runWorkflowMutation = async <T,>(action: () => Promise<T> | T, fallback: T): Promise<T> => {
+    try {
+      return await withWorkflowLock(action);
+    } catch (error) {
+      showToast('Transaksi Belum Disimpan', error instanceof Error ? error.message : 'Periksa riwayat sebelum mencoba kembali.', 'error');
+      return fallback;
+    }
+  };
+
+  useEffect(() => {
+    const sync = () => {
+      try { setWorkflow(readWorkflowState()); }
+      catch { showToast('Penyimpanan Bermasalah', 'Data tidak dapat dibaca. Jangan mengirim pembayaran baru; hubungi pengelola.', 'error'); }
+    };
+    const storage = (event: StorageEvent) => { if (event.key === WORKFLOW_STORAGE_KEY || event.key === COMPAT_WORKFLOW_STORAGE_KEY) sync(); };
+    const storageError = () => showToast('Gagal Menyimpan', 'Penyimpanan browser penuh atau tidak tersedia. Perubahan belum tersimpan; periksa riwayat sebelum mencoba lagi.', 'error');
+    window.addEventListener(WORKFLOW_UPDATED_EVENT, sync);
+    window.addEventListener('storage', storage);
+    window.addEventListener(STORAGE_ERROR_EVENT, storageError);
+    return () => {
+      window.removeEventListener(WORKFLOW_UPDATED_EVENT, sync);
+      window.removeEventListener('storage', storage);
+      window.removeEventListener(STORAGE_ERROR_EVENT, storageError);
+    };
+  }, []);
 
   const ensureRole = (allowedRoles: UserRole[], actionLabel: string): boolean => {
     if (allowedRoles.includes(currentRole) && currentUser?.role === currentRole) return true;
@@ -438,15 +559,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const psychologistController = useMemo(() => {
     return new PsychologistController(showToast, {
       setSchedules,
-      setPsychologists
+      setPsychologists,
+      setPackages
     });
   }, []);
 
   const adminController = useMemo(() => {
     return new AdminController(showToast, {
-      setReviews,
-      setPackages,
-      setAppointments
+      setReviews
     });
   }, []);
 
@@ -503,19 +623,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateLandingCms = (config: Partial<LandingPageCmsConfig>) => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Pengelolaan CMS')) return;
-    setLandingCms(prev => ({ ...prev, ...config }));
+    try {
+      const next = validateLandingCms({ ...INITIAL_LANDING_CMS, ...loadState('landingCms', INITIAL_LANDING_CMS), ...config });
+      setLandingCms(persistBrowserValue('landingCms', next));
+    } catch (error) {
+      showToast('CMS Belum Disimpan', error instanceof Error ? error.message : 'Penyimpanan gagal.', 'error');
+      return;
+    }
     showToast('CMS Landing Page Diperbarui', 'Perubahan konten landing page berhasil disimpan.', 'success');
   };
 
   const updatePatientCms = (config: Partial<PatientPageCmsConfig>) => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Pengelolaan CMS')) return;
-    setPatientCms(prev => ({ ...prev, ...config }));
+    try {
+      setPatientCms(persistBrowserValue('patientCms', mergePatientCms(INITIAL_PATIENT_CMS, { ...loadState('patientCms', INITIAL_PATIENT_CMS), ...config })));
+    } catch {
+      showToast('CMS Belum Disimpan', 'Penyimpanan gagal. Perubahan belum diterapkan.', 'error');
+      return;
+    }
     showToast('CMS Halaman Pasien Diperbarui', 'Banner dan informasi krisis pasien berhasil disimpan.', 'success');
   };
 
   const updatePsychologistCms = (config: Partial<PsychologistPageCmsConfig>) => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Pengelolaan CMS')) return;
-    setPsychologistCms(prev => ({ ...prev, ...config }));
+    try {
+      setPsychologistCms(persistBrowserValue('psychologistCms', { ...INITIAL_PSYCHOLOGIST_CMS, ...loadState('psychologistCms', INITIAL_PSYCHOLOGIST_CMS), ...config }));
+    } catch {
+      showToast('CMS Belum Disimpan', 'Penyimpanan gagal. Perubahan belum diterapkan.', 'error');
+      return;
+    }
     showToast('CMS Halaman Dokter Diperbarui', 'Panduan klinis dan SOP dokter berhasil disimpan.', 'success');
   };
 
@@ -547,7 +683,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return { isNew: false, user: existing };
     } else {
-      const newId = `user-pat-${Date.now().toString().slice(-4)}`;
+      const newId = createRecordId('user-pat');
       const newUser: UserEntity = {
         id: newId,
         email: email.trim(),
@@ -617,6 +753,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // -------------------------------------------------------------
   // ACTION FACADES
   // -------------------------------------------------------------
+  const saveAccountProfile = (data: AccountProfileInput): Promise<boolean> => runWorkflowMutation(() => {
+    if (!currentUser || !ensureRole(['PATIENT', 'ADMIN', 'PSYCHOLOGIST'], 'Perubahan profil akun')) return false;
+    const latest = loadState<UserEntity[]>('users', users);
+    const target = latest.find(user => user.id === currentUser.id);
+    if (!target) throw new Error('Akun tidak ditemukan. Masuk ulang sebelum melanjutkan.');
+    const updated = updateOwnAccountProfile(target, currentUser, data);
+    setUsers(latest.map(user => user.id === updated.id ? updated : user));
+    showToast('Profil Disimpan', 'Perubahan profil akun berhasil disimpan.', 'success');
+    return true;
+  }, false);
+
+  const reserveBookingSlot: AppContextType['reserveBookingSlot'] = async data => runWorkflowMutation(() => {
+    if (!ensureRole(['PATIENT'], 'Reservasi slot') || !currentUser?.isProfileComplete) return null;
+    if (!isValidBookingDate(data.date) || data.date <= getPracticeDate()) {
+      showToast('Tanggal Tidak Valid', 'Reservasi konsultasi wajib minimal H+1.', 'warning');
+      return null;
+    }
+    const state = readWorkflowState();
+    if (state.reconciliations.some(item => item.patientId === currentUser.id && item.status === 'OPEN')) {
+      showToast('Pembayaran Sedang Dicocokkan', 'Hubungi admin untuk menyelesaikan pembayaran sebelumnya. Jangan transfer ulang.', 'warning');
+      return null;
+    }
+    const pkg = loadState<ConsultationPackage[]>('packages', packages).find(item => item.id === data.packageId && item.isActive);
+    if (!pkg) throw new Error('Layanan sudah tidak tersedia. Pilih layanan lain.');
+    const ownHold = findActivePatientHold(state.holds, currentUser.id);
+    const totalAmount = calculatePackagePayableAmount(pkg).totalAmount;
+    if (ownHold) {
+      if (Date.parse(ownHold.expiresAt) > Date.now() && ownHold.packageId === data.packageId && ownHold.date === data.date && ownHold.startTime === data.startTime &&
+          ownHold.endTime === data.endTime && ownHold.totalAmount === totalAmount) return ownHold;
+      throw new Error('Proses booking belum selesai. Buka Booking Konsultasi untuk menyelesaikannya. Jika sudah transfer, jangan melakukan pembayaran ulang.');
+    }
+    const available = computeDynamicSlotsForDate(data.date, loadScheduleSettings(), state.appointments, data.psychologistId, pkg.durationMinutes, ownHold?.id);
+    if (!available.slots.some(slot => slot.isAvailable && slot.startTime === data.startTime && slot.endTime === data.endTime)) {
+      throw new Error('Slot sudah tidak tersedia. Pilih jadwal lain sebelum melakukan transfer.');
+    }
+    const minutes = Math.min(60, Math.max(1, Number(import.meta.env.VITE_MOCK_HOLD_MINUTES) || 15));
+    const bank = { ...INITIAL_LANDING_CMS, ...loadState('landingCms', INITIAL_LANDING_CMS) };
+    const hold: BookingHold = { ...data, id: createRecordId('hold'), patientId: currentUser.id, totalAmount,
+      paymentChannelDetail: `${bank.bankName} - ${bank.bankAccountNumber}`, accountHolder: bank.bankAccountHolder,
+      expiresAt: new Date(Date.now() + minutes * 60000).toISOString(), status: 'HELD' };
+    // Keep expired holds intact so a late proof from an older tab can still be reconciled.
+    commitWorkflow(current => ({ ...current, holds: [hold, ...current.holds] }));
+    return hold;
+  }, null);
+
   const bookAppointment = async (data: {
     patientId: string;
     patientName: string;
@@ -631,8 +812,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     endTime?: string;
     transferSenderName?: string;
     paymentProofUrl?: string;
+    paymentProofName?: string;
+    paymentProofMimeType?: string;
     paymentChannelDetail?: string;
-    paymentReference?: string;
+    preTestId?: string;
+    consentGiven?: boolean;
+    consentVersion?: string;
+    privacyVersion?: string;
+    initialPaymentAmount?: number;
+    initialPaymentReceivedDate?: string;
+    expectedTotalAmount?: number;
+    slotHoldId?: string;
+    reconciliationId?: string;
   }) => {
     if (!ensureRole(['PATIENT', 'ADMIN'], 'Pembuatan booking')) {
       return { success: false, message: 'Role aktif tidak memiliki izin membuat booking.' };
@@ -651,6 +842,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (effectivePatient?.status === 'BLOCKED') {
       return { success: false, message: 'Akun pasien sedang ditangguhkan.' };
     }
+
+    const registerWalkInPatient = isAdminWalkIn && !effectivePatient;
 
     if (isAdminWalkIn && !effectivePatient) {
       const normalizedName = data.patientName.trim();
@@ -679,8 +872,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createdAt: new Date().toISOString().slice(0, 10)
       };
       effectiveUsers = [effectivePatient, ...effectiveUsers];
-      setUsers(effectiveUsers);
-      localStorage.setItem(STORAGE_PREFIX + 'users', JSON.stringify(effectiveUsers));
     }
 
     if (!effectivePatient) {
@@ -697,6 +888,46 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     const locked = await withDaySlotLock(data.psychologistId, data.date, async () => {
+      const currentWorkflow = readWorkflowState();
+      effectiveUsers = loadState<UserEntity[]>('users', users);
+      if (registerWalkInPatient) {
+        if (effectiveUsers.some(user => user.id === effectivePatient.id || user.email.toLowerCase() === effectivePatient.email.toLowerCase())) {
+          return { success: false, message: 'Pasien sudah terdaftar selama proses berlangsung. Pilih pasien terdaftar sebelum melanjutkan.' };
+        }
+        effectiveUsers = [effectivePatient, ...effectiveUsers];
+      } else {
+        const latestPatient = effectiveUsers.find(user => user.id === effectivePatient.id && user.role === 'PATIENT' && user.status !== 'BLOCKED');
+        if (!latestPatient) return { success: false, message: 'Data atau status pasien berubah. Muat ulang sebelum melanjutkan.' };
+        effectivePatient = latestPatient;
+      }
+      const hold = currentWorkflow.holds.find(item => item.id === data.slotHoldId && item.patientId === currentUser?.id);
+      const reconcilePayment = () => {
+        const record = savePaymentReconciliation(hold!, effectivePatient, {
+          paymentProofUrl: data.paymentProofUrl!, paymentProofName: data.paymentProofName,
+          paymentProofMimeType: data.paymentProofMimeType, transferSenderName: data.transferSenderName!
+        });
+        return { success: false, reconciliationId: record.id, message: 'Bukti tersimpan untuk pencocokan admin. Jangan transfer ulang; admin akan membantu menentukan jadwal yang sesuai.' };
+      };
+      const paymentCase = data.reconciliationId ? currentWorkflow.reconciliations.find(item => item.id === data.reconciliationId) : undefined;
+      if (data.reconciliationId && (!isAdminWalkIn || !paymentCase || paymentCase.status !== 'OPEN' || paymentCase.patientId !== effectivePatient.id)) {
+        return { success: false, message: 'Kasus pembayaran sudah diproses atau tidak sesuai dengan pasien.' };
+      }
+      if (!isAdminWalkIn) {
+        if (hold?.status === 'CONVERTED' && hold.appointmentId) {
+          const existing = currentWorkflow.appointments.find(item => item.id === hold.appointmentId && item.patientId === currentUser?.id);
+          if (existing) return { success: true, message: 'Booking sudah tersimpan sebelumnya.', appointment: existing };
+        }
+        if (!hold || hold.status !== 'HELD' || hold.packageId !== data.packageId || hold.psychologistId !== data.psychologistId ||
+            hold.date !== data.date || hold.startTime !== startTime || hold.endTime !== endTime) {
+          return { success: false, message: 'Reservasi slot tidak valid. Jangan transfer ulang; periksa riwayat dan hubungi admin bila sudah membayar.' };
+        }
+        if (Date.parse(hold.expiresAt) <= Date.now()) {
+          if (!data.paymentProofUrl || !data.transferSenderName?.trim()) {
+            return { success: false, message: 'Reservasi kedaluwarsa. Pilih slot kembali sebelum melakukan transfer.' };
+          }
+          return reconcilePayment();
+        }
+      }
       const latestAppointments = loadState<Appointment[]>('appointments', appointments);
       const latestSchedules = loadState<ScheduleSlot[]>('schedules', schedules);
       const latestPackages = loadState<ConsultationPackage[]>('packages', packages);
@@ -708,10 +939,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const requestedDuration = toMinutes(endTime) - toMinutes(startTime);
 
       if (!selectedPackage || requestedDuration !== selectedPackage.durationMinutes) {
+        if (hold && data.paymentProofUrl && data.transferSenderName?.trim()) return reconcilePayment();
         return {
           success: false,
           message: 'Durasi slot tidak sesuai dengan durasi paket yang dipilih.'
         };
+      }
+
+      if (hold && hold.totalAmount !== calculatePackagePayableAmount(selectedPackage).totalAmount) {
+        if (data.paymentProofUrl && data.transferSenderName?.trim()) return reconcilePayment();
+        return { success: false, message: 'Tarif berubah sejak reservasi. Lepaskan reservasi hanya jika belum transfer, lalu periksa penawaran baru. Jika sudah transfer, kirim bukti untuk pencocokan.' };
       }
 
       const availability = computeDynamicSlotsForDate(
@@ -719,12 +956,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         loadScheduleSettings(),
         latestAppointments,
         data.psychologistId,
-        requestedDuration
+        requestedDuration,
+        hold?.id
       );
       const availableSlot = availability.slots.find(
         slot => slot.startTime === startTime && slot.endTime === endTime && slot.isAvailable
       );
       if (!availableSlot) {
+        if (hold && data.paymentProofUrl && data.transferSenderName?.trim()) return reconcilePayment();
         return {
           success: false,
           message: availability.reason || 'Slot sudah tidak tersedia, berada di luar jam praktik, atau kuota telah penuh.'
@@ -739,6 +978,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           patientName: effectivePatient.name,
           patientEmail: effectivePatient.email,
           paymentMethod: isAdminWalkIn ? data.paymentMethod : 'TRANSFER_BANK_DP',
+          paymentChannelDetail: !isAdminWalkIn && hold?.paymentChannelDetail ? hold.paymentChannelDetail : data.paymentChannelDetail,
+          paymentProofUrl: paymentCase?.paymentProofUrl || data.paymentProofUrl,
+          paymentProofName: paymentCase?.paymentProofName || data.paymentProofName,
+          paymentProofMimeType: paymentCase?.paymentProofMimeType || data.paymentProofMimeType,
           startTime,
           endTime
         },
@@ -750,17 +993,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
 
       if (result.success && result.appointment) {
-        const persistedAppointments = [
-          result.appointment,
-          ...latestAppointments.filter(item => item.id !== result.appointment?.id)
-        ];
-        localStorage.setItem(STORAGE_PREFIX + 'appointments', JSON.stringify(persistedAppointments));
+        if (result.appointment.packageType !== 'ONLINE_TELE') {
+          result.appointment = { ...result.appointment, meetingLocation: loadState('landingCms', INITIAL_LANDING_CMS).clinicAddress };
+        }
+        if (hold && Date.parse(hold.expiresAt) <= Date.now()) {
+          if (data.paymentProofUrl && data.transferSenderName?.trim()) return reconcilePayment();
+          return { success: false, message: 'Reservasi kedaluwarsa sebelum booking disimpan. Pilih kembali slot sebelum melanjutkan.' };
+        }
+        commitWorkflow(current => ({ ...current,
+          appointments: [result.appointment!, ...current.appointments.filter(item => item.id !== result.appointment!.id)],
+          walkInPatients: registerWalkInPatient && !current.walkInPatients.some(user => user.id === effectivePatient.id)
+            ? [...current.walkInPatients, effectivePatient] : current.walkInPatients,
+          holds: current.holds.map(item => item.id === (hold?.id || paymentCase?.holdId) ? { ...item, status: 'CONVERTED', appointmentId: result.appointment!.id } : item),
+          reconciliations: current.reconciliations.map(item => item.id === paymentCase?.id
+            ? { ...item, status: 'BOOKED', appointmentId: result.appointment!.id, paymentProofUrl: '' } : item)
+        }));
+        showToast('Booking Tersimpan', 'Jadwal menunggu verifikasi pembayaran admin.', 'success');
       }
 
+      if (!result.success && hold && data.paymentProofUrl && data.transferSenderName?.trim()) return reconcilePayment();
       return result;
     });
 
     if (!locked.acquired || !locked.result) {
+      if (locked.error) return { success: false, message: locked.error };
       showToast(
         'Slot Sedang Diproses',
         'Tanggal ini sedang diperbarui oleh proses booking lain. Tunggu sebentar lalu pilih ulang slot.',
@@ -772,12 +1028,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return locked.result;
   };
 
-  const submitIntakeForm = (formData: Omit<IntakeForm, 'id' | 'completedAt'>) => {
+  const submitIntakeForm = async (formData: Omit<IntakeForm, 'id' | 'completedAt'>) => {
     if (currentRole !== 'PATIENT' || currentUser?.id !== formData.patientId) {
       showToast('Akses Ditolak', 'Pre-test hanya dapat diisi oleh pasien untuk akunnya sendiri.', 'warning');
-      return Promise.resolve(null);
+      return null;
     }
-    return patientController.submitIntakeForm(formData.patientId, formData);
+    return runWorkflowMutation(async () => {
+      const saved = await patientController.submitIntakeForm(formData.patientId, formData);
+      if (saved) {
+        const latest = loadState<Record<string, IntakeForm>>('intakeForms', intakeForms);
+        const next = { ...latest, [formData.patientId]: saved };
+        localStorage.setItem(STORAGE_PREFIX + 'intakeForms', JSON.stringify(next));
+        setIntakeForms(next);
+        showToast('Pre-Test Tersimpan', 'Data profiling tersimpan. Lanjutkan konfirmasi booking.', 'success');
+      }
+      return saved;
+    }, null);
   };
 
   const submitReview = (data: {
@@ -817,7 +1083,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const targetUser = users.find(u => u.id === data.psychologistId);
     const psyName = targetUser?.name || targetPsychologist?.title || 'Psikolog JiwaSehat';
 
-    patientController.submitReview({
+    void runWorkflowMutation(() => patientController.submitReview({
       appointmentId: data.appointmentId,
       psychologistId: data.psychologistId,
       patientId: currentUser.id,
@@ -826,17 +1092,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       comment: data.comment,
       isAnonymous: data.isAnonymous,
       psychologistName: psyName
-    });
+    }), undefined);
   };
 
-  const updatePsychologistProfile = (profileUpdate: Partial<PsychologistProfile>, specificPsychologistId?: string) => {
-    if (!ensureRole(['PSYCHOLOGIST'], 'Perubahan profil psikolog')) return;
+  const updatePsychologistProfile = (profileUpdate: Partial<PsychologistProfile>, specificPsychologistId?: string): Promise<boolean> => {
+    if (!ensureRole(['PSYCHOLOGIST'], 'Perubahan profil psikolog')) return Promise.resolve(false);
     const targetId = specificPsychologistId || profileUpdate.userId || currentUser?.id || '';
     if (targetId !== currentUser?.id) {
       showToast('Akses Ditolak', 'Psikolog hanya dapat mengubah profil praktik miliknya.', 'warning');
-      return;
+      return Promise.resolve(false);
     }
-    psychologistController.updateProfile(targetId, profileUpdate, psychologists);
+    return runWorkflowMutation(() => psychologistController.updateProfile(targetId, { ...profileUpdate, userId: targetId }, loadState('psychologists', INITIAL_PSYCHOLOGISTS)), false);
   };
 
   const toggleSlotAvailability = (slotId: string) => {
@@ -891,44 +1157,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const savePackage = (pkg: ConsultationPackage) => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Pengelolaan paket konsultasi')) return;
-    adminController.savePackage(pkg, packages);
+    void runWorkflowMutation(() => psychologistController.savePackage(pkg, loadState('packages', packages)), undefined);
   };
 
   const deletePackage = (packageId: string) => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Pengelolaan paket konsultasi')) return;
-    if (appointments.some(item => item.packageId === packageId)) {
+    void runWorkflowMutation(async () => {
+    const current = readWorkflowState();
+    if (current.appointments.some(item => item.packageId === packageId) || current.holds.some(item => item.packageId === packageId && item.status === 'HELD')) {
       showToast('Paket Masih Digunakan', 'Nonaktifkan paket yang sudah memiliki riwayat booking; paket tidak dapat dihapus.', 'warning');
       return;
     }
-    adminController.deletePackage(packageId, packages);
+    await psychologistController.deletePackage(packageId, loadState('packages', packages));
+    }, undefined);
   };
 
   const togglePackageStatus = (packageId: string) => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Pengelolaan paket konsultasi')) return;
-    const pkg = packages.find(p => p.id === packageId);
+    void runWorkflowMutation(async () => {
+    const current = loadState<ConsultationPackage[]>('packages', packages);
+    const pkg = current.find(p => p.id === packageId);
     if (!pkg) return;
     const updated: ConsultationPackage = { ...pkg, isActive: pkg.isActive === false ? true : false };
-    adminController.savePackage(updated, packages);
+    await psychologistController.savePackage(updated, current);
+    }, undefined);
   };
 
-  const updateAppointmentStatus = (aptId: string, status: Appointment['status']) => {
+  const updateAppointmentStatusUnlocked = (aptId: string, status: Appointment['status'], reason?: string): boolean => {
     const latestAppointments = loadState<Appointment[]>('appointments', appointments);
     const target = latestAppointments.find(item => item.id === aptId);
     if (!target) {
       showToast('Janji Temu Tidak Ditemukan', 'Status tidak dapat diubah karena data sesi tidak tersedia.', 'error');
-      return;
+      return false;
+    }
+
+    if (status === 'CANCELLED' && currentUser) {
+      const result = cancelPaidPlan(latestAppointments, aptId, currentUser, reason || '');
+      if (!result.appointments) {
+        showToast('Pembatalan Ditolak', result.error || 'Layanan tidak dapat dibatalkan.', 'warning');
+        return false;
+      }
+      setAppointments(result.appointments);
+      showToast('Layanan Dibatalkan', 'Seluruh sisa jadwal dibatalkan dan rencana dihentikan. Histori sesi selesai dan pembayaran tetap tersimpan.', 'success');
+      return true;
     }
 
     if (currentRole === 'ADMIN') {
-      const confirmablePaymentStatuses: Appointment['paymentStatus'][] = ['DP_PENDING_VERIFICATION', 'PAID'];
-      if (
-        target.status !== 'PENDING' ||
-        status !== 'CONFIRMED' ||
-        !confirmablePaymentStatuses.includes(target.paymentStatus)
-      ) {
-        showToast('Transisi Ditolak', 'Admin hanya dapat mengonfirmasi booking berstatus menunggu.', 'warning');
-        return;
-      }
+      showToast(
+        'Gunakan Verifikasi Pembayaran',
+        'Admin harus memeriksa bukti pembayaran melalui aksi verifikasi sebelum booking dikonfirmasi.',
+        'warning'
+      );
+      return false;
     } else if (currentRole === 'PSYCHOLOGIST') {
       const allowedTargetStatuses: Appointment['status'][] = ['COMPLETED', 'CANCELLED', 'NO_SHOW'];
       if (
@@ -937,68 +1217,282 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         !allowedTargetStatuses.includes(status)
       ) {
         showToast('Transisi Ditolak', 'Psikolog hanya dapat menyelesaikan, membatalkan, atau menandai no-show dari sesi terkonfirmasi miliknya.', 'warning');
-        return;
+        return false;
+      }
+      if (target.treatmentPlanStatus === 'DISCONTINUED') {
+        showToast('Rencana Dihentikan', 'Sesi pada rencana yang dihentikan tidak dapat diproses.', 'warning');
+        return false;
+      }
+      if (status === 'NO_SHOW' && (!reason?.trim() || new Date(`${target.date}T${target.startTime}:00+07:00`).getTime() > Date.now())) {
+        showToast('No-show Ditolak', 'Alasan wajib diisi dan jadwal sesi harus sudah dimulai.', 'warning');
+        return false;
+      }
+      if (status === 'COMPLETED') {
+        const scheduledEnd = new Date(`${target.date}T${target.endTime}:00+07:00`);
+        if (Number.isNaN(scheduledEnd.getTime()) || scheduledEnd.getTime() > Date.now()) {
+          showToast(
+            'Sesi Belum Berakhir',
+            'Status selesai hanya dapat diberikan setelah waktu konsultasi berakhir.',
+            'warning'
+          );
+          return false;
+        }
       }
     } else {
       showToast('Akses Ditolak', 'Status janji temu hanya dapat diubah petugas yang berwenang.', 'warning');
-      return;
-    }
-
-    adminController.updateAppointmentStatus(aptId, status, latestAppointments);
-  };
-
-  const recordFinalPayment = (
-    appointmentId: string,
-    payment: {
-      amount: number;
-      method: NonNullable<Appointment['finalPaymentMethod']>;
-      channelDetail?: string;
-      reference?: string;
-    }
-  ): boolean => {
-    if (currentRole !== 'ADMIN') {
-      showToast('Akses Ditolak', 'Pencatatan pelunasan hanya dapat dilakukan admin operasional.', 'warning');
       return false;
     }
 
-    if (!Number.isFinite(payment.amount) || payment.amount <= 0) {
-      showToast('Nominal Tidak Valid', 'Nominal pelunasan yang diterima harus lebih dari Rp 0.', 'error');
+    let nextAppointments = latestAppointments.map(item => (
+      item.id === aptId ? { ...item, status, statusHistory: [...(item.statusHistory || []), {
+        from: item.status, to: status, at: new Date().toISOString(),
+        actorId: currentUser!.id, actorName: currentUser!.name, reason: reason?.trim()
+      }] } : item
+    ));
+
+    if (status === 'COMPLETED' && target.treatmentPlanId) {
+      const planAppointments = nextAppointments.filter(
+        item => item.treatmentPlanId === target.treatmentPlanId
+      );
+      const totalSessions = Math.max(
+        target.continuousSessionTotal || 1,
+        ...planAppointments.map(item => item.continuousSessionTotal || 1)
+      );
+      const completedSessions = planAppointments.filter(item => item.status === 'COMPLETED').length;
+
+      if (completedSessions >= totalSessions) {
+        nextAppointments = nextAppointments.map(item => (
+          item.treatmentPlanId === target.treatmentPlanId
+            ? { ...item, treatmentPlanStatus: 'COMPLETED' as const }
+            : item
+        ));
+      }
+    }
+
+    setAppointments(nextAppointments);
+    showToast('Status Sesi Diperbarui', `Status sesi berhasil diubah menjadi ${status}.`, 'success');
+    return true;
+  };
+
+  const updateAppointmentStatus = (...args: Parameters<typeof updateAppointmentStatusUnlocked>): Promise<boolean> =>
+    runWorkflowMutation(() => updateAppointmentStatusUnlocked(...args), false);
+
+  const confirmRescheduledBookingUnlocked = (appointmentId: string): boolean => {
+    if (!ensureRole(['ADMIN'], 'Konfirmasi ulang jadwal')) return false;
+    const latest = loadState<Appointment[]>('appointments', appointments);
+    const target = latest.find(item => item.id === appointmentId);
+    if (!target || target.status !== 'PENDING' || !target.rescheduledAt ||
+        target.treatmentPlanStatus === 'DISCONTINUED' || !['DP_PAID', 'PAID'].includes(target.paymentStatus)) {
+      showToast('Konfirmasi Ditolak', 'Jadwal ini tidak menunggu konfirmasi ulang dengan pembayaran terverifikasi.', 'warning');
+      return false;
+    }
+    const at = new Date().toISOString();
+    const next = latest.map(item => item.id === appointmentId ? {
+      ...item, status: 'CONFIRMED' as const,
+      scheduleConfirmedAt: at, scheduleConfirmedByName: currentUser!.name,
+      statusHistory: [...(item.statusHistory || []), {
+        from: item.status, to: 'CONFIRMED' as const, at,
+        actorId: currentUser!.id, actorName: currentUser!.name, reason: 'Konfirmasi ulang jadwal setelah reschedule'
+      }]
+    } : item);
+    setAppointments(next);
+    showToast('Jadwal Dikonfirmasi', 'Pembayaran yang sudah terverifikasi tetap berlaku tanpa DP kedua.', 'success');
+    return true;
+  };
+
+  const confirmRescheduledBooking = (...args: Parameters<typeof confirmRescheduledBookingUnlocked>): Promise<boolean> =>
+    runWorkflowMutation(() => confirmRescheduledBookingUnlocked(...args), false);
+
+  const verifyPaymentAndConfirmBookingUnlocked = async (
+    appointmentId: string,
+    note?: string,
+    receivedDate?: string
+  ): Promise<boolean> => {
+    if (currentRole !== 'ADMIN') {
+      showToast('Akses Ditolak', 'Verifikasi pembayaran hanya dapat dilakukan admin operasional.', 'warning');
       return false;
     }
 
     const latestAppointments = loadState<Appointment[]>('appointments', appointments);
     const target = latestAppointments.find(item => item.id === appointmentId);
-    if (!target || target.paymentStatus !== 'DP_PAID') {
-      showToast('Pelunasan Tidak Tersedia', 'Booking ini tidak berada pada status DP terbayar.', 'warning');
+    if (!target) {
+      showToast('Booking Tidak Ditemukan', 'Data booking tidak tersedia atau sudah berubah.', 'error');
       return false;
     }
 
-    const updatedAt = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    if (target.status !== 'PENDING' || target.treatmentPlanStatus === 'DISCONTINUED') {
+      showToast('Booking Sudah Diproses', 'Hanya booking berstatus menunggu yang dapat diverifikasi.', 'warning');
+      return false;
+    }
+
+    if (target.rescheduledAt && ['DP_PAID', 'PAID'].includes(target.paymentStatus)) {
+      return confirmRescheduledBookingUnlocked(appointmentId);
+    }
+    if (receivedDate && (!isValidBookingDate(receivedDate) || receivedDate > getPracticeDate())) {
+      showToast('Tanggal Tidak Valid', 'Tanggal penerimaan pembayaran tidak boleh berada di masa depan.', 'warning');
+      return false;
+    }
+
+    if (!(['DP_PENDING_VERIFICATION', 'PAID'] as Appointment['paymentStatus'][]).includes(target.paymentStatus)) {
+      showToast('Pembayaran Belum Diajukan', 'Belum ada pembayaran yang dapat diverifikasi untuk booking ini.', 'warning');
+      return false;
+    }
+
+    if (
+      target.paymentStatus === 'DP_PENDING_VERIFICATION' &&
+      (!target.paymentProofUrl?.trim() || !target.transferSenderName?.trim() || !target.paymentMethod)
+    ) {
+      showToast(
+        'Bukti Pembayaran Tidak Lengkap',
+        'Bukti, nama pengirim, dan metode pembayaran wajib tersedia sebelum konfirmasi.',
+        'error'
+      );
+      return false;
+    }
+
+    const verifiedAt = new Date().toISOString();
+    const verifiedByName = currentUser?.name || 'Admin Operasional';
     const nextAppointments = latestAppointments.map(item => (
       item.id === appointmentId
         ? {
             ...item,
-            paymentStatus: 'PAID' as const,
-            remainingAmount: 0,
-            finalPaymentAmount: Math.round(payment.amount),
-            finalPaymentMethod: payment.method,
-            finalPaymentChannelDetail: payment.channelDetail?.trim() || undefined,
-            finalPaymentReference: payment.reference?.trim() || undefined,
-            finalPaymentRecordedAt: updatedAt,
-            finalPaymentRecordedByName: currentUser?.name || 'Admin Operasional'
+            status: 'CONFIRMED' as const,
+            paymentStatus: item.initialPaymentRecord?.kind === 'FULL' || item.paymentStatus === 'PAID' || (item.dpAmount || 0) >= item.totalAmount ? 'PAID' as const : 'DP_PAID' as const,
+            remainingAmount: Math.max(item.totalAmount - (item.initialPaymentRecord?.amount ?? (item.paymentStatus === 'PAID' ? item.totalAmount : item.dpAmount || 0)), 0),
+            paymentVerifiedAt: verifiedAt,
+            paymentVerifiedByName: verifiedByName,
+            paymentVerificationNote: note?.trim() || undefined,
+            initialPaymentRecord: item.totalAmount > 0 ? {
+              id: item.initialPaymentRecord?.id || createRecordId('payment'),
+              amount: item.initialPaymentRecord?.amount ?? (item.paymentStatus === 'PAID' ? item.totalAmount : item.dpAmount || 0),
+              kind: item.initialPaymentRecord?.kind || (item.paymentStatus === 'PAID' ? 'FULL' as const : 'DP' as const),
+              method: item.initialPaymentRecord?.method || item.paymentMethod || 'BANK_TRANSFER' as const,
+              channelDetail: item.initialPaymentRecord?.channelDetail || item.paymentChannelDetail,
+              receivedAt: receivedDate || item.initialPaymentRecord?.receivedAt || getPracticeDate(),
+              recordedByName: verifiedByName, verifiedAt
+            } : undefined,
+            statusHistory: [...(item.statusHistory || []), {
+              from: item.status, to: 'CONFIRMED' as const, at: new Date().toISOString(),
+              actorId: currentUser!.id, actorName: verifiedByName, reason: 'Verifikasi pembayaran awal'
+            }]
           }
         : item
     ));
-    setAppointments(nextAppointments);
-    localStorage.setItem(STORAGE_PREFIX + 'appointments', JSON.stringify(nextAppointments));
 
+    setAppointments(nextAppointments);
     showToast(
-      'Pelunasan Dicatat',
-      'Status pembayaran berubah menjadi lunas. Nominal tidak ditampilkan kembali pada portal admin.',
+      'Pembayaran Terverifikasi',
+      'Bukti pembayaran valid dan booking telah dikonfirmasi.',
       'success'
     );
     return true;
   };
+
+  const verifyPaymentAndConfirmBooking = (...args: Parameters<typeof verifyPaymentAndConfirmBookingUnlocked>): Promise<boolean> =>
+    runWorkflowMutation(() => verifyPaymentAndConfirmBookingUnlocked(...args), false);
+
+  const recordFinalPaymentUnlocked = (
+    appointmentId: string,
+    payment: {
+      amount: number;
+      method: NonNullable<Appointment['finalPaymentMethod']>;
+      channelDetail?: string;
+      purpose?: FinalPaymentRecord['purpose'];
+      receivedDate?: string;
+    }
+  ): boolean => {
+    if (currentRole !== 'ADMIN') {
+      showToast('Akses Ditolak', 'Pencatatan pembayaran hanya dapat dilakukan admin operasional.', 'warning');
+      return false;
+    }
+
+    if (!Number.isInteger(payment.amount) || payment.amount <= 0) {
+      showToast('Nominal Tidak Valid', 'Nominal yang diterima harus lebih dari Rp 0.', 'error');
+      return false;
+    }
+    if (payment.receivedDate && (!isValidBookingDate(payment.receivedDate) || payment.receivedDate > getPracticeDate())) {
+      showToast('Tanggal Tidak Valid', 'Tanggal penerimaan pembayaran tidak boleh berada di masa depan.', 'warning');
+      return false;
+    }
+
+    const latestAppointments = loadState<Appointment[]>('appointments', appointments);
+    const target = latestAppointments.find(item => item.id === appointmentId);
+    if (!target || target.paymentStatus !== 'DP_PAID' || target.status === 'CANCELLED' ||
+        target.treatmentPlanStatus === 'DISCONTINUED' || (target.continuousSessionNumber || 1) > 1) {
+      showToast('Pembayaran Tidak Tersedia', 'Booking ini tidak berada pada status DP terbayar.', 'warning');
+      return false;
+    }
+
+    if (target.packageType === 'PSYCHOTHERAPY' && target.status !== 'COMPLETED' && payment.purpose !== 'CANCELLATION_SETTLEMENT') {
+      showToast('Sesi Pertama Belum Selesai', 'Pembayaran setelah DP untuk psikoterapi dicatat setelah sesi pertama selesai.', 'warning');
+      return false;
+    }
+
+    const balance = getTreatmentPlanBalance(target);
+    const amount = Math.round(payment.amount);
+    if (amount > balance.remainingAmount) {
+      showToast('Nominal Melebihi Tagihan', 'Periksa kembali nominal pembayaran yang diterima.', 'warning');
+      return false;
+    }
+
+    const updatedAt = new Date().toISOString();
+    const previousPayments: FinalPaymentRecord[] = target.finalPaymentRecords?.length
+      ? target.finalPaymentRecords
+      : typeof target.finalPaymentAmount === 'number' && target.finalPaymentAmount > 0
+        ? [{
+            id: `payment-legacy-${target.id}`,
+            amount: target.finalPaymentAmount,
+            method: target.finalPaymentMethod || 'CASH',
+            channelDetail: target.finalPaymentChannelDetail,
+            recordedAt: target.finalPaymentRecordedAt || target.createdAt,
+            recordedByName: target.finalPaymentRecordedByName || 'Admin Operasional'
+          }]
+        : [];
+    const finalPaymentRecords: FinalPaymentRecord[] = [
+      ...previousPayments,
+      {
+        id: `payment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        amount,
+        method: payment.method,
+        channelDetail: payment.channelDetail?.trim() || undefined,
+        recordedAt: updatedAt,
+        receivedAt: payment.receivedDate || getPracticeDate(),
+        recordedByName: currentUser?.name || 'Admin Operasional',
+        purpose: payment.purpose || 'CONSULTATION'
+      }
+    ];
+    const remainingAmount = Math.max(balance.remainingAmount - amount, 0);
+    const nextAppointments = latestAppointments.map(item => (
+      item.id === appointmentId
+        ? {
+            ...item,
+            paymentStatus: remainingAmount === 0 ? 'PAID' as const : 'DP_PAID' as const,
+            remainingAmount,
+            finalPaymentRecords,
+            finalPaymentAmount: finalPaymentRecords.reduce((sum, record) => sum + record.amount, 0),
+            finalPaymentMethod: payment.method,
+            finalPaymentChannelDetail: payment.channelDetail?.trim() || undefined,
+            finalPaymentRecordedAt: updatedAt,
+            finalPaymentRecordedByName: currentUser?.name || 'Admin Operasional'
+          }
+        : target.treatmentPlanId && item.treatmentPlanId === target.treatmentPlanId
+          ? { ...item, paymentStatus: remainingAmount === 0 ? 'PAID' as const : 'DP_PAID' as const }
+          : item
+    ));
+    setAppointments(nextAppointments);
+
+    showToast(
+      'Pembayaran Dicatat',
+      remainingAmount === 0
+        ? 'Pembayaran lunas. Nominal tidak ditampilkan kembali pada portal admin.'
+        : 'Pembayaran sebagian tercatat. Nominal tidak ditampilkan kembali pada portal admin.',
+      'success'
+    );
+    return true;
+  };
+
+  const recordFinalPayment = (...args: Parameters<typeof recordFinalPaymentUnlocked>): Promise<boolean> =>
+    runWorkflowMutation(() => recordFinalPaymentUnlocked(...args), false);
 
   const scheduleNextContinuousSession = async (
     appointmentId: string,
@@ -1025,23 +1519,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
+    if (source.packageType === 'PSYCHOTHERAPY' && (source.continuousSessionNumber || 1) >= 4) {
+      showToast('Rencana Awal Selesai', 'Untuk terapi lanjutan, pasien membuat booking psikoterapi baru.', 'info');
+      return false;
+    }
+
     if (source.treatmentPlanStatus === 'DISCONTINUED') {
       showToast('Paket Sudah Dihentikan', 'Paket yang dihentikan tidak dapat menerima jadwal sesi baru.', 'warning');
+      return false;
+    }
+
+    if (source.treatmentPlanStatus === 'COMPLETED') {
+      showToast('Paket Sudah Selesai', 'Seluruh sesi paket ini sudah diselesaikan.', 'info');
+      return false;
+    }
+
+    if (!(['DP_PAID', 'PAID'] as Appointment['paymentStatus'][]).includes(source.paymentStatus)) {
+      showToast(
+        'Pembayaran Belum Terverifikasi',
+        'Sesi lanjutan hanya dapat dijadwalkan setelah pembayaran awal paket diverifikasi admin.',
+        'warning'
+      );
       return false;
     }
 
     if (source.status !== 'COMPLETED') {
       showToast(
         'Sesi Belum Selesai',
-        'Sesi lanjutan baru bisa dibuat setelah psikolog menandai sesi terakhir sebagai selesai.',
+        'Selesaikan sesi yang terjadwal sebelum menjadwalkan sesi berikutnya.',
         'warning'
       );
       return false;
     }
 
-    const now = new Date();
-    const today = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    if (date <= today) {
+    const today = getPracticeDate();
+    if (!isValidBookingDate(date) || date <= today) {
       showToast('Tanggal Tidak Valid', 'Sesi lanjutan harus dijadwalkan minimal H+1.', 'warning');
       return false;
     }
@@ -1066,7 +1578,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     const locked = await withDaySlotLock(source.psychologistId, date, async () => {
       const latestAppointments = loadState<Appointment[]>('appointments', appointments);
-      const latestSource = latestAppointments.find(apt => apt.id === appointmentId) || source;
+      const latestSource = latestAppointments.find(apt => apt.id === appointmentId);
+      if (!latestSource) {
+        showToast('Sesi Tidak Ditemukan', 'Data sesi telah berubah. Muat ulang daftar sebelum melanjutkan.', 'warning');
+        return false;
+      }
       const latestTotalSessions = latestSource.continuousSessionTotal || 1;
 
       if (latestSource.psychologistId !== currentUser?.id) {
@@ -1077,7 +1593,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (latestSource.status !== 'COMPLETED') {
         showToast(
           'Sesi Belum Selesai',
-          'Sesi lanjutan baru bisa dibuat setelah psikolog menandai sesi terakhir sebagai selesai.',
+          'Selesaikan sesi yang terjadwal sebelum menjadwalkan sesi berikutnya.',
           'warning'
         );
         return false;
@@ -1085,6 +1601,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       if (latestSource.treatmentPlanStatus === 'DISCONTINUED') {
         showToast('Paket Sudah Dihentikan', 'Paket yang dihentikan tidak dapat menerima jadwal sesi baru.', 'warning');
+        return false;
+      }
+
+      if (latestSource.treatmentPlanStatus === 'COMPLETED') {
+        showToast('Paket Sudah Selesai', 'Seluruh sesi paket ini sudah diselesaikan.', 'info');
+        return false;
+      }
+
+      if (!(['DP_PAID', 'PAID'] as Appointment['paymentStatus'][]).includes(latestSource.paymentStatus)) {
+        showToast('Pembayaran Belum Terverifikasi', 'Status pembayaran paket berubah. Muat ulang data lalu periksa kembali.', 'warning');
         return false;
       }
 
@@ -1120,6 +1646,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           apt.continuousSessionTotal === latestSource.continuousSessionTotal
         );
       });
+      const billingAppointment = planAppointments.find(apt => (apt.continuousSessionNumber || 1) === 1) || latestSource;
 
       const existingActiveNext = planAppointments.find(
         apt => apt.id !== latestSource.id && activeStatuses.includes(apt.status)
@@ -1139,6 +1666,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
       const nextSessionNumber = lastScheduledNumber + 1;
 
+      if (latestSource.packageType === 'PSYCHOTHERAPY' && nextSessionNumber > 4) {
+        showToast('Rencana Awal Selesai', 'Sesi berikutnya harus melalui booking psikoterapi baru.', 'info');
+        return false;
+      }
+
       if (nextSessionNumber > latestTotalSessions) {
         showToast('Program Sudah Lengkap', `Seluruh ${latestTotalSessions} sesi pada paket ini sudah dijadwalkan.`, 'info');
         return false;
@@ -1152,19 +1684,47 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         startTime,
         endTime,
         status: 'CONFIRMED',
+        paymentStatus: billingAppointment.paymentStatus,
         treatmentPlanId: planId,
+        treatmentPlanStatus: 'ACTIVE',
         continuousSessionNumber: nextSessionNumber,
         continuousSessionTotal: latestTotalSessions,
         totalAmount: 0,
         dpAmount: 0,
         remainingAmount: 0,
+        subtotalAmount: 0,
+        discountAmount: 0,
+        discountCode: undefined,
+        discountLabel: undefined,
+        initialPaymentRecord: undefined,
+        paymentMethod: undefined,
+        paymentChannelDetail: undefined,
+        transferSenderName: undefined,
+        paymentProofUrl: undefined,
+        paymentProofName: undefined,
+        paymentProofMimeType: undefined,
+        paymentVerifiedAt: undefined,
+        paymentVerifiedByName: undefined,
+        paymentVerificationNote: undefined,
         finalPaymentAmount: undefined,
+        finalPaymentRecords: undefined,
         finalPaymentMethod: undefined,
         finalPaymentChannelDetail: undefined,
-        finalPaymentReference: undefined,
         finalPaymentRecordedAt: undefined,
         finalPaymentRecordedByName: undefined,
         reviewId: undefined,
+        rescheduledAt: undefined,
+        rescheduledByName: undefined,
+        rescheduledByRole: undefined,
+        rescheduleReason: undefined,
+        rescheduleHistory: [],
+        scheduleConfirmedAt: new Date().toISOString(),
+        scheduleConfirmedByName: currentUser!.name,
+        statusHistory: [{
+          from: 'PENDING', to: 'CONFIRMED', at: new Date().toISOString(),
+          actorId: currentUser!.id, actorName: currentUser!.name,
+          reason: 'Penjadwalan sesi lanjutan dengan pembayaran rencana terverifikasi'
+        }],
         createdAt: new Date().toISOString().replace('T', ' ').slice(0, 16)
       };
       const nextAppointments = [
@@ -1177,7 +1737,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ];
 
       setAppointments(nextAppointments);
-      localStorage.setItem(STORAGE_PREFIX + 'appointments', JSON.stringify(nextAppointments));
       showToast(
         'Sesi Lanjutan Dijadwalkan',
         `Sesi ${nextSessionNumber} dari ${latestTotalSessions} berhasil dibuat pada ${date} pukul ${startTime} - ${endTime}.`,
@@ -1187,6 +1746,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
 
     if (!locked.acquired) {
+      if (locked.error) return false;
       showToast('Slot Sedang Diproses', 'Tanggal ini sedang diperbarui. Tunggu sebentar lalu coba lagi.', 'warning');
       return false;
     }
@@ -1194,7 +1754,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return locked.result === true;
   };
 
-  const discontinueTreatmentPlan = (appointmentId: string, reason: string): boolean => {
+  const discontinueTreatmentPlan = async (appointmentId: string, reason: string): Promise<boolean> => {
     if (currentRole !== 'PSYCHOLOGIST') {
       showToast('Akses Ditolak', 'Hanya psikolog/pengelola yang dapat menghentikan paket berjalan.', 'warning');
       return false;
@@ -1206,28 +1766,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    const source = appointments.find(item => item.id === appointmentId);
+    const source = loadState<Appointment[]>('appointments', appointments).find(item => item.id === appointmentId);
     if (!source || !source.treatmentPlanId || source.psychologistId !== currentUser?.id) {
       showToast('Paket Tidak Ditemukan', 'Treatment plan untuk sesi ini tidak tersedia.', 'error');
       return false;
     }
 
-    const discontinuedAt = new Date().toISOString().replace('T', ' ').slice(0, 16);
-    const nextAppointments = appointments.map(item => (
-      item.treatmentPlanId === source.treatmentPlanId
-        ? {
-            ...item,
-            treatmentPlanStatus: 'DISCONTINUED' as const,
-            treatmentPlanDiscontinuedAt: discontinuedAt,
-            treatmentPlanDiscontinuedReason: normalizedReason
-          }
-        : item
-    ));
-
-    setAppointments(nextAppointments);
-    localStorage.setItem(STORAGE_PREFIX + 'appointments', JSON.stringify(nextAppointments));
-    showToast('Paket Dihentikan', 'Treatment plan dihentikan dan sesi lanjutan baru telah dikunci.', 'success');
-    return true;
+    return updateAppointmentStatus(appointmentId, 'CANCELLED', normalizedReason);
   };
 
   const rescheduleAppointment = async (
@@ -1235,9 +1780,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     newDate: string,
     newStartTime: string,
     newEndTime: string,
-    reason?: string
+    reason?: string,
+    expectedVersion?: number
   ): Promise<boolean> => {
-    if (!ensureRole(['PATIENT', 'ADMIN'], 'Reschedule janji temu')) return false;
+    if (!ensureRole(['PATIENT', 'ADMIN', 'PSYCHOLOGIST'], 'Reschedule janji temu')) return false;
+    if (!reason?.trim()) {
+      showToast('Alasan Wajib Diisi', 'Isi alasan perubahan jadwal untuk histori.', 'warning');
+      return false;
+    }
 
     const targetApt = appointments.find(a => a.id === aptId);
     if (!targetApt) {
@@ -1245,19 +1795,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return false;
     }
 
-    if (currentRole === 'PATIENT' && targetApt.patientId !== currentUser?.id) {
-      showToast('Akses Ditolak', 'Pasien hanya dapat menjadwalkan ulang janji temu miliknya.', 'warning');
+    if (!currentUser || !canRescheduleAppointment(targetApt, currentUser)) {
+      showToast('Reschedule Tidak Tersedia', 'Periksa status dan kepemilikan booking. Sesi tidak hadir hanya dapat dijadwalkan ulang oleh psikolog yang menangani.', 'warning');
       return false;
     }
 
-    if (!(['PENDING', 'CONFIRMED'] as Appointment['status'][]).includes(targetApt.status)) {
-      showToast('Reschedule Tidak Tersedia', 'Hanya booking menunggu atau terkonfirmasi yang dapat dijadwalkan ulang.', 'warning');
-      return false;
-    }
-
-    const today = new Date();
-    const todayDate = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-    if (newDate <= todayDate) {
+    const todayDate = getPracticeDate();
+    if (!isValidBookingDate(newDate) || newDate <= todayDate) {
       showToast('Tanggal Tidak Valid', 'Reschedule harus memilih tanggal minimal H+1.', 'warning');
       return false;
     }
@@ -1283,12 +1827,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const locked = await withDaySlotLock(targetApt.psychologistId, newDate, async () => {
       const latestAppointments = loadState<Appointment[]>('appointments', appointments);
-      const latestTarget = latestAppointments.find(item => item.id === aptId) || targetApt;
-      if (
-        !(['PENDING', 'CONFIRMED'] as Appointment['status'][]).includes(latestTarget.status) ||
-        (currentRole === 'PATIENT' && latestTarget.patientId !== currentUser?.id)
-      ) {
+      const latestTarget = latestAppointments.find(item => item.id === aptId);
+      if (!latestTarget) {
+        showToast('Booking Tidak Ditemukan', 'Data booking telah berubah. Muat ulang daftar sebelum melanjutkan.', 'warning');
+        return false;
+      }
+      if (!canRescheduleAppointment(latestTarget, currentUser)) {
         showToast('Reschedule Dibatalkan', 'Status atau kepemilikan booking telah berubah. Muat ulang data lalu coba lagi.', 'warning');
+        return false;
+      }
+      assertScheduleVersion(latestTarget, expectedVersion);
+      if (latestTarget.status === 'NO_SHOW' && latestTarget.treatmentPlanId && latestAppointments.some(item =>
+        item.id !== aptId && item.treatmentPlanId === latestTarget.treatmentPlanId &&
+        (['PENDING', 'CONFIRMED', 'IN_PROGRESS'].includes(item.status) ||
+          (item.continuousSessionNumber || 1) > (latestTarget.continuousSessionNumber || 1))
+      )) {
+        showToast('Periksa Rencana Terapi', 'Rencana ini sudah memiliki sesi lain. Periksa histori sebelum menjadwalkan ulang sesi tidak hadir.', 'warning');
         return false;
       }
       const otherAppointments = latestAppointments.filter(item => item.id !== aptId);
@@ -1312,24 +1866,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return false;
       }
 
-      const updatedApt: Appointment = {
-        ...latestTarget,
-        date: newDate,
-        startTime: newStartTime,
-        endTime: newEndTime,
-        status: currentRole === 'PATIENT' ? 'PENDING' : latestTarget.status,
-        rescheduledAt: new Date().toISOString().replace('T', ' ').slice(0, 16),
-        rescheduledByName: currentUser?.name || 'Sistem',
-        rescheduledByRole: currentUser?.role || currentRole,
-        rescheduleReason: reason
-      };
+      const updatedApt = rescheduleExistingAppointment(latestTarget, currentUser, newDate, newStartTime, newEndTime, reason);
       const nextAppointments = latestAppointments.map(item => item.id === aptId ? updatedApt : item);
       setAppointments(nextAppointments);
-      localStorage.setItem(STORAGE_PREFIX + 'appointments', JSON.stringify(nextAppointments));
       return true;
     });
 
     if (!locked.acquired) {
+      if (locked.error) return false;
       showToast('Slot Sedang Diproses', 'Tanggal tujuan sedang diperbarui. Tunggu sebentar lalu coba lagi.', 'warning');
       return false;
     }
@@ -1346,15 +1890,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return true;
   };
 
-  const resetAllToDefault = () => {
+  const resetAllToDefaultUnlocked = () => {
     if (!ensureRole(['PSYCHOLOGIST'], 'Reset data demo')) return;
+    setWorkflow(commitWorkflow(() => ({ appointments: INITIAL_APPOINTMENTS, holds: [], walkInPatients: [], reconciliations: [] })));
     localStorage.removeItem(STORAGE_PREFIX + 'users');
     localStorage.removeItem(STORAGE_PREFIX + 'psychologists');
     localStorage.removeItem(STORAGE_PREFIX + 'packages');
     localStorage.removeItem(STORAGE_PREFIX + 'tests');
     localStorage.removeItem(STORAGE_PREFIX + 'testResults');
     localStorage.removeItem(STORAGE_PREFIX + 'schedules');
-    localStorage.removeItem(STORAGE_PREFIX + 'appointments');
     localStorage.removeItem(STORAGE_PREFIX + 'intakeForms');
     localStorage.removeItem(STORAGE_PREFIX + 'clinicalNotes');
     localStorage.removeItem(STORAGE_PREFIX + 'reviews');
@@ -1367,7 +1911,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setPsychologists(INITIAL_PSYCHOLOGISTS);
     setPackages(INITIAL_PACKAGES);
     setSchedules(INITIAL_SCHEDULES);
-    setAppointments(INITIAL_APPOINTMENTS);
     setIntakeForms(INITIAL_INTAKE_FORMS);
     setReviews(INITIAL_REVIEWS);
     setLandingCms(INITIAL_LANDING_CMS);
@@ -1378,6 +1921,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     showToast('Data Direset', 'Seluruh data demo telah dikembalikan ke kondisi awal pabrik.', 'info');
   };
+
+  const resetAllToDefault = (): Promise<void> => runWorkflowMutation(resetAllToDefaultUnlocked, undefined);
 
   // OOP Analytics computation
   const analytics: AnalyticsSummary = useMemo(() => {
@@ -1407,6 +1952,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         packages,
         schedules,
         appointments,
+        slotHolds: workflow.holds,
+        paymentReconciliations: workflow.reconciliations,
+        reserveBookingSlot,
         intakeForms,
         reviews,
         analytics,
@@ -1454,6 +2002,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         showToast,
         dismissToast,
         updateUserProfile,
+        saveAccountProfile,
         bookAppointment,
         submitIntakeForm,
         submitReview,
@@ -1467,6 +2016,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         deletePackage,
         togglePackageStatus,
         updateAppointmentStatus,
+        confirmRescheduledBooking,
+        verifyPaymentAndConfirmBooking,
         recordFinalPayment,
         scheduleNextContinuousSession,
         discontinueTreatmentPlan,

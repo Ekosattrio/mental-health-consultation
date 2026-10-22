@@ -24,19 +24,22 @@ export const ToastContainer: React.FC = () => {
   return (
     <div
       id="global-toast-notification"
-      className="fixed bottom-5 right-5 z-50 max-w-md w-full animate-in fade-in slide-in-from-bottom-5 duration-200"
+      role="status"
+      aria-live="polite"
+      className="relative z-50 w-full px-3 pt-3 animate-in fade-in slide-in-from-top-2 duration-200 sm:fixed sm:bottom-5 sm:right-5 sm:max-w-md sm:px-0 sm:pt-0 sm:slide-in-from-bottom-5"
     >
       <div
-        className={`p-4 rounded-xl border shadow-lg flex items-start gap-3 backdrop-blur-sm ${borders[toast.type]}`}
+        className={`p-3 sm:p-4 rounded-xl border shadow-lg flex items-start gap-2.5 sm:gap-3 backdrop-blur-sm ${borders[toast.type]}`}
       >
         {icons[toast.type]}
-        <div className="flex-1 pr-2">
+        <div className="flex-1 min-w-0 pr-1 sm:pr-2">
           <p className="text-xs font-bold uppercase tracking-wider opacity-80">{toast.title}</p>
           <p className="text-sm font-medium mt-0.5 leading-snug">{toast.message}</p>
         </div>
         <button
+          type="button"
           onClick={dismissToast}
-          className="text-gray-400 hover:text-gray-700 p-1 rounded-lg transition-colors"
+          className="text-gray-400 hover:text-gray-700 p-1 rounded-lg transition-colors shrink-0"
           title="Tutup Notifikasi"
         >
           <X className="w-4 h-4" />

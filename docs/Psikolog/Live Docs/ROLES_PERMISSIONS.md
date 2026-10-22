@@ -33,8 +33,8 @@ Boleh:
 - melengkapi data diri pasien (Nama, No HP/WA, Tanggal Lahir, Gender, Domisili, Pekerjaan, Kontak Darurat)
 - memilih paket konsultasi setelah data diri terverifikasi lengkap (`isProfileComplete: true`)
 - mengisi formulir keluhan pre-test sebelum reservasi jadwal
-- melakukan booking konsultasi dengan membayar DP sesuai konfigurasi paket
-- mencantumkan nama pemilik rekening pengirim transfer (`transferSenderName`), nomor referensi, dan mengunggah bukti transfer
+- melakukan booking konsultasi dengan membayar DP flat Rp100.000
+- mencantumkan nama pemilik rekening pengirim transfer (`transferSenderName`) dan mengunggah bukti transfer
 - menyetujui informed consent & kebijakan privasi sebelum booking
 - melihat invoice/kwitansi pembayaran miliknya
 - melihat status booking dan riwayat mutasi pembayaran miliknya
@@ -48,6 +48,7 @@ Tidak boleh:
 - booking untuk hari yang sama (minimal H+1)
 - reschedule langsung untuk hari yang sama
 - mengambil slot yang sudah tidak tersedia
+- membuka kembali `NO_SHOW` sendiri; tindak lanjut ketidakhadiran memerlukan konfirmasi manual psikolog yang menangani
 - melihat data pasien lain
 - mengakses dashboard admin atau psikolog
 
@@ -65,6 +66,7 @@ Boleh:
 - melihat seluruh data rekam medis pasien (triage risiko, pre-test, profil pasien, riwayat booking)
 - mengelola Paket Berjalan / Rencana Terapi untuk paket multi-sesi
 - menjadwalkan sesi lanjutan, menandai sesi selesai, tidak hadir, batal, atau menghentikan paket berjalan
+- mengonfirmasi keterlambatan secara manual dan reschedule sesi miliknya, termasuk `NO_SHOW -> CONFIRMED`, minimal H+1 tanpa DP tambahan; nomor sesi dan histori pembayaran dipertahankan
 - export/backup data klinis dengan perlindungan role dan audit log
 - mencetak jadwal dan rekapitulasi keuangan ber-Kop Surat Dinas Resmi (PDF & Excel)
 - mengelola CMS landing page dan konten sistem
@@ -81,9 +83,9 @@ Boleh:
 - memantau akun user secara strictly **Read-Only Monitoring** (melihat nama, kontak, dan status registrasi)
 - melihat seluruh data reservasi janji temu
 - melayani pendaftaran reservasi pasien langsung yang datang ke klinik (walk-in booking)
-- membantu pasien melakukan verifikasi bukti transfer DP sesuai paket dan pencatatan mutasi tanpa melihat nominal tagihan
-- mencatat nominal pelunasan aktual yang diterima satu kali tanpa melihat harga paket/sisa tagihan; nominal disembunyikan kembali setelah tersimpan
-- mengubah status booking dari `PENDING` ke `CONFIRMED`
+- memeriksa bukti transfer, nama pengirim, dan channel tanpa melihat nominal tagihan; tidak ada fitur permintaan unggah ulang
+- mencatat uang masuk bertahap, termasuk pelunasan untuk penghentian sebelum sesi pertama dengan purpose khusus, tanpa membaca kembali nominal tersimpan
+- mengonfirmasi booking melalui verifikasi pembayaran atomik; konfirmasi ulang jadwal terbayar memakai aksi khusus tanpa DP kedua dan tanpa mengubah audit pembayaran awal
 - membantu reschedule jadwal pasien; identitas admin dan alasan perubahan wajib masuk audit trail
 - memantau status `COMPLETED` setelah psikolog menandai sesi selesai
 - memoderasi ulasan pasien (menyetujui atau menolak ulasan)

@@ -309,6 +309,25 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     iconName: 'Users'
   },
   {
+    id: 'pkg-konseling-telelayanan',
+    name: 'Konsultasi Telelayanan',
+    category: 'KONSELING',
+    type: 'ONLINE_TELE',
+    durationMinutes: 60,
+    price: 750000,
+    badge: 'Telelayanan',
+    description: 'Sesi konsultasi psikologi jarak jauh selama 60 menit melalui media telekonferensi yang disepakati setelah booking dikonfirmasi.',
+    benefits: [
+      'Konsultasi privat jarak jauh 60 menit',
+      'Jadwal dan media sesi dikonfirmasi sebelum konsultasi',
+      'Rencana intervensi dan rekomendasi tindak lanjut',
+      'Tidak mencakup ruang chat konsultasi di dalam web'
+    ],
+    notes: 'Kelebihan waktu dikenakan biaya prorata per 15 menit sebesar 25% dari tarif dasar. Surat laporan hasil pemeriksaan psikologis dikenakan biaya terpisah Rp 200.000.',
+    isActive: true,
+    iconName: 'Video'
+  },
+  {
     id: 'pkg-konseling-anak-remaja',
     name: 'Konsultasi Anak & Remaja',
     category: 'KONSELING',
@@ -466,7 +485,7 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     badge: 'Standar',
     description: 'Evaluasi tumbuh kembang anak, kesiapan belajar, atau orientasi minat bakat dasar.',
     benefits: [
-      'Instrumen tes tumbuh kembang / minat dasar terstandar',
+      'Asesmen persiapan anak sekolah atau minat bakat dasar',
       'Observasi perilaku dan respons anak',
       'Laporan ringkas rekomendasi pengasuhan & edukasi'
     ],
@@ -483,8 +502,8 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     badge: 'Minat Bakat / Klinis',
     description: 'Pemeriksaan menyeluruh persiapan sekolah, minat bakat terarah, tumbuh kembang, dan kepribadian klinis remaja lengkap.',
     benefits: [
-      'Asesmen komprehensif kesiapan sekolah & arah minat bakat',
-      'Evaluasi kepribadian klinis remaja secara lengkap',
+      'Asesmen komprehensif persiapan sekolah, minat bakat, dan penjurusan',
+      'Asesmen klinis, tumbuh kembang khusus, dan kepribadian klinis remaja',
       'Laporan psikologis mendalam & panduan khusus orang tua'
     ],
     isActive: true,
@@ -500,8 +519,8 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     badge: 'Standar',
     description: 'Pemeriksaan kesiapan mental dan evaluasi pengembangan diri standar untuk usia dewasa.',
     benefits: [
-      'Pengukuran kesiapan mental dan ketahanan stres',
-      'Evaluasi potensi dan area pengembangan diri',
+      'Asesmen kesiapan mental dan kebutuhan konseling',
+      'Evaluasi kepribadian untuk pengembangan diri',
       'Laporan ringkas profil kesiapan psikologis'
     ],
     isActive: true,
@@ -517,7 +536,8 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
     badge: 'Klinis & Kepribadian Kerja',
     description: 'Asesmen komprehensif kepribadian klinis, kesiapan mental, pengembangan diri, dan kepribadian kerja lengkap.',
     benefits: [
-      'Evaluasi klinis, ketahanan emosi, & profil kepribadian kerja',
+      'Asesmen kepribadian klinis dan kesiapan mental',
+      'Asesmen pengembangan diri dan kepribadian kerja',
       'Analisis kompetensi kepemimpinan & dinamika adaptasi kerja',
       'Laporan psikologis komprehensif bertanda tangan SIP'
     ],
@@ -528,20 +548,22 @@ export const INITIAL_PACKAGES: ConsultationPackage[] = [
   // 3. KATEGORI: PSIKOTERAPI
   {
     id: 'pkg-psikoterapi-intensif',
-    name: 'Paket Psikoterapi Intensif (4 Sesi)',
+    name: 'Psikoterapi per Sesi (Minimal 4 Sesi)',
     category: 'PSIKOTERAPI',
     type: 'PSYCHOTHERAPY',
     durationMinutes: 60,
-    price: 2000000,
+    price: 500000,
     badge: 'Program Terapi',
-    description: 'Program intervensi psikoterapi berkesinambungan (CBT/ACT) untuk pemulihan trauma, depresi, atau kecemasan persisten. Minimal kontrak 4 sesi (Rp 500.000 / sesi).',
+    description: 'Psikoterapi berkelanjutan dengan rencana awal minimal 4 sesi. Tarif Rp 500.000 per sesi; bila perlu berlanjut setelah sesi keempat, lakukan booking baru.',
     benefits: [
       '4 sesi intervensi tatap muka (60 menit per sesi)',
       'Protokol CBT / ACT terstruktur berbasis target pemulihan',
       'Monitoring kemajuan klinis berkala tiap sesi',
       'Modul latihan mandiri terpandu (guided worksheet)'
     ],
-    notes: 'Harga Rp 500.000 / sesi dengan minimal kontrak 4 sesi (Total Rp 2.000.000).',
+    notes: 'Tarif dihitung per sesi. Rencana awal minimal 4 sesi. DP Rp 100.000 mengurangi biaya rencana awal, pembayaran berikutnya dapat bertahap sesuai kesepakatan. Setelah 4 sesi selesai, booking layanan ini lagi bila perlu melanjutkan terapi.',
+    isContinuousCare: true,
+    sessionCount: 4,
     isActive: true,
     iconName: 'Sparkles'
   },
@@ -2089,8 +2111,8 @@ export const INITIAL_LANDING_CMS: LandingPageCmsConfig = {
   heroBadge: 'Booking Konsultasi Psikologi Terjadwal',
   heroTitle: 'Ruang Aman untuk Mendengar, Menyembuhkan, dan Bertumbuh.',
   heroSubtitle: 'Konsultasikan keresahan batin, stres kerja, dan kecemasan Anda secara privat bersama dr. Sarah Jenkins, M.Psi., Psikolog Klinis. Booking dilakukan minimal H+1 dengan pre-test singkat sebelum jadwal dikirim.',
-  sliderTitle: 'Jadwal Praktik Terencana',
-  sliderSubtitle: 'Pilih jadwal konsultasi mulai besok sesuai ketersediaan psikolog dan kapasitas harian praktik.',
+  sliderTitle: 'Pengalaman Konseling Bersama Psikolog',
+  sliderSubtitle: 'Cerita dan pengalaman pasien setelah menjalani sesi konsultasi.',
   sliderIntervalSeconds: 4,
   sliderAutoPlay: true,
   clinicName: 'Praktik Mandiri dr. Sarah Jenkins, M.Psi.',
@@ -2103,7 +2125,11 @@ export const INITIAL_LANDING_CMS: LandingPageCmsConfig = {
   heroImageUrl: '',
   aboutImageUrl: '',
   qrisImageUrl: '',
-  clinicKopLogoUrl: ''
+  clinicKopLogoUrl: '',
+  instagramUrl: 'https://www.instagram.com/jiwasehat.id/',
+  bankName: 'BCA',
+  bankAccountNumber: '8830-1122-3344',
+  bankAccountHolder: 'PT JiwaSehat Konseling Mandiri'
 };
 
 export const INITIAL_PATIENT_CMS: PatientPageCmsConfig = {
@@ -2114,7 +2140,7 @@ export const INITIAL_PATIENT_CMS: PatientPageCmsConfig = {
   crisisHotlineNumber: '119 ext 8 (Sejiwa Kemenkes RI)',
   crisisWhatsapp: '+62 811-1929-555',
   crisisNotice: 'Jika Anda atau kerabat sedang mengalami krisis emosional mendalam, serangan panik berat, atau dorongan menyakiti diri, mohon segera hubungi hotline darurat di atas. Layanan ini bebas pulsa 24 jam.',
-  announcementText: 'Pemberitahuan: Seluruh data sesi konsultasi klinis privat terlindungi enkripsi end-to-end. Rekam medis Anda hanya dapat diakses secara rahasia oleh dr. Sarah Jenkins.'
+  announcementText: 'Informasi layanan dan jadwal dapat berubah. Hubungi admin jika membutuhkan bantuan.'
 };
 
 export const INITIAL_PSYCHOLOGIST_CMS: PsychologistPageCmsConfig = {

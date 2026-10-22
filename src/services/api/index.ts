@@ -4,6 +4,8 @@ export * from './userService';
 export * from './packageService';
 export * from './appointmentService';
 export * from './scheduleService';
+export * from './slotHoldService';
+export * from './paymentReconciliationService';
 export * from './treatmentPlanService';
 export * from './financeService';
 export * from './intakeService';

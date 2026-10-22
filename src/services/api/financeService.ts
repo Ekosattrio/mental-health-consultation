@@ -1,5 +1,5 @@
 import { apiClient, ApiResponse } from './client';
-import { Appointment } from '../../types';
+import type { CashInReportRow } from '../../utils/payments';
 
 export interface FinancialAnalyticsSummary {
   total_cash_in: number;
@@ -17,6 +17,8 @@ export interface FinanceQueryParams {
   search?: string;
   page?: number;
   per_page?: number;
+  date_from?: string;
+  date_to?: string;
 }
 
 export const financeService = {
@@ -32,8 +34,8 @@ export const financeService = {
    * Mendapatkan daftar rincian mutasi transaksi kas masuk
    * Endpoint Laravel: GET /api/v1/finance/transactions
    */
-  async getTransactions(params?: FinanceQueryParams): Promise<ApiResponse<Appointment[]>> {
-    return apiClient.get<Appointment[]>('/finance/transactions', params);
+  async getTransactions(params?: FinanceQueryParams): Promise<ApiResponse<CashInReportRow[]>> {
+    return apiClient.get<CashInReportRow[]>('/finance/transactions', params);
   },
 
   /**

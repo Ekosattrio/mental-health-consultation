@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, PsychologistProfile } from '../../../types';
-import { Search, CheckCircle2, Shield, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface UsersTabProps {
   users: User[];
@@ -41,9 +41,9 @@ export const UsersTab: React.FC<UsersTabProps> = ({
       <div className="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 mb-4 gap-2">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Manajemen Pengguna & Verifikasi Kredensial</h3>
+            <h3 className="text-base font-bold text-slate-900">Monitoring Pengguna</h3>
             <p className="text-xs text-slate-500">
-              Pantau basis pasien berskala besar dan verifikasi STR/SIP psikolog sebelum berpraktik.
+              Pantau data akun pasien, psikolog, dan admin secara read-only.
             </p>
           </div>
           <div className="text-right">
@@ -66,7 +66,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
             />
           </div>
 
-          <div className="inline-flex items-center gap-1 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 shrink-0">
+          <div className="grid grid-cols-2 sm:flex sm:items-center gap-1 p-1 bg-slate-100/90 rounded-xl border border-slate-200/80 shrink-0">
             {(['ALL', 'PATIENT', 'PSYCHOLOGIST', 'ADMIN'] as const).map(role => {
               const count = role === 'ALL' ? users.length : users.filter(u => u.role === role).length;
               const label =
@@ -94,7 +94,40 @@ export const UsersTab: React.FC<UsersTabProps> = ({
           </div>
         </div>
 
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100 border-y border-slate-100">
+          {paginatedUsers.length === 0 ? (
+            <div className="py-8 text-center text-xs text-slate-400">Tidak ditemukan pengguna yang cocok dengan kriteria pencarian.</div>
+          ) : paginatedUsers.map(u => {
+            const psyProfile = psychologists.find(p => p.userId === u.id);
+            return (
+              <article key={u.id} className="py-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-slate-900 break-words">{u.name}</h4>
+                    <p className="text-[11px] text-slate-500 break-all">{u.email}</p>
+                  </div>
+                  <span className={`shrink-0 px-2 py-0.5 rounded text-[10px] font-bold ${u.role === 'ADMIN' ? 'bg-purple-100 text-purple-800' : u.role === 'PSYCHOLOGIST' ? 'bg-sky-100 text-sky-800' : 'bg-emerald-100 text-emerald-800'}`}>{u.role}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-[11px]">
+                  <div>
+                    <span className="block font-black uppercase text-slate-400">Status</span>
+                    <span className="font-bold text-slate-700 break-words">{u.status}</span>
+                  </div>
+                  <div>
+                    <span className="block font-black uppercase text-slate-400">Kredensial</span>
+                    <span className="font-semibold text-slate-700">{psyProfile ? `SIP ${psyProfile.sipNumber} / STR ${psyProfile.strNumber}` : '-'}</span>
+                  </div>
+                </div>
+                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  Terdata Sistem
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full min-w-[700px] text-xs text-left">
             <thead className="bg-slate-50 text-slate-500 uppercase font-bold text-[10px] border-y border-slate-200">
               <tr>
@@ -102,7 +135,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({
                 <th className="py-3 px-4">Role</th>
                 <th className="py-3 px-4">Status Akun</th>
                 <th className="py-3 px-4">Kredensial STR / SIP</th>
-                <th className="py-3 px-4 text-right">Aksi Administrator</th>
+                <th className="py-3 px-4 text-right">Status Monitoring</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

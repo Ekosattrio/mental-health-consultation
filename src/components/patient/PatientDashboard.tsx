@@ -13,7 +13,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   Clock,
-  ArrowRight,
   MessageSquare
 } from 'lucide-react';
 
@@ -44,6 +43,7 @@ export const PatientDashboard: React.FC = () => {
     submitIntakeForm,
     submitReview,
     updateUserProfile,
+    paymentReconciliations,
     isSidebarCollapsed,
     setIsSidebarCollapsed
   } = useApp();
@@ -75,10 +75,10 @@ export const PatientDashboard: React.FC = () => {
   const currentTabObj = patientTabs.find(t => t.id === activePatientTab) || patientTabs[0];
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-6 w-full max-w-full">
 
       {/* DESKTOP SIDEBAR + CONTENT */}
-      <div className="flex flex-col lg:flex-row gap-5 items-start">
+      <div className="flex flex-col lg:flex-row gap-5 items-start w-full max-w-full min-w-0">
         {/* DESKTOP SIDEBAR */}
         <aside className={`hidden lg:block ${isSidebarCollapsed ? 'w-20' : 'w-60'} shrink-0 transition-all duration-200`}>
           <nav className="p-2 bg-slate-100/90 rounded-3xl border border-slate-200/80 flex flex-col gap-1 sticky top-24 shadow-2xs">
@@ -128,7 +128,13 @@ export const PatientDashboard: React.FC = () => {
         </aside>
 
         {/* MAIN TAB CONTENT */}
-        <main className="flex-1 min-w-0 w-full">
+        <main className="flex-1 min-w-0 w-full max-w-full">
+          {paymentReconciliations.filter(item => item.patientId === patientId && item.status === 'OPEN').map(item => (
+            <div key={item.id} role="status" className="mb-4 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-xs text-amber-950 break-words">
+              <strong>Pembayaran sedang dicocokkan: {item.id}</strong>
+              <p className="mt-1">Bukti pembayaran tersimpan. Jangan transfer ulang. Hubungi admin untuk pencocokan dan jadwal pengganti.</p>
+            </div>
+          ))}
           {activePatientTab === 'overview' && (
             <OverviewTab
               patientCms={patientCms}

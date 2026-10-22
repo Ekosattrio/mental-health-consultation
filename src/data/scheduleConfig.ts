@@ -1,3 +1,6 @@
+import { getPracticeDate } from '../utils/bookingPolicy';
+import { activeHoldAppointments, readWorkflowState } from '../utils/workflowStore';
+
 export interface DayScheduleConfig {
   dayName: string;
   dayIndex: number; // 0 for Sunday, 1 for Monday, ..., 6 for Saturday
@@ -133,13 +136,15 @@ export const loadScheduleSettings = (): PracticeScheduleSettings => {
   };
 };
 
-export const saveScheduleSettings = (settings: PracticeScheduleSettings): void => {
+export const saveScheduleSettings = (settings: PracticeScheduleSettings): boolean => {
   try {
     localStorage.setItem(SCHEDULE_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
     localStorage.removeItem(LEGACY_SCHEDULE_SETTINGS_STORAGE_KEY);
     window.dispatchEvent(new Event(SCHEDULE_SETTINGS_UPDATED_EVENT));
+    return true;
   } catch (e) {
     console.error('Failed to save schedule settings', e);
+    return false;
   }
 };
 
@@ -182,7 +187,8 @@ export const computeDynamicSlotsForDate = (
     patientName?: string;
   }[],
   psychologistId: string,
-  requestedDurationMinutes: number = 60
+  requestedDurationMinutes: number = 60,
+  excludeHoldId?: string
 ) => {
   const [year, month, day] = dateString.split('-').map(Number);
   const dateObj = new Date(year, month - 1, day);
@@ -235,7 +241,7 @@ export const computeDynamicSlotsForDate = (
   }
 
   // 4. Filter existing active bookings for this date and psychologist
-  const activeBookings = existingAppointments.filter(
+  const activeBookings = [...existingAppointments, ...activeHoldAppointments(readWorkflowState(), excludeHoldId)].filter(
     apt =>
       apt.psychologistId === psychologistId &&
       apt.date === dateString &&
@@ -273,8 +279,12 @@ export const computeDynamicSlotsForDate = (
   const slots = [];
   let currentMin = startMinutes;
   const now = new Date();
-  const localToday = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
-  const currentClockMinutes = now.getHours() * 60 + now.getMinutes();
+  const localToday = getPracticeDate(now);
+  const clockParts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+  }).formatToParts(now);
+  const currentClockMinutes = Number(clockParts.find(part => part.type === 'hour')?.value) * 60 +
+    Number(clockParts.find(part => part.type === 'minute')?.value);
 
   while (currentMin + duration <= endMinutes) {
     const slotEndMin = currentMin + duration;

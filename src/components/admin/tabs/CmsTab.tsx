@@ -40,7 +40,7 @@ interface CmsTabProps {
   updateLandingCms: (config: Partial<LandingPageCmsConfig>) => void;
   updatePatientCms: (config: Partial<PatientPageCmsConfig>) => void;
   updatePsychologistCms: (config: Partial<PsychologistPageCmsConfig>) => void;
-  updatePsychologistProfile: (profile: Partial<PsychologistProfile>, userId?: string) => void;
+  updatePsychologistProfile: (profile: Partial<PsychologistProfile>, userId?: string) => Promise<boolean>;
 }
 
 export const CmsTab: React.FC<CmsTabProps> = ({
@@ -55,6 +55,7 @@ export const CmsTab: React.FC<CmsTabProps> = ({
   updatePsychologistProfile
 }) => {
   const [adminCmsSubTab, setAdminCmsSubTab] = useState<'LANDING' | 'PATIENT' | 'PSYCHOLOGIST'>('LANDING');
+  const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
 
   // Single-open exclusive accordion states (Hanya 1 yang bisa terbuka di setiap tab)
   const [openLandingSection, setOpenLandingSection] = useState<string | null>('hero');
@@ -289,7 +290,7 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-slate-200">
+                <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white rounded-xl border border-slate-200">
                   <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
@@ -307,7 +308,7 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                     <input
                       type="number"
                       min={2}
-                      max={30}
+                      max={60}
                       value={cmsForm.sliderIntervalSeconds}
                       onChange={e => setCmsForm({ ...cmsForm, sliderIntervalSeconds: Number(e.target.value) })}
                       className="w-14 px-2 py-1 rounded-lg border border-slate-200 text-center font-bold text-slate-900"
@@ -344,17 +345,19 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => updatePsychologistProfile({ ...psy, isAvailableToday: !isAvailable }, psy.userId)}
-                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shrink-0 transition-all cursor-pointer ${
-                              isAvailable
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {isAvailable ? '✓ Aktif' : 'Libur'}
-                          </button>
+                          <label className="flex shrink-0 items-center gap-2 text-[10px] font-bold text-slate-700">
+                            <input type="checkbox" checked={isAvailable} disabled={isUpdatingAvailability}
+                              aria-label={`Status publik ${name}`}
+                              onChange={async e => {
+                                const checked = e.target.checked;
+                                if (isUpdatingAvailability) return;
+                                setIsUpdatingAvailability(true);
+                                try { await updatePsychologistProfile({ isAvailableToday: checked }, psy.userId); }
+                                finally { setIsUpdatingAvailability(false); }
+                              }}
+                              className="h-4 w-4 accent-emerald-600 disabled:opacity-50" />
+                            {isAvailable ? 'Aktif' : 'Terbatas'}
+                          </label>
                         </div>
                       );
                     })}
@@ -393,6 +396,16 @@ export const CmsTab: React.FC<CmsTabProps> = ({
 
             {openLandingSection === 'contact' && (
               <div className="p-4 pt-1 border-t border-slate-100 space-y-3 text-xs bg-slate-50/40">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <label className="font-bold text-slate-700">Nama Praktik<input required value={cmsForm.clinicName} onChange={e => setCmsForm({ ...cmsForm, clinicName: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" /></label>
+                  <label className="font-bold text-slate-700">Jam Informasi Praktik<input required value={cmsForm.clinicHours} onChange={e => setCmsForm({ ...cmsForm, clinicHours: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" /></label>
+                  <label className="font-bold text-slate-700">Instagram<input type="url" placeholder="https://www.instagram.com/..." value={cmsForm.instagramUrl || ''} onChange={e => setCmsForm({ ...cmsForm, instagramUrl: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" /></label>
+                </div>
+                <div className="grid grid-cols-1 gap-3 border-t border-slate-200 pt-3 sm:grid-cols-3">
+                  <label className="font-bold text-slate-700">Bank Penerima DP<input required value={cmsForm.bankName || ''} onChange={e => setCmsForm({ ...cmsForm, bankName: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" /></label>
+                  <label className="font-bold text-slate-700">Nomor Rekening<input required value={cmsForm.bankAccountNumber || ''} onChange={e => setCmsForm({ ...cmsForm, bankAccountNumber: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" /></label>
+                  <label className="font-bold text-slate-700">Pemilik Rekening<input required value={cmsForm.bankAccountHolder || ''} onChange={e => setCmsForm({ ...cmsForm, bankAccountHolder: e.target.value })} className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" /></label>
+                </div>
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">Alamat Klinik Tatap Muka</label>
                   <textarea
@@ -631,12 +644,13 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                     </div>
                   </div>
 
-                  {/* 4. QRIS Pembayaran DP 100rb */}
+                  {/* 4. QRIS Pembayaran DP Rp100.000 */}
+                  <label className="block text-xs font-bold text-slate-700">Logo Kop Laporan<input type="url" value={cmsForm.clinicKopLogoUrl || ''} onChange={e => setCmsForm({ ...cmsForm, clinicKopLogoUrl: e.target.value })} placeholder="https://..." className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-normal" /></label>
                   <div className="p-3.5 bg-white rounded-2xl border border-slate-200 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <label className="font-bold text-slate-800 flex items-center gap-1.5">
                         <QrCode className="w-3.5 h-3.5 text-emerald-600" />
-                        Barcode QRIS Pembayaran DP (Rp 100.000)
+                        Gambar QRIS Kasir
                       </label>
                       <span className="text-[10px] text-slate-400">Barcode QRIS</span>
                     </div>
@@ -661,15 +675,8 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                         )}
                       </div>
                       <div className="text-[11px] text-slate-500 flex-1">
-                        QRIS resmi untuk pembayaran DP administrasi konsultasi.
+                        Gambar QRIS yang digunakan kasir saat mencatat pembayaran QRIS.
                         <div className="flex gap-2 mt-1">
-                          <button
-                            type="button"
-                            onClick={() => setCmsForm({ ...cmsForm, qrisImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=JIWASEHAT-DP100K-MANDIRI' })}
-                            className="text-[10px] font-bold text-purple-700 hover:underline cursor-pointer"
-                          >
-                            Pilih Sampel QRIS
-                          </button>
                           {cmsForm.qrisImageUrl && (
                             <button
                               type="button"
@@ -774,6 +781,8 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                 </div>
 
                 <div>
+                  <label className="block font-bold text-slate-700 mb-1">Pengumuman Pasien (Opsional)</label>
+                  <textarea rows={2} value={patientCmsForm.announcementText} onChange={e => setPatientCmsForm({ ...patientCmsForm, announcementText: e.target.value })} className="mb-3 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-normal" />
                   <label className="block font-bold text-slate-700 mb-1">Tips Kesehatan Mental Hari Ini</label>
                   <textarea
                     rows={2}

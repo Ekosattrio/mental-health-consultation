@@ -46,6 +46,8 @@ export interface PsychologistProfile {
 export interface IntakeForm {
   id: string;
   patientId: string;
+  appointmentId?: string;
+  formVersion?: string;
   completedAt: string;
   birthDate: string;
   gender: 'Laki-laki' | 'Perempuan' | 'Lainnya';
@@ -57,18 +59,18 @@ export interface IntakeForm {
   };
   primaryConcerns: string[];
   concernDescription: string;
-  previousTherapy: boolean;
+  previousTherapy?: boolean;
   previousDiagnosis?: string;
-  currentMedications: string;
+  currentMedications?: string;
   currentStressLevel: number; // 1 - 10
   sleepQuality: 'Baik' | 'Cukup' | 'Buruk' | 'Insomnia Akut';
-  suicideRiskFlag: boolean;
+  suicideRiskFlag?: boolean;
   goals: string;
 }
 
 export type PackageCategory = 'KONSELING' | 'ASESMEN' | 'PSIKOTERAPI';
 
-export type PackageType = 'OFFLINE_CLINIC' | 'BUNDLING_ASSESSMENT' | 'PSYCHOTHERAPY';
+export type PackageType = 'OFFLINE_CLINIC' | 'ONLINE_TELE' | 'BUNDLING_ASSESSMENT' | 'PSYCHOTHERAPY';
 
 export interface ConsultationPackage {
   id: string;
@@ -77,7 +79,6 @@ export interface ConsultationPackage {
   type: PackageType;
   durationMinutes: number;
   price: number;
-  dpAmount?: number;
   discountType?: 'NONE' | 'PERCENT' | 'FIXED';
   discountValue?: number;
   discountLabel?: string;
@@ -103,6 +104,44 @@ export interface ScheduleSlot {
 }
 
 export type AppointmentStatus = 'PENDING' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
+
+export interface FinalPaymentRecord {
+  id: string;
+  amount: number;
+  method: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
+  channelDetail?: string;
+  recordedAt: string;
+  receivedAt?: string;
+  recordedByName: string;
+  purpose?: 'CONSULTATION' | 'CANCELLATION_SETTLEMENT';
+}
+
+export interface InitialPaymentRecord {
+  id: string;
+  amount: number;
+  kind: 'DP' | 'FULL';
+  method: NonNullable<Appointment['paymentMethod']>;
+  channelDetail?: string;
+  receivedAt: string;
+  recordedByName?: string;
+  verifiedAt?: string;
+}
+
+export interface BookingConsent {
+  documentVersion: string;
+  privacyVersion: string;
+  acceptedAt: string;
+  patientId: string;
+}
+
+export interface AppointmentStatusEvent {
+  from: AppointmentStatus;
+  to: AppointmentStatus;
+  at: string;
+  actorId: string;
+  actorName: string;
+  reason?: string;
+}
 
 export interface Appointment {
   id: string;
@@ -130,21 +169,48 @@ export interface Appointment {
   paymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
   paymentChannelDetail?: string;
   transferSenderName?: string;
-  paymentReference?: string;
   paymentProofUrl?: string;
+  paymentProofName?: string;
+  paymentProofMimeType?: string;
+  paymentVerifiedAt?: string;
+  paymentVerifiedByName?: string;
+  paymentVerificationNote?: string;
   finalPaymentAmount?: number;
   finalPaymentMethod?: 'CASH' | 'BANK_TRANSFER' | 'QRIS' | 'EDC' | 'OTHER';
   finalPaymentChannelDetail?: string;
-  finalPaymentReference?: string;
   finalPaymentRecordedAt?: string;
   finalPaymentRecordedByName?: string;
+  finalPaymentRecords?: FinalPaymentRecord[];
+  initialPaymentRecord?: InitialPaymentRecord;
   rescheduledAt?: string;
+  scheduleVersion?: number;
   rescheduledByName?: string;
   rescheduledByRole?: UserRole;
   rescheduleReason?: string;
+  rescheduleHistory?: {
+    fromDate: string;
+    fromStartTime: string;
+    fromEndTime: string;
+    toDate: string;
+    toStartTime: string;
+    toEndTime: string;
+    at: string;
+    actorId: string;
+    actorName: string;
+    actorRole: UserRole;
+    reason: string;
+  }[];
+  scheduleConfirmedAt?: string;
+  scheduleConfirmedByName?: string;
+  statusHistory?: AppointmentStatusEvent[];
+  preTestId?: string;
+  preTestSnapshot?: IntakeForm;
+  consent?: BookingConsent;
   treatmentPlanId?: string;
   treatmentPlanStatus?: 'ACTIVE' | 'COMPLETED' | 'DISCONTINUED';
   treatmentPlanDiscontinuedAt?: string;
+  treatmentPlanDiscontinuedById?: string;
+  treatmentPlanDiscontinuedByName?: string;
   treatmentPlanDiscontinuedReason?: string;
   continuousSessionNumber?: number;
   continuousSessionTotal?: number;
@@ -206,6 +272,10 @@ export interface LandingPageCmsConfig {
   aboutImageUrl?: string;
   qrisImageUrl?: string;
   clinicKopLogoUrl?: string;
+  instagramUrl?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountHolder?: string;
 }
 
 export interface PatientPageCmsConfig {

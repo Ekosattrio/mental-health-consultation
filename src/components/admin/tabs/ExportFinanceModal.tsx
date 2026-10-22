@@ -14,7 +14,9 @@ import {
   DollarSign
 } from 'lucide-react';
 import { Tooltip } from '../../common/Tooltip';
-import { getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
+import { ImageWithFallback } from '../../common/ImageWithFallback';
+import { csvRow, downloadCsv } from '../../../utils/exportEncoding';
+import { buildCashInReportRows, formatCashInDate, getPaymentSchemeLabel, getRecordedCashIn } from '../../../utils/payments';
 
 interface ExportFinanceModalProps {
   isOpen: boolean;
@@ -49,7 +51,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
   onClose,
   appointments
 }) => {
-  const { psychologistCms } = useApp();
+  const { psychologistCms, landingCms } = useApp();
 
   const clinicName = psychologistCms?.letterheadClinicName || 'Praktik Mandiri Psikolog Klinis JiwaSehat';
   const doctorName = psychologistCms?.letterheadDoctorName || 'dr. Sarah Jenkins, M.Psi., Psikolog';
@@ -69,7 +71,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
 
   // Filter seluruh appointments (TIDAK terpotong oleh pagination)
   const filteredData = useMemo(() => {
-    let result = appointments;
+    let result = buildCashInReportRows(appointments);
 
     if (filterMode === 'MONTH_YEAR') {
       if (selectedYear !== 'ALL') {
@@ -146,41 +148,31 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
       const skema = getPaymentSchemeLabel(a);
       const status = isPaid ? 'Lunas' : isDpPaid ? 'DP Admin Diterima' : 'Verifikasi Bukti';
 
-      return [
+      return csvRow([
         idx + 1,
-        `"${a.date}"`,
-        `"${a.bookingCode}"`,
-        `"${a.patientName.replace(/"/g, '""')}"`,
-        `"${a.packageName.replace(/"/g, '""')}"`,
-        `"${skema}"`,
+        formatCashInDate(a),
+        a.bookingCode,
+        a.patientName,
+        a.packageName,
+        skema,
         nominalMasuk,
-        `"${status}"`
-      ].join(',');
+        status
+      ]);
     });
 
     // Tambah footer total
-    rows.push([
+    rows.push(csvRow([
       '',
       '',
       '',
-      '"TOTAL AKUMULASI"',
+      'TOTAL AKUMULASI',
       '',
       '',
       totalCashIn,
       ''
-    ].join(','));
+    ]));
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute(
-      'download',
-      `Laporan_Keuangan_JiwaSehat_${filterMode}_${new Date().toISOString().slice(0, 10)}.csv`
-    );
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    downloadCsv(`Laporan_Keuangan_JiwaSehat_${filterMode}_${new Date().toISOString().slice(0, 10)}.csv`, [csvRow(headers), ...rows]);
   };
 
   const handlePrintDocument = () => {
@@ -374,7 +366,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
             <div className="text-center pb-3 border-b-2 border-slate-800 space-y-1">
               <div className="flex items-center justify-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-teal-800 text-white flex items-center justify-center font-black text-sm">
-                  JS
+                  <ImageWithFallback src={landingCms.clinicKopLogoUrl || landingCms.logoUrl} alt="Logo praktik" className="h-full w-full object-contain" fallback={<>JS</>} />
                 </div>
                 <h2 className="text-base sm:text-lg font-black tracking-wider text-slate-950 uppercase">
                   {clinicName}
@@ -422,7 +414,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
               <div>
                 <span className="text-[10px] text-slate-500 font-bold block">Transaksi Terbayar</span>
                 <span className="text-base font-black text-slate-900">
-                  {paidTransactions.length} Sesi
+                  {paidTransactions.length} Transaksi
                 </span>
               </div>
               <div>
@@ -467,7 +459,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
                             {idx + 1}
                           </td>
                           <td className="py-1.5 px-3 border-r border-slate-200 font-semibold text-slate-800 whitespace-nowrap">
-                            {a.date}
+                            {formatCashInDate(a)}
                           </td>
                           <td className="py-1.5 px-3 border-r border-slate-200 font-mono font-bold text-slate-700">
                             #{a.bookingCode}

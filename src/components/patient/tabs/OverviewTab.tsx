@@ -18,7 +18,7 @@ import {
 
 interface OverviewTabProps {
   patientCms: PatientPageCmsConfig;
-  onNavigateTab: (tabId: 'booking' | 'history') => void;
+  onNavigateTab: (tabId: 'booking' | 'history' | 'faq') => void;
 }
 
 interface FaqItem {
@@ -40,13 +40,13 @@ const FAQS: FaqItem[] = [
   },
   {
     category: 'Pembayaran',
-    question: 'Bagaimana skema pembayaran DP administrasi dan pelunasannya?',
-    answer: 'Untuk mengunci slot jadwal, pasien mentransfer DP administrasi flat Rp 100.000 dan mengunggah bukti transfer. Sisa biaya paket diselesaikan saat hadir di klinik atau setelah sesi konsultasi selesai.'
+    question: 'Bagaimana skema pembayaran DP dan pelunasannya?',
+    answer: 'DP Rp 100.000 mengurangi total biaya layanan. Admin memeriksa bukti sebelum mengonfirmasi booking. Pembayaran psikoterapi setelah sesi pertama dapat bertahap sesuai kesepakatan; untuk penghentian layanan seluruh biaya harus lunas.'
   },
   {
     category: 'Reschedule',
     question: 'Apakah saya bisa mengajukan perubahan jadwal (reschedule)?',
-    answer: 'Bisa melalui menu "Jadwal & Riwayat Saya" minimal H+1 dari tanggal sesi sebelumnya, atau menghubungi admin jika terdapat kendala mendadak.'
+    answer: 'Pilih tanggal pengganti minimal keesokan hari (H+1 dari hari pengajuan) melalui Jadwal & Riwayat Saya atau minta bantuan admin. Pembayaran yang sudah tercatat tetap berlaku tanpa DP kedua.'
   },
   {
     category: 'Privasi',
@@ -87,16 +87,16 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     },
     {
       step: 3,
-      title: 'Bayar DP Rp 100.000 & Upload Bukti',
+      title: 'Bayar DP & Upload Bukti',
       badge: 'Kunci Slot',
-      desc: 'Transfer DP administrasi flat Rp 100.000 ke rekening klinik dan lampirkan bukti transfer untuk diverifikasi admin.',
+      desc: 'Transfer DP flat Rp 100.000 dan lampirkan bukti pembayaran untuk diperiksa admin.',
       icon: CreditCard
     },
     {
       step: 4,
-      title: 'Sesi Tatap Muka di Klinik',
-      badge: 'Privat & Offline',
-      desc: 'Hadir 10 menit lebih awal di JiwaSehat Center. Sesi berlangsung privat tatap muka bersama psikolog.',
+      title: 'Ikuti Sesi Konsultasi',
+      badge: 'Privat & Terjadwal',
+      desc: 'Ikuti petunjuk sesuai metode paket: hadir lebih awal untuk tatap muka atau gunakan detail media sesi telelayanan yang telah dikonfirmasi.',
       icon: Building
     },
     {
@@ -110,6 +110,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
 
   return (
     <div className="space-y-4">
+      {(patientCms.dailyMentalHealthTip || patientCms.announcementText) && <div className="space-y-1 border-l-2 border-teal-500 bg-teal-50/60 px-3 py-2 text-xs leading-5 text-slate-700">
+        {patientCms.dailyMentalHealthTip && <p className="whitespace-pre-line break-words">{patientCms.dailyMentalHealthTip}</p>}
+        {patientCms.announcementText && <p className="whitespace-pre-line break-words font-medium">{patientCms.announcementText}</p>}
+      </div>}
       {/* 1. COMPACT HERO BANNER & QUICK ACTIONS */}
       <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 text-white rounded-2xl p-4 sm:p-5 shadow-xs relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -119,10 +123,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <span>Panduan Layanan & FAQ Pasien</span>
             </div>
             <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
-              Selamat Datang di Portal Konseling JiwaSehat
+              {patientCms.welcomeBannerTitle}
             </h1>
             <p className="text-xs text-emerald-50/90 leading-relaxed">
-              Panduan terpadu reservasi sesi tatap muka bersama dr. Sarah Jenkins, M.Psi., Psikolog.
+              {patientCms.welcomeBannerSubtitle}
             </p>
           </div>
 
@@ -227,9 +231,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
           </div>
         </div>
 
-        {/* KOLOM KANAN: PANDUAN PERSIAPAN KLINIK & HOTLINE SIAGA */}
+        {/* KOLOM KANAN: PANDUAN PERSIAPAN SESI & HOTLINE SIAGA */}
         <div className="lg:col-span-6 space-y-4">
-          {/* Card Persiapan Sesi Tatap Muka */}
+          {/* Card Persiapan Sesi */}
           <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-2xs space-y-3.5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
@@ -237,11 +241,11 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                   <Building className="w-4 h-4" />
                 </span>
                 <h3 className="text-xs font-black text-slate-900 uppercase tracking-wide">
-                  Persiapan Hadir di Klinik
+                  Persiapan Sesi Konsultasi
                 </h3>
               </div>
               <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                Tatap Muka Privat
+                Sesuai Metode Paket
               </span>
             </div>
 
@@ -249,8 +253,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-slate-900 block font-bold">Hadir 10–15 Menit Lebih Awal</strong>
-                  <span className="text-[11px] text-slate-500">Memberikan waktu untuk proses check-in, penyesuaian diri, dan relaksasi sebelum sesi dimulai.</span>
+                  <strong className="text-slate-900 block font-bold">Periksa Metode dan Detail Sesi</strong>
+                  <span className="text-[11px] text-slate-500">Hadir 10-15 menit lebih awal untuk tatap muka atau siapkan perangkat dan media sesi yang dikonfirmasi untuk telelayanan.</span>
                 </div>
               </div>
 
@@ -258,15 +262,15 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
                   <strong className="text-slate-900 block font-bold">Bukti Transfer DP Rp 100.000</strong>
-                  <span className="text-[11px] text-slate-500">Pastikan bukti transfer DP administrasi sudah diunggah saat booking dan berstatus terkonfirmasi.</span>
+                  <span className="text-[11px] text-slate-500">Pastikan bukti transfer DP konsultasi sudah diunggah saat booking dan berstatus terkonfirmasi.</span>
                 </div>
               </div>
 
               <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
-                  <strong className="text-slate-900 block font-bold">Ruang Konseling Privat & Kedap Suara</strong>
-                  <span className="text-[11px] text-slate-500">Sesi berlangsung aman dan bebas stigma dengan jaminan kerahasiaan medis psikolog klinis.</span>
+                  <strong className="text-slate-900 block font-bold">Siapkan Ruang yang Privat</strong>
+                  <span className="text-[11px] text-slate-500">Ruang klinik disiapkan privat; untuk telelayanan, pilih tempat tenang agar sesi berlangsung nyaman dan rahasia.</span>
                 </div>
               </div>
             </div>
@@ -275,7 +279,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
               <span className="text-[11px] text-slate-500">Butuh info lebih lanjut seputar tanya jawab?</span>
               <button
                 type="button"
-                onClick={() => onNavigateTab('booking')}
+                onClick={() => onNavigateTab('faq')}
                 className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer"
               >
                 <span>Lihat Pertanyaan di Tab FAQ</span>
@@ -289,12 +293,12 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse shrink-0" />
               <h4 className="text-xs font-black text-rose-950 uppercase tracking-wide">
-                Layanan Bantuan Krisis & Kontak Siaga 24 Jam
+                {patientCms.crisisHotlineTitle}
               </h4>
             </div>
 
             <p className="text-xs text-slate-700 leading-relaxed">
-              Jika Anda atau kerabat sedang mengalami krisis emosional mendalam, serangan panik berat, atau membutuhkan pendampingan darurat, silakan segera hubungi hotline siaga berikut (bebas pulsa) atau hubungi WhatsApp layanan krisis kami:
+              {patientCms.crisisNotice}
             </p>
 
             <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -303,7 +307,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
               >
                 <PhoneCall className="w-3.5 h-3.5" />
-                <span>Hotline Bebas Pulsa ({patientCms.crisisHotlineNumber})</span>
+                <span>{patientCms.crisisHotlineNumber}</span>
               </a>
               <a
                 href={`https://wa.me/${patientCms.crisisWhatsapp.replace(/[^0-9]/g, '')}`}
@@ -312,7 +316,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
                 className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
               >
                 <MessageSquare className="w-3.5 h-3.5" />
-                <span>WhatsApp Siaga 24 Jam</span>
+                <span>WhatsApp Kontak Bantuan</span>
               </a>
             </div>
           </div>

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { findScheduleConflicts } from '../../../utils/scheduleConflicts';
+import { activeHoldAppointments, readWorkflowState, withWorkflowLock } from '../../../utils/workflowStore';
 import { ScheduleSlot, Appointment, ConsultationPackage } from '../../../types';
 import {
   Calendar,
@@ -31,7 +33,8 @@ interface ScheduleTabProps {
 }
 
 export const ScheduleTab: React.FC<ScheduleTabProps> = ({
-  psychologistId
+  psychologistId,
+  appointments = []
 }) => {
   const [settings, setSettings] = useState<PracticeScheduleSettings>(loadScheduleSettings);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
@@ -140,7 +143,9 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
     }));
   };
 
-  const handleSaveAll = () => {
+  const handleSaveAll = async () => {
+    try {
+    await withWorkflowLock(() => {
     const invalidWeeklyDay = settings.weeklyDays.find(day => (
       day.isOpen && (
         timeToMinutes(day.endTime) <= timeToMinutes(day.startTime) ||
@@ -169,10 +174,23 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
       return;
     }
 
+    const current = readWorkflowState();
+    const conflicts = findScheduleConflicts(settings, [...current.appointments, ...activeHoldAppointments(current)], psychologistId);
+    if (conflicts.length > 0) {
+      setValidationError(`Perubahan belum disimpan. ${conflicts.slice(0, 3).join(' ')} Jadwalkan ulang booking terdampak terlebih dahulu.`);
+      return;
+    }
+    if (!saveScheduleSettings(settings)) {
+      setValidationError('Jadwal gagal disimpan. Periksa penyimpanan browser dan coba kembali.');
+      return;
+    }
     setValidationError('');
-    saveScheduleSettings(settings);
     setSaveSuccessMsg(true);
     setTimeout(() => setSaveSuccessMsg(false), 3000);
+    });
+    } catch (error) {
+      setValidationError(error instanceof Error ? error.message : 'Jadwal belum tersimpan. Coba kembali.');
+    }
   };
 
   return (
@@ -213,16 +231,59 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
 
       {/* 2. TABEL JADWAL MINGGUAN RUTIN: Padat, Rapi, Tanpa Kolom Skema Waktu */}
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs overflow-hidden">
-        <div className="py-2.5 px-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
+        <div className="py-2.5 px-4 border-b border-slate-100 bg-slate-50/70 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
           <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-            Jadwal Rutin Mingguan (Senin – Minggu)
+            Jadwal Rutin Mingguan (Senin - Minggu)
           </h3>
           <span className="text-[11px] text-slate-500 font-semibold">
             Pilih Buka / Libur untuk mengubah status operasional
           </span>
         </div>
 
-        <div className="overflow-x-auto w-full max-w-full custom-scrollbar">
+        <div className="md:hidden divide-y divide-slate-100">
+          {settings.weeklyDays.map(day => (
+            <div key={day.dayIndex} className={`p-4 space-y-3 ${!day.isOpen ? 'bg-slate-50/50' : ''}`}>
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-black text-slate-900">{day.dayName}</span>
+                <div className="inline-flex items-center p-0.5 bg-slate-100 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => handleSetDayStatus(day.dayIndex, true)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold ${day.isOpen ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}
+                  >
+                    Buka
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetDayStatus(day.dayIndex, false)}
+                    className={`px-3 py-1 rounded-lg text-xs font-bold ${!day.isOpen ? 'bg-rose-600 text-white' : 'text-slate-400'}`}
+                  >
+                    Libur
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 min-[380px]:grid-cols-[minmax(0,1fr)_auto] gap-3">
+                <div>
+                  <span className="block text-[10px] font-black uppercase text-slate-400 mb-1">Jam Operasional</span>
+                  <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                    <input type="time" disabled={!day.isOpen} value={day.startTime} onChange={e => handleDayChange(day.dayIndex, 'startTime', e.target.value)} className="min-w-0 w-full px-2 py-2 rounded-lg border border-slate-200 bg-white text-xs font-bold disabled:bg-slate-100" />
+                    <span className="text-xs font-bold text-slate-400">s/d</span>
+                    <input type="time" disabled={!day.isOpen} value={day.endTime} onChange={e => handleDayChange(day.dayIndex, 'endTime', e.target.value)} className="min-w-0 w-full px-2 py-2 rounded-lg border border-slate-200 bg-white text-xs font-bold disabled:bg-slate-100" />
+                  </div>
+                </div>
+                <div>
+                  <span className="block text-[10px] font-black uppercase text-slate-400 mb-1">Kuota</span>
+                  <div className="flex items-center gap-2">
+                    <input type="number" min={1} max={15} disabled={!day.isOpen} value={day.maxPatients} onChange={e => handleDayChange(day.dayIndex, 'maxPatients', Number(e.target.value))} className="w-16 px-2 py-2 rounded-lg border border-slate-200 bg-white text-xs font-bold text-center disabled:bg-slate-100" />
+                    <span className="text-[11px] text-slate-500">orang</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto w-full max-w-full custom-scrollbar">
           <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="bg-slate-50/50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
               <tr>

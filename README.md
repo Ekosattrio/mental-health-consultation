@@ -1,66 +1,42 @@
-# JiwaSehat - Platform Konsultasi Psikologi
+# JiwaSehat - Laravel, Inertia dan React
 
-JiwaSehat adalah aplikasi frontend React untuk booking konsultasi psikologi tatap muka dan telelayanan melalui platform pihak ketiga. Aplikasi memiliki landing page, dashboard pasien, dashboard psikolog/pengelola, dan dashboard admin operasional. Psikoterapi ditarifkan per sesi dengan rencana awal empat sesi; kelanjutan setelah sesi keempat melalui booking baru.
+Satu proyek Laravel 13 + Inertia 3 + React 19/TypeScript dengan MySQL 8. Laravel mengatur route/session; React mengerjakan tampilan. Prototype lokal tetap terpisah dari transaksi backend.
 
-## Stack
+## Acuan Aktif
 
-- React 19
-- TypeScript
-- Vite
-- Tailwind CSS
-- LocalStorage sebagai persistence sementara
-- Mock data di `src/data/mockData.ts`
-- HTTP service layer siap untuk Laravel 12+ REST API dan MySQL 8+
+- [Keputusan final 22 Oktober](docs/KEPUTUSAN_FINAL_2026_10_22.md): DP flat Rp100.000 sekali di awal, semua jadwal H+1, booking baru setelah empat sesi, pembatalan wajib lunas.
+- [Aturan bisnis](docs/BUSINESS_RULES.md), [kontrak web](docs/WEB_CONTRACT.md), [database](docs/DATABASE_ARCHITECTURE.md), dan [TODO](docs/TODO.md).
+- [Merge integrasi ke main tanpa force](docs/PANDUAN_MERGE_INTEGRASI.md).
+- [Panduan Eko](docs/EKO_PROJECT_GUIDE.md), [setup](docs/SETUP.md), [CMS](docs/CMS_AUDIT.md), dan [aturan agent](docs/AGENTS.md).
 
-## Struktur Dokumentasi
+## Struktur
 
-Dokumentasi proyek dikelola melalui vault Obsidian di `docs/Psikolog`. Dokumen utama berada di `docs/Psikolog/Live Docs/`:
-
-- `PROJECT_CONTEXT.md` - konteks produk dan ruang lingkup
-- `ARCHITECTURE.md` - struktur teknis dan alur aplikasi
-- `CODING_RULES.md` - aturan coding
-- `BUSINESS_RULES.md` - aturan bisnis
-- `WORKFLOW.md` - cara kerja developer dan AI
-- `DATABASE.md` - rancangan data dan persistence
-- `API.md` - kontrak API target
-- `ROLES_PERMISSIONS.md` - role dan izin
-- `PANDUAN_FITUR_PER_ROLE.md` - fitur per role, fungsi/cara kerja, arti ikon aksi psikolog, dan batas implementasi
-- `CMS_AUDIT.md` - pengaturan CMS, komponen pembaca, cara simpan, dan bagian yang masih statis
-- `FEATURES.md` - daftar fitur
-- `DECISIONS.md` - catatan keputusan teknis
-- `KNOWN_ISSUES.md` - isu yang sudah diketahui
-- `TODO.md` - daftar pekerjaan berikutnya
-- `CHANGELOG.md` - riwayat perubahan
-- `SESSION_HANDOFF.md` - catatan handoff sesi
-
-## Instalasi Lokal
-
-```bash
-npm ci
+```text
+app/                   Fondasi Laravel
+resources/js/pages/    Halaman Inertia
+resources/js/layouts/  Layout web berbasis session
+resources/js/components/ Komponen React dan preview
+resources/js/legacy/   Kontrak REST lama, bukan transport web aktif
+resources/css/         Tailwind CSS
+routes/web.php         Route halaman dan action web
+database/              Migration fondasi; schema domain masih target
+docs/                  Dokumentasi aktif, fitur, journey, referensi, arsip
+tests/                 Regresi prototype dan kerangka tes Laravel
 ```
 
-## Script
+## Status
+
+Home, login/logout session dan dashboard kerangka ber-role tersedia. Booking, ledger, upload privat, Google SSO, CMS database, WhatsApp dan domain backend belum operasional. Komponen preview tidak membuktikan backend selesai.
+
+`/preview/eko` hanya lokal dengan flag aktif. Mock/LocalStorage bukan data produksi. Sebagian flow prototype masih kontrak lama; pekerjaan integrasi dicatat di TODO/KNOWN_ISSUES.
+
+Verifikasi integrasi22Oktober2026: TypeScript tanpa error dan58tes lolos (55regresi FE +3kesiapan sumber integrasi). Ini bukan QA browser/backend.
+
+Preview baru mencakup psikoterapi per sesi, DP100.000 sekali, lanjutan DP0, review reschedule Admin, koreksi bukti berversi dan menu Admin yang disepakati. Tagihan legacy tidak ditulis ulang.
 
 ```bash
-npm run dev
-npm run build
-npm run preview
 npm run lint
+npm test
 ```
 
-Catatan: jalankan script hanya saat memang diperlukan. Untuk sesi kerja AI saat ini, developer meminta AI tidak menjalankan `npm run dev` dan `npm run build`.
-
-## Verifikasi Frontend
-
-Setelah izin developer, checkpoint 22 Oktober 2026: TypeScript 0 error dan 36 tes regresi lolos, termasuk versi reschedule paralel, hold expired/rekonsiliasi, profil, CMS, timeline, dan render statis katalog. Belum QA visual/interaksi browser.
-
-```bash
-npx tsc --noEmit
-npx tsx --test tests/frontend-regressions.test.ts
-```
-
-Tes memakai storage/antrean lock simulasi, bukan QA browser atau jaminan antarperangkat. Workflow prototype membutuhkan Web Locks melalui localhost/HTTPS; tanpa dukungan tersebut mutasi sensitif ditolak. Default reservasi lokal 15 menit dapat diatur melalui `VITE_MOCK_HOLD_MINUTES`, bukan TTL produksi final. Detail di dokumentasi aktif.
-
-## Aturan Git
-
-Git sepenuhnya dikelola oleh developer. AI tidak boleh menjalankan operasi Git seperti `git add`, `git commit`, `git push`, `git pull`, `git merge`, `git rebase`, `git reset`, `git checkout`, `git switch`, `git stash`, atau `git clean`.
+Git dikelola developer. Agent tidak menjalankan Git, dev server, atau build. Perbaikan isi file tidak menandai index Git resolved; staging/commit tetap developer setelah pemeriksaan.

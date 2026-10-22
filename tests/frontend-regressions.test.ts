@@ -3,26 +3,32 @@ import { beforeEach, test } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ServicePicker } from '../src/components/patient/ServicePicker';
-import { INITIAL_APPOINTMENTS, INITIAL_USERS, INITIAL_LANDING_CMS, INITIAL_PATIENT_CMS } from '../src/data/mockData';
-import { AppProvider } from '../src/context/AppContext';
-import { Footer } from '../src/components/layout/Footer';
-import { OverviewTab } from '../src/components/patient/tabs/OverviewTab';
-import { RescheduleAudit } from '../src/components/common/RescheduleAudit';
-import { updateOwnAccountProfile } from '../src/utils/accountProfile';
-import { persistBrowserValue, validateLandingCms, mergePatientCms } from '../src/utils/cms';
-import { fitTooltip } from '../src/utils/tooltipPosition';
-import { Appointment, ConsultationPackage } from '../src/types';
-import { PatientEndpoints, BookAppointmentPayload } from '../src/api/patientEndpoints';
-import { PatientController } from '../src/controllers/PatientController';
-import { computeDynamicSlotsForDate, PracticeScheduleSettings } from '../src/data/scheduleConfig';
-import { getMinimumBookingDate, getPracticeDate, timeSlotKey, findTimeSlot } from '../src/utils/bookingPolicy';
-import { readXsrfCookie } from '../src/utils/csrf';
-import { csvCell, csvRow, escapeHtml, spreadsheetText } from '../src/utils/exportEncoding';
-import { getRecordedCashIn } from '../src/utils/payments';
-import { canRescheduleAppointment, rescheduleExistingAppointment, getScheduleVersion, assertScheduleVersion } from '../src/utils/reschedulePolicy';
+import { ServicePicker } from '../resources/js/components/patient/ServicePicker';
+import { INITIAL_APPOINTMENTS, INITIAL_USERS, INITIAL_LANDING_CMS, INITIAL_PATIENT_CMS } from '../resources/js/data/mockData';
+import { AppProvider } from '../resources/js/context/AppContext';
+import { Footer } from '../resources/js/components/layout/Footer';
+import { OverviewTab } from '../resources/js/components/patient/tabs/OverviewTab';
+import { RescheduleAudit } from '../resources/js/components/common/RescheduleAudit';
+import { updateOwnAccountProfile } from '../resources/js/utils/accountProfile';
+import { persistBrowserValue, validateLandingCms, mergePatientCms } from '../resources/js/utils/cms';
+import { fitTooltip } from '../resources/js/utils/tooltipPosition';
+import { Appointment, ConsultationPackage } from '../resources/js/types';
+import { PatientEndpoints, BookAppointmentPayload } from '../resources/js/api/patientEndpoints';
+import { PatientController } from '../resources/js/controllers/PatientController';
+import { computeDynamicSlotsForDate, PracticeScheduleSettings } from '../resources/js/data/scheduleConfig';
+import { getMinimumBookingDate, getPracticeDate, timeSlotKey, findTimeSlot } from '../resources/js/utils/bookingPolicy';
+import { readXsrfCookie } from '../resources/js/utils/csrf';
+import { csvCell, csvRow, escapeHtml, spreadsheetText } from '../resources/js/utils/exportEncoding';
+import { calculateInitialDp, FLAT_DP_AMOUNT, getRecordedCashIn, getTreatmentPlanBalance, getNextSessionBilling,
+  getPlanBillingBalance, resolveBillingAppointment, buildCashInReportRows } from '../resources/js/utils/payments';
+import { cancelPaidPlan } from '../resources/js/utils/appointmentWorkflow';
+import { canRescheduleAppointment, rescheduleExistingAppointment, getScheduleVersion, assertScheduleVersion,
+  requestPatientReschedule, applyPatientReschedule, getPatientRescheduleCount } from '../resources/js/utils/reschedulePolicy';
+import { correctInitialPaymentProof, rejectInitialPaymentProof } from '../resources/js/utils/paymentProof';
+import { calculatePackagePayableAmount } from '../resources/js/utils/discounts';
+import { TreatmentPlansTab } from '../resources/js/components/psychologist/tabs/TreatmentPlansTab';
 import { BookingHold, WORKFLOW_STORAGE_KEY, WORKFLOW_UPDATED_EVENT, commitWorkflow,
-  readWorkflowState, savePaymentReconciliation, withWorkflowLock, findActivePatientHold } from '../src/utils/workflowStore';
+  readWorkflowState, savePaymentReconciliation, withWorkflowLock, findActivePatientHold } from '../resources/js/utils/workflowStore';
 
 class MemoryStorage implements Storage {
   private values = new Map<string, string>();
@@ -310,17 +316,18 @@ const missedSession = (): Appointment => ({
 });
 const rescheduleNow = new Date('2026-10-22T04:00:00Z');
 
-test('only the assigned psychologist may recover a missed session', () => {
+test('authorized clinic staff and the owning patient may recover or request a missed session within policy', () => {
   const source = missedSession();
   assert.equal(canRescheduleAppointment(source, reschedulePsychologist), true);
   for (const actor of [
-    { id: 'admin', name: 'Admin', role: 'ADMIN' as const },
-    { id: source.patientId, name: 'Pasien', role: 'PATIENT' as const },
+    { id: source.patientId + '-other', name: 'Pasien lain', role: 'PATIENT' as const },
     { ...reschedulePsychologist, id: 'other-psychologist' }
   ]) {
     assert.equal(canRescheduleAppointment(source, actor), false);
     assert.throws(() => rescheduleExistingAppointment(source, actor, '2026-10-23', '10:00', '11:00', 'Setuju', rescheduleNow));
   }
+  assert.equal(canRescheduleAppointment(source, { id: 'admin', name: 'Admin', role: 'ADMIN' }, rescheduleNow), true);
+  assert.equal(canRescheduleAppointment(source, { id: source.patientId, name: 'Pasien', role: 'PATIENT' }, rescheduleNow), true);
 });
 
 test('manual recovery keeps the same session, quota, DP, and all payment audit', () => {
@@ -360,7 +367,7 @@ test('cancelled, completed, discontinued, and unverified missed sessions cannot 
 });
 
 test('ordinary patient reschedule requests reconfirmation without a second DP', () => {
-  const source = { ...missedSession(), status: 'CONFIRMED' as const };
+  const source = { ...missedSession(), date: '2026-10-24', status: 'CONFIRMED' as const };
   const patient = { id: source.patientId, name: 'Pasien', role: 'PATIENT' as const };
   const result = rescheduleExistingAppointment(source, patient, '2026-10-23', '10:00', '11:00', 'Perjalanan', rescheduleNow);
   assert.equal(result.status, 'PENDING');
@@ -445,6 +452,59 @@ const walkInPayload = (): BookAppointmentPayload => ({
   startTime: '09:00', endTime: '10:00', paymentMethod: 'CASH_FULL', initialPaymentAmount: 300000
 });
 
+test('initial DP is flat Rp100000, not fifty percent, and cannot exceed the net price', () => {
+  assert.equal(FLAT_DP_AMOUNT, 100000);
+  for (const price of [250000, 500000, 750000, 900000, 1500000, 2000000]) {
+    assert.equal(calculateInitialDp(price), 100000);
+  }
+  assert.equal(calculateInitialDp(75000), 75000);
+  assert.equal(calculateInitialDp(0), 0);
+  assert.equal(calculateInitialDp(-1), 0);
+});
+
+test('walk-in DP uses Rp100000 instead of fifty percent of a Rp900000 service', async () => {
+  const service = { ...pkg, price: 900000 };
+  const payload = { ...walkInPayload(), paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 };
+  const result = await PatientEndpoints.bookAppointment(payload, [], [], [service], INITIAL_USERS, {});
+  assert.equal(result.success, true);
+  assert.equal(result.data.appointment.dpAmount, 100000);
+  assert.equal(result.data.appointment.totalAmount, 900000);
+  assert.equal(result.data.appointment.remainingAmount, 900000);
+  const verified: Appointment = { ...result.data.appointment, paymentStatus: 'DP_PAID',
+    initialPaymentRecord: { ...result.data.appointment.initialPaymentRecord!, verifiedAt: new Date().toISOString() } };
+  assert.equal(getTreatmentPlanBalance(verified).remainingAmount, 800000);
+  const percentage = await PatientEndpoints.bookAppointment({ ...payload, initialPaymentAmount: 450000 }, [], [], [service], INITIAL_USERS, {});
+  assert.equal(percentage.success, false);
+});
+
+test('preview refuses cancellation while the existing plan ledger is unpaid', () => {
+  const source: Appointment = { ...appointment('unpaid'), psychologistId: psychologist.id,
+    status: 'CONFIRMED', paymentStatus: 'DP_PAID', dpAmount: 100000, totalAmount: 500000,
+    initialPaymentRecord: undefined, finalPaymentRecords: [], finalPaymentAmount: 0,
+    continuousSessionNumber: 1, treatmentPlanId: 'plan-unpaid', treatmentPlanStatus: 'ACTIVE' };
+  const result = cancelPaidPlan([source], source.id, psychologist, 'Pasien meminta berhenti');
+  assert.match(result.error || '', /lunas/);
+  assert.equal(result.appointments, undefined);
+  assert.equal(source.status, 'CONFIRMED');
+});
+
+test('paid preview cancellation stops the remaining plan, retains completed sessions and isolates other plans', () => {
+  const first: Appointment = { ...appointment('first'), psychologistId: psychologist.id,
+    status: 'COMPLETED', paymentStatus: 'PAID', totalAmount: 500000, dpAmount: 100000,
+    initialPaymentRecord: undefined, finalPaymentRecords: [], finalPaymentAmount: 400000,
+    continuousSessionNumber: 1, treatmentPlanId: 'paid-plan', treatmentPlanStatus: 'ACTIVE' };
+  const next: Appointment = { ...first, id: 'next', status: 'CONFIRMED', totalAmount: 0,
+    dpAmount: 0, finalPaymentAmount: 0, continuousSessionNumber: 2 };
+  const other = { ...next, id: 'other', treatmentPlanId: 'another-plan' };
+  const result = cancelPaidPlan([first, next, other], next.id, psychologist, 'Kesepakatan berhenti');
+  assert.equal(result.error, undefined);
+  assert.equal(result.appointments?.[0].status, 'COMPLETED');
+  assert.equal(result.appointments?.[1].status, 'CANCELLED');
+  assert.equal(result.appointments?.[1].treatmentPlanStatus, 'DISCONTINUED');
+  assert.equal(result.appointments?.[0].finalPaymentAmount, 400000);
+  assert.equal(result.appointments?.[2], other);
+});
+
 test('walk-in FULL uses actual amount and is not cash-in before verification', async () => {
   const bad = await PatientEndpoints.bookAppointment({ ...walkInPayload(), initialPaymentAmount: 250000 }, [], [], [pkg], INITIAL_USERS, {});
   assert.equal(bad.success, false);
@@ -478,4 +538,209 @@ test('booking preparation does not publish state or a success toast before the f
   assert.equal(stateWrites, 0);
   assert.deepEqual(notifications, []);
   assert.equal(readWorkflowState().appointments.length, 0);
+});
+
+const therapyPackage: ConsultationPackage = { ...pkg, id: 'therapy', name: 'Psikoterapi', type: 'PSYCHOTHERAPY',
+  category: 'PSIKOTERAPI', price: 500000, sessionCount: 4, isContinuousCare: true };
+const sessionBill = (id: string, number = 1): Appointment => ({ ...appointment(id), patientId: patient.id,
+  psychologistId: psychologist.id, packageId: therapyPackage.id, packageType: 'PSYCHOTHERAPY',
+  treatmentPlanId: 'per-session-plan', treatmentPlanStatus: 'ACTIVE', continuousSessionTotal: 4,
+  continuousSessionNumber: number, billingMode: 'PER_SESSION', totalAmount: 500000,
+  subtotalAmount: 500000, dpAmount: number === 1 ? 100000 : 0, status: 'CONFIRMED', paymentStatus: 'PENDING',
+  initialPaymentRecord: undefined, finalPaymentRecords: [], finalPaymentAmount: 0,
+  date: '2026-10-24', startTime: '09:00', endTime: '10:00', createdAt: '2026-10-22T00:00:00Z' });
+const clinicAdmin = { id: 'admin', name: 'Admin', role: 'ADMIN' as const };
+
+test('new psychotherapy pricing charges one session while retaining four planned sessions', async () => {
+  const pricing = calculatePackagePayableAmount({ ...therapyPackage, discountType: 'FIXED', discountValue: 50000 });
+  assert.equal(pricing.sessionCount, 4);
+  assert.equal(pricing.subtotalAmount, 500000);
+  assert.equal(pricing.discountAmount, 50000);
+  assert.equal(pricing.totalAmount, 450000);
+  const result = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], [], [therapyPackage], INITIAL_USERS, {});
+  assert.equal(result.success, true);
+  assert.equal(result.data.appointment.totalAmount, 500000);
+  assert.equal(result.data.appointment.billingMode, 'PER_SESSION');
+  assert.equal(result.data.appointment.continuousSessionTotal, 4);
+});
+
+test('Admin may record full payment of the first therapy session without charging unbooked sessions', async () => {
+  const result = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_FULL', initialPaymentAmount: 500000 }, [], [], [therapyPackage], INITIAL_USERS, {});
+  assert.equal(result.success, true);
+  assert.equal(result.data.appointment.totalAmount, 500000);
+  assert.equal(result.data.appointment.dpAmount, 100000);
+  assert.equal(result.data.appointment.initialPaymentRecord?.kind, 'FULL');
+  assert.equal(result.data.appointment.initialPaymentRecord?.amount, 500000);
+  assert.equal(getRecordedCashIn(result.data.appointment), 0);
+});
+
+test('next session billing has its own snapshot and no second DP without repricing legacy plans', () => {
+  const first = sessionBill('first');
+  const next = getNextSessionBilling(first, { ...therapyPackage, price: 550000 });
+  assert.equal(next.totalAmount, 550000);
+  assert.equal(next.dpAmount, 0);
+  assert.equal(next.remainingAmount, 550000);
+  assert.equal(first.totalAmount, 500000);
+  assert.equal(getNextSessionBilling({ ...first, billingMode: undefined }).totalAmount, 0);
+  assert.throws(() => getNextSessionBilling(first, { ...therapyPackage, isActive: false }));
+  assert.throws(() => getNextSessionBilling(first, { ...therapyPackage, durationMinutes: 90 }), /Durasi/);
+});
+
+test('session receipts and cash report include continuation payments exactly once', () => {
+  const first: Appointment = { ...sessionBill('one'), paymentStatus: 'PAID', finalPaymentAmount: 400000 };
+  const second: Appointment = { ...sessionBill('two', 2), paymentStatus: 'PAID', finalPaymentAmount: 500000 };
+  assert.equal(resolveBillingAppointment(second, [first, second]).id, second.id);
+  assert.deepEqual(getPlanBillingBalance([first, second]), { totalAmount: 1000000, paidAmount: 1000000, remainingAmount: 0 });
+  const rows = buildCashInReportRows([first, second]);
+  assert.equal(rows.reduce((total, row) => total + row.cashInAmount, 0), 1000000);
+  assert.ok(rows.some(row => row.sourceAppointmentId === second.id));
+  const legacyFirst = { ...first, billingMode: undefined, totalAmount: 2000000 };
+  const legacySecond = { ...second, billingMode: undefined, totalAmount: 0 };
+  assert.equal(resolveBillingAppointment(legacySecond, [legacyFirst, legacySecond]).id, first.id);
+  assert.equal(getPlanBillingBalance([legacyFirst, legacySecond]).totalAmount, 2000000);
+});
+
+test('per-session cancellation checks every created invoice and Admin cannot bypass the unpaid continuation', () => {
+  const first: Appointment = { ...sessionBill('one'), status: 'COMPLETED', paymentStatus: 'PAID', finalPaymentAmount: 400000 };
+  const second = sessionBill('two', 2);
+  assert.match(cancelPaidPlan([first, second], second.id, clinicAdmin, 'Berhenti').error || '', /lunas/);
+  const settled: Appointment = { ...second, paymentStatus: 'PAID', finalPaymentAmount: 500000 };
+  const cancelled = cancelPaidPlan([first, settled], settled.id, clinicAdmin, 'Berhenti');
+  assert.equal(cancelled.error, undefined);
+  assert.equal(cancelled.appointments?.[0].status, 'COMPLETED');
+  assert.equal(cancelled.appointments?.[1].status, 'CANCELLED');
+  assert.equal(getPlanBillingBalance(cancelled.appointments!).totalAmount, 1000000);
+  assert.equal(cancelled.appointments?.length, 2);
+});
+
+test('Admin plan management hides balance, receipts and monetary progress', () => {
+  const markup = renderToStaticMarkup(createElement(TreatmentPlansTab, { appointments: [sessionBill('one')],
+    hideFinancialDetails: true, onScheduleNextSession: async () => false, onDiscontinuePlan: async () => false,
+    onReschedule: async () => false }));
+  assert.doesNotMatch(markup, /Terbayar|500[.,]000|Sisa Rp/);
+  assert.match(markup, /Tagihan per sesi/);
+});
+
+test('patient request keeps the active interval, ledger, version and quota until Admin applies', () => {
+  const source = sessionBill('request');
+  const requested = requestPatientReschedule(source, patient, '2026-10-27', '10:00', '11:00', 'Kesepakatan', rescheduleNow);
+  assert.equal(requested.date, source.date);
+  assert.equal(requested.paymentStatus, source.paymentStatus);
+  assert.equal(getScheduleVersion(requested), getScheduleVersion(source));
+  assert.equal(getPatientRescheduleCount(requested), 0);
+  assert.equal(requested.rescheduleRequest?.status, 'REQUESTED');
+  assert.equal(canRescheduleAppointment(requested, patient, rescheduleNow), false);
+  const applied = applyPatientReschedule(requested, clinicAdmin, requested.rescheduleRequest!.id, new Date('2026-10-24T08:00:00Z'));
+  assert.equal(applied.date, '2026-10-27');
+  assert.equal(applied.rescheduleRequest?.requestedAt, rescheduleNow.toISOString());
+  assert.equal(applied.rescheduleRequest?.status, 'APPLIED');
+  assert.equal(getPatientRescheduleCount(applied), 1);
+  assert.equal(applied.dpAmount, 100000);
+});
+
+test('patient requests enforce the H-2 boundary, no-show four-day deadline, and ownership', () => {
+  const source = sessionBill('boundaries');
+  assert.equal(canRescheduleAppointment(source, patient, new Date('2026-10-23T23:59:59.999Z')), true);
+  assert.equal(canRescheduleAppointment(source, patient, new Date('2026-10-24T00:00:00Z')), false);
+  const missed = { ...source, date: '2026-10-20', status: 'NO_SHOW' as const, paymentStatus: 'DP_PAID' as const };
+  assert.equal(canRescheduleAppointment(missed, patient, new Date('2026-10-24T16:59:59.999Z')), true);
+  assert.equal(canRescheduleAppointment(missed, patient, new Date('2026-10-24T17:00:00Z')), false);
+  assert.equal(canRescheduleAppointment(source, { ...patient, id: 'another' }, rescheduleNow), false);
+  assert.throws(() => requestPatientReschedule(source, patient, '2026-10-22', '10:00', '11:00', 'Alasan', rescheduleNow), /H\+1/);
+});
+
+test('only applied patient-origin changes consume the three-change quota', () => {
+  let current = sessionBill('quota');
+  for (let index = 0; index < 3; index++) {
+    const requested = requestPatientReschedule(current, patient, `2026-10-${25 + index}`, '10:00', '11:00', 'Alasan', rescheduleNow);
+    current = applyPatientReschedule(requested, clinicAdmin, requested.rescheduleRequest!.id, rescheduleNow);
+  }
+  assert.equal(getPatientRescheduleCount(current), 3);
+  assert.throws(() => requestPatientReschedule(current, patient, '2026-10-29', '10:00', '11:00', 'Keempat', rescheduleNow));
+  const clinicMove = rescheduleExistingAppointment(current, clinicAdmin, '2026-10-30', '10:00', '11:00', 'Klinik tutup', rescheduleNow);
+  assert.equal(getPatientRescheduleCount(clinicMove), 3);
+});
+
+test('a clinic change supersedes a pending patient request and stale approval never overwrites it', () => {
+  const requested = requestPatientReschedule(sessionBill('stale'), patient, '2026-10-27', '10:00', '11:00', 'Alasan', rescheduleNow);
+  const moved = rescheduleExistingAppointment(requested, clinicAdmin, '2026-10-28', '10:00', '11:00', 'Arahan klinik', rescheduleNow);
+  assert.equal(moved.rescheduleRequest?.status, 'REJECTED');
+  assert.throws(() => applyPatientReschedule(moved, clinicAdmin, requested.rescheduleRequest!.id, rescheduleNow));
+  assert.equal(moved.date, '2026-10-28');
+  assert.equal(getPatientRescheduleCount(moved), 0);
+  const followUp = requestPatientReschedule(moved, patient, '2026-10-29', '10:00', '11:00', 'Usulan baru', rescheduleNow);
+  assert.equal(followUp.rescheduleRequestHistory?.[0].id, requested.rescheduleRequest!.id);
+  assert.equal(followUp.rescheduleRequestHistory?.[0].status, 'REJECTED');
+});
+
+const proofBooking = (): Appointment => ({ ...sessionBill('proof'), status: 'PENDING', paymentStatus: 'DP_PENDING_VERIFICATION',
+  paymentProofState: 'SUBMITTED', paymentProofVersion: 1, paymentProofUrl: 'data:image/png;base64,iVBORw0KGgo=',
+  paymentProofName: 'asal.png', paymentProofMimeType: 'image/png', paymentProofSubmittedAt: '2026-10-22T00:01:00Z' });
+const replacementProof = { url: 'data:image/png;base64,iVBORw0KGgo=', name: 'koreksi.png', mimeType: 'image/png', senderName: 'Pasien' };
+
+test('proof rejection and correction preserve old evidence, original timing, and booking ledger', () => {
+  const source = proofBooking();
+  const rejected = rejectInitialPaymentProof(source, clinicAdmin, 'Gambar kurang jelas', 1, rescheduleNow);
+  const corrected = correctInitialPaymentProof(rejected, patient, replacementProof, 1, rescheduleNow);
+  assert.equal(corrected.paymentProofVersion, 2);
+  assert.equal(corrected.paymentProofState, 'SUBMITTED');
+  assert.equal(corrected.paymentProofHistory?.[0].name, 'asal.png');
+  assert.equal(corrected.paymentProofHistory?.[0].rejectionReason, 'Gambar kurang jelas');
+  assert.equal(corrected.paymentProofSubmittedAt, source.paymentProofSubmittedAt);
+  assert.equal(corrected.paymentProofLastUploadedAt, rescheduleNow.toISOString());
+  assert.equal(corrected.paymentProofCorrectionDeadline, rejected.paymentProofCorrectionDeadline);
+  assert.equal(corrected.paymentStatus, source.paymentStatus);
+  assert.equal(corrected.totalAmount, source.totalAmount);
+  assert.equal(corrected.dpAmount, source.dpAmount);
+});
+
+test('proof correction rejects stale versions, late files, forged formats and other patients', () => {
+  const rejected = rejectInitialPaymentProof(proofBooking(), clinicAdmin, 'Perbaiki', 1, rescheduleNow);
+  assert.throws(() => correctInitialPaymentProof(rejected, patient, replacementProof, 0, rescheduleNow), /Versi/);
+  assert.throws(() => correctInitialPaymentProof(rejected, { ...patient, id: 'other' }, replacementProof, 1, rescheduleNow), /pemilik/);
+  assert.throws(() => correctInitialPaymentProof(rejected, patient, replacementProof, 1, new Date(Date.parse(rejected.paymentProofCorrectionDeadline!) + 1)), /batas waktu/);
+  assert.throws(() => correctInitialPaymentProof(rejected, patient, { ...replacementProof, url: 'data:image/png;base64,PGh0bWw+' }, 1, rescheduleNow), /format/);
+  assert.throws(() => correctInitialPaymentProof(rejected, patient, { ...replacementProof, mimeType: 'text/html' }, 1, rescheduleNow));
+  assert.throws(() => rejectInitialPaymentProof(rejected, clinicAdmin, 'Tolak lagi', 1, rescheduleNow), /sudah ditolak/);
+});
+
+test('verified money cannot be reset by proof rejection or reupload', () => {
+  const verified: Appointment = { ...proofBooking(), paymentStatus: 'DP_PAID', paymentProofState: 'VERIFIED' };
+  assert.throws(() => rejectInitialPaymentProof(verified, clinicAdmin, 'Tolak', 1, rescheduleNow), /sudah diproses/);
+  assert.throws(() => correctInitialPaymentProof(verified, patient, replacementProof, 1, rescheduleNow), /sudah diproses/);
+});
+
+test('parallel Admin approvals apply one request exactly once and retain the original DP', async () => {
+  const requested = requestPatientReschedule(sessionBill('concurrent-approval'), patient, '2026-10-27', '10:00', '11:00', 'Alasan', rescheduleNow);
+  commitWorkflow(current => ({ ...current, appointments: [requested] }));
+  const approve = () => withWorkflowLock(() => {
+    const current = readWorkflowState().appointments[0];
+    const applied = applyPatientReschedule(current, clinicAdmin, requested.rescheduleRequest!.id, rescheduleNow);
+    commitWorkflow(state => ({ ...state, appointments: [applied] }));
+  });
+  const results = await Promise.allSettled([approve(), approve()]);
+  assert.equal(results.filter(result => result.status === 'fulfilled').length, 1);
+  const final = readWorkflowState().appointments[0];
+  assert.equal(getPatientRescheduleCount(final), 1);
+  assert.equal(getScheduleVersion(final), 1);
+  assert.equal(final.dpAmount, 100000);
+});
+
+test('another psychotherapy purchase requires the previous plan to be terminal and creates a new plan with its own initial DP', async () => {
+  const first = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], [], [therapyPackage], INITIAL_USERS, {});
+  assert.equal(first.success, true);
+  const duplicate = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], [first.data.appointment], [therapyPackage], INITIAL_USERS, {});
+  assert.equal(duplicate.success, false);
+  const completed: Appointment = { ...first.data.appointment, status: 'COMPLETED', treatmentPlanStatus: 'COMPLETED' };
+  const repeat = await PatientEndpoints.bookAppointment({ ...walkInPayload(), packageId: therapyPackage.id,
+    paymentMethod: 'CASH_DP', initialPaymentAmount: 100000 }, [], [completed], [therapyPackage], INITIAL_USERS, {});
+  assert.equal(repeat.success, true);
+  assert.notEqual(repeat.data.appointment.treatmentPlanId, completed.treatmentPlanId);
+  assert.equal(repeat.data.appointment.continuousSessionNumber, 1);
+  assert.equal(repeat.data.appointment.dpAmount, 100000);
+  assert.equal(repeat.data.appointment.totalAmount, 500000);
 });

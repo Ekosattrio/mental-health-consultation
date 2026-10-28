@@ -19,3 +19,6 @@
 *.log
 Homestead.json
 Homestead.yaml
+/services/whatsapp/node_modules/
+/services/whatsapp/storage/
+/services/whatsapp/.env

@@ -4,7 +4,7 @@ Guest perlu memahami praktik dan kontak; pengelola membutuhkan konten terstruktu
 ## Aktor dan authorization
 Guest membaca hanya publik. Admin/Superadmin mengelola konten administratif; kredensial/identitas praktisi diterbitkan setelah konfirmasi Superadmin. Draft/pratinjau hanya petugas.
 ## Kolom/isian dan validasi
-section_key wajib/unik; payload JSON dengan whitelist per section; status DRAFT/PUBLISHED/ARCHIVED; version wajib; aset logo/foto dengan MIME/size yang diizinkan. Section: hero, CTA, profil, fasilitas, layanan, alamat, jam, kontak administrasi, FAQ, privacy, footer. Harga tidak disisipkan ke teks publik.
+section_key wajib; kombinasi section_key/version unik; payload JSON dengan whitelist per section; status DRAFT/PUBLISHED/ARCHIVED; version wajib; aset logo/foto dengan MIME/size yang diizinkan. Section: hero, CTA, profil, fasilitas, layanan, alamat, jam, kontak administrasi, FAQ, privacy, footer. Harga tidak disisipkan ke teks publik.
 Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABASE_ARCHITECTURE.md). actor_id dan waktu keputusan diambil server, bukan dipercaya dari form.
 ## Alur normal
 1. Petugas membuat revisi draft.
@@ -20,8 +20,22 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Konten invalid/HTML berbahaya ditolak/sanitasi. Konflik versi mendapat 409; load ulang sebelum menyimpan. Aset gagal menampilkan fallback; tidak membocorkan path private. Draft tidak bocor ke API Guest.
 ## Function dan route web
-getLanding, saveRevision, preview, publish, uploadPublicAsset. GET /public/landing; GET/POST /admin/cms; POST /admin/cms/{id}/publish; POST /admin/assets.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| GET / HEAD | / | HomeController |
+| POST | /admin/assets | PublicAssetController@store |
+| POST | /admin/cms | ManagementController@cms |
+| GET / HEAD | /admin/cms/{cms}/preview | ManagementController@preview |
+| POST | /admin/cms/{cms}/publish | ManagementController@publish |
+| GET / HEAD | /informasi/{section} | Closure |
+| GET / HEAD | /media/{asset} | PublicAssetController@show |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
@@ -31,3 +45,6 @@ Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatal
 - Hotline menggunakan placeholder sampai data praktik diisi.
 ## Hubungan fitur
 F04 katalog, F13 notifikasi, F15 sanitasi/aset.
+
+## Pemetaan implementasi26 Oktober2026
+Landing menyimpan hero, logo, foto fasilitas/profil, CTA, FAQ, footer dan kontak. Teks identitas praktisi berasal dari pengaturan owner; jam publik dihitung dari kalender. Bagian patient/psychologist berisi informasi workspace yang dipublikasikan. Privacy/consent dan clinical_identity hanya diterbitkan owner. Gambar disimpan melalui unggah CMS, bukan URL/private path bebas. Teks landing/FAQ menolak nominal Rp/IDR untuk menjaga kebijakan harga setelah login. Tidak ada cache konten aplikasi yang perlu menunggu TTL setelah publish.

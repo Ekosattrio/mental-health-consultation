@@ -1,42 +1,32 @@
-# JiwaSehat - Laravel, Inertia dan React
+# JiwaSehat — Laravel, Inertia dan React
 
-Satu proyek Laravel 13 + Inertia 3 + React 19/TypeScript dengan MySQL 8. Laravel mengatur route/session; React mengerjakan tampilan. Prototype lokal tetap terpisah dari transaksi backend.
+Satu aplikasi Laravel13 + Inertia3 + React19/TypeScript dengan MySQL8. Session, route web dan transaksi dikelola Laravel; React menjadi tampilan. Implementasi operasional memakai data server.
 
-## Acuan Aktif
+## Mulai membaca
 
-- [Keputusan final 22 Oktober](docs/KEPUTUSAN_FINAL_2026_10_22.md): DP flat Rp100.000 sekali di awal, semua jadwal H+1, booking baru setelah empat sesi, pembatalan wajib lunas.
-- [Aturan bisnis](docs/BUSINESS_RULES.md), [kontrak web](docs/WEB_CONTRACT.md), [database](docs/DATABASE_ARCHITECTURE.md), dan [TODO](docs/TODO.md).
-- [Merge integrasi ke main tanpa force](docs/PANDUAN_MERGE_INTEGRASI.md).
-- [Panduan Eko](docs/EKO_PROJECT_GUIDE.md), [setup](docs/SETUP.md), [CMS](docs/CMS_AUDIT.md), dan [aturan agent](docs/AGENTS.md).
+- [Hasil implementasi untuk Eko](docs/IMPLEMENTASI_WEB_2026-10-26.md).
+- [Akun awal dan cara masuk](docs/AKUN_AWAL_DAN_CARA_MASUK.md).
+- [Indeks dokumentasi](docs/README.md), [aturan bisnis](docs/BUSINESS_RULES.md), [fitur](docs/FEATURES.md), [database](docs/DATABASE_ARCHITECTURE.md).
+- [Kontrak web aktual](docs/WEB_CONTRACT.md), [setup](docs/SETUP.md), [operasional satu VPS](docs/OPERASIONAL_VPS_DAN_INTEGRASI.md).
+- [Status dan bukti pemeriksaan](docs/SESSION_HANDOFF.md), [batas aktivasi](docs/KNOWN_ISSUES.md), [aturan agent](docs/AGENTS.md).
 
 ## Struktur
 
-```text
-app/                   Fondasi Laravel
-resources/js/pages/    Halaman Inertia
-resources/js/layouts/  Layout web berbasis session
-resources/js/components/ Komponen React dan preview
-resources/js/legacy/   Kontrak REST lama, bukan transport web aktif
-resources/css/         Tailwind CSS
-routes/web.php         Route halaman dan action web
-database/              Migration fondasi; schema domain masih target
-docs/                  Dokumentasi aktif, fitur, journey, referensi, arsip
-tests/                 Regresi prototype dan kerangka tes Laravel
-```
+| Direktori | Isi |
+|---|---|
+| app/Domain | Aturan, transaksi, kalender, billing, laporan dan notifikasi |
+| app/Http | Controller dan middleware web |
+| app/Models | Model domain dan relasi |
+| resources/js/pages | Halaman Inertia |
+| resources/js/practice | Form dan panel operasional React |
+| resources/js/components | Komponen presentasi Eko dan komponen preview |
+| resources/views | Blade shell dan template PDF |
+| routes/web.php | Route halaman, form dan JSON pendukung session |
+| database | Migration dan manifest schema |
+| services/whatsapp | Bridge Baileys loopback, status dan penautan privat Superadmin |
+| docs | Fitur, aktor, journey, arsitektur dan catatan perubahan |
+| tests | Regresi frontend, Laravel dan integrasi MySQL terisolasi |
 
-## Status
+Google Identity Services/One Tap sudah diimplementasikan dan menunggu OAuth Client ID. WhatsApp memakai nomor pengirim pengguna, menunggu penautan ponsel dan nomor tujuan owner. Lihat [panduan WhatsApp dan Google](docs/INTEGRASI_WHATSAPP_GOOGLE_2026-10-26.md). Identitas/rekening/domain/SMTP diisi operator. Preview /preview/eko dimatikan secara default dan selalu404 di production; LocalStorage lama bukan database operasional.
 
-Home, login/logout session dan dashboard kerangka ber-role tersedia. Booking, ledger, upload privat, Google SSO, CMS database, WhatsApp dan domain backend belum operasional. Komponen preview tidak membuktikan backend selesai.
-
-`/preview/eko` hanya lokal dengan flag aktif. Mock/LocalStorage bukan data produksi. Sebagian flow prototype masih kontrak lama; pekerjaan integrasi dicatat di TODO/KNOWN_ISSUES.
-
-Verifikasi integrasi22Oktober2026: TypeScript tanpa error dan58tes lolos (55regresi FE +3kesiapan sumber integrasi). Ini bukan QA browser/backend.
-
-Preview baru mencakup psikoterapi per sesi, DP100.000 sekali, lanjutan DP0, review reschedule Admin, koreksi bukti berversi dan menu Admin yang disepakati. Tagihan legacy tidak ditulis ulang.
-
-```bash
-npm run lint
-npm test
-```
-
-Git dikelola developer. Agent tidak menjalankan Git, dev server, atau build. Perbaikan isi file tidak menandai index Git resolved; staging/commit tetap developer setelah pemeriksaan.
+Perintah pemeriksaan: npm run lint, npm test, npm run build, php vendor/bin/phpunit, php vendor/bin/phpunit -c tests/phpunit-domain.xml. Tes domain memakai database MySQL acak terpisah, bukan reset database aplikasi. Git tetap dikelola developer.

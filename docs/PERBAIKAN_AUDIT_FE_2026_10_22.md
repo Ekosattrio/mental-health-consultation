@@ -1,3 +1,5 @@
+> Catatan historis/source pada waktu penulisan. Aturan target terbaru: [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md); status implementasi: [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md). Pernyataan aturan/tes lama di bawah tidak otomatis berlaku pada tahap sekarang.
+
 # Perbaikan Audit FE - 22 Oktober 2026
 
 Kelanjutan atas permintaan developer untuk mengerjakan TODO frontend. Sumber pekerjaan: AUD-01 sampai AUD-06 di [TODO](TODO.md). Perubahan berlaku pada FE preview lokal, bukan implementasi transaksi Laravel/database.

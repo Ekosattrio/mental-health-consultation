@@ -28,10 +28,32 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Email terdaftar tidak membuat akun kedua. Login/reset gagal memberi pesan generik dan rate limit. Callback Google gagal tidak membuat akun setengah jadi. Reset expired meminta token baru. Request tanpa CSRF ditolak; UI memuat ulang sesi bila 401/419.
 ## Function dan route web
-register, login, sessionIdentity, logout, requestPasswordReset, resetPassword, linkGoogle, revokeSessions. POST /register, /login, /logout, /forgot-password, /reset-password; GET /dashboard, /auth/google/redirect, /auth/google/callback; POST /auth/google/link setelah autentikasi. sessionIdentity melalui shared auth.user, bukan GET /auth/me.
 
-Status implementasi fondasi20Oktober: GET/POST /login, POST /logout dan routing workspace ber-role sudah dibuat. Register/Google/reset/revoke-all/manajemen akun internal belum dibuat; belum ada akun/DB disiapkan atau uji login nyata.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /account | ManagementController@account |
+| GET / HEAD | /auth/google/callback | Auth\GoogleController@callback |
+| GET / HEAD | /auth/google/complete | Auth\GoogleController@form |
+| POST | /auth/google/complete | Auth\GoogleController@complete |
+| POST | /auth/google/credential | Auth\GoogleController@credential |
+| GET / HEAD | /auth/google/redirect | Auth\GoogleController@redirect |
+| GET / HEAD | /forgot-password | Auth\AccountController@forgotForm |
+| POST | /forgot-password | Auth\AccountController@forgot |
+| GET / HEAD | /login | Auth\AuthenticatedSessionController@create |
+| POST | /login | Auth\AuthenticatedSessionController@store |
+| POST | /logout | Auth\AuthenticatedSessionController@destroy |
+| GET / HEAD | /register | Auth\AccountController@registerForm |
+| POST | /register | Auth\AccountController@register |
+| POST | /reset-password | Auth\AccountController@reset |
+| GET / HEAD | /reset-password/{token} | Auth\AccountController@resetForm |
+| POST | /superadmin/users | ManagementController@user |
+| POST | /superadmin/users/{user} | ManagementController@user |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
@@ -41,3 +63,7 @@ Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatal
 - Akun blocked tidak masuk dari Google; reset token tidak dapat dipakai dua kali.
 ## Hubungan fitur
 F03 profil, F15 sesi/audit, F16 tutorial.
+
+## Implementasi Google Identity Services
+
+One Tap dan tombol resmi memakai Client ID. Backend memverifikasi ID token, signature, aud/iss/exp, email_verified dan nonce session. Callback redirect opsional memakai state/PKCE. Subject yang tertaut login akun sama; email lokal yang cocok memerlukan kata sandi untuk linking. Akun baru PATIENT dan melengkapi nomor/alamat/consent; Google tidak menjamin data nomor/alamat. Remember cookie30hari mendukung login ulang, logout eksplisit menghentikan auto-select. Konfigurasi, field dan alur gagal pada [panduan integrasi](../INTEGRASI_WHATSAPP_GOOGLE_2026-10-26.md).

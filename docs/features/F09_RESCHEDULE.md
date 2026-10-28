@@ -1,6 +1,6 @@
 # F09 — Permintaan pindah jadwal
 
-> Semua booking/reschedule/sesi lanjutan minimal H+1 WIB untuk seluruh role, termasuk Admin/owner; tidak ada DP baru pada lanjutan/reschedule setelah DP awal terverifikasi. [Keputusan final](../KEPUTUSAN_FINAL_2026_10_22.md).
+> Online boleh same-day setelah tiga jam kerja penuh; offline Admin boleh hari ini/sekarang. DP tidak diulang pada reschedule/lanjutan. Ikuti [keputusan aktif](../KEPUTUSAN_AKTIF_2026-10-24.md).
 
 ## Latar belakang dan tujuan
 Mencegah booking buntu, slot ganda dan hilangnya riwayat no-show; kelayakan pasien ditentukan saat mengajukan.
@@ -15,7 +15,7 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 3. Admin reject dengan alasan atau approve. Jika belum ada slot, SLOT_SELECTION_REQUIRED; masa pemilihan default 24 jam sejak approval, konfigurabel Superadmin. Ini default operasional, bukan mengulang hold pembayaran.
 4. Pilihan baru dicek availability lagi. Approval tidak menjamin interval baru telah dipesan.
 5. Apply mengunci resource hari lama/baru dahulu, lalu appointment, request dan billing jika diperlukan sesuai urutan global di kamus database; ubah interval, append event, naikkan attempt_number. quota_effect=1 hanya untuk asal PATIENT saat APPLIED; reschedule_count DTO adalah SUM efek request APPLIED, bukan counter kedua. Pembayaran/billing account tetap.
-6. Jika sebelumnya NO_SHOW, event no-show lama tetap utuh. Status kembali CONFIRMED bila DP terpenuhi atau CONFIRMED_AUTO_SLA bila perlindungan SLA sah; jika bukti sah masih menunggu, WAITING_VERIFICATION. WAITING_PAYMENT hanya bila hold asal masih berlaku, deadline=min(hold_expires_at_lama,start_baru); tidak memberikan24jam baru. Jika hold asal telah habis tanpa perlindungan bukti, tidak boleh menghidupkannya lewat reschedule; gunakan penanganan expired/booking baru. Umur SLA dan verifikasi uang tidak reset.
+6. Jika sebelumnya NO_SHOW, event no-show lama tetap utuh. Status kembali CONFIRMED bila DP terpenuhi atau CONFIRMED_AUTO_SLA bila perlindungan SLA sah; jika bukti sah masih menunggu, WAITING_VERIFICATION. WAITING_PAYMENT hanya bila hold asal masih berlaku, deadline=min(hold_expires_at_lama,start_baru−2h); tidak memberikan24jam baru. Jika hold asal telah habis tanpa perlindungan bukti, tidak boleh menghidupkannya lewat reschedule; gunakan penanganan expired/booking baru. Umur SLA dan verifikasi uang tidak reset.
 ## Status dan transisi
 | Pemicu / aktor | Kondisi awal | Hasil dan efek |
 |---|---|---|
@@ -29,10 +29,19 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 Slot baru terambil memberi 409, request tetap dapat memilih lagi selama window. Jika pemilihan expired, Admin menyelesaikan manual; hak pengajuan yang telah tepat waktu tidak otomatis hangus karena Admin. Request ditolak setelah sesi lewat perlu keputusan administratif/no-show beralasan, bukan memundurkan requested_at. Kuota habis/normal H-2 ditolak; exception owner melalui jalur terpisah beralasan.
 ## Resolusi pengajuan yang melewati sesi/jendela
 Badge NEEDS_RESOLUTION adalah derived dari requires_resolution, bukan status appointment baru. Pengajuan tepat waktu yang jendela pemilihannya habis ditandai requires_resolution=true sampai Admin memutuskan tindak lanjut beralasan; unique active_guard tetap mencakup request ini. Job penutupan hak memeriksa flag tersebut, bukan hanya statusREQUESTED, agar EXPIRED teknis tidak menyebabkan pelepasan hak diam-diam.
-Admin dapat membuka kembali pemilihan pada request yang sama dengan kelayakan awal, mengembalikan ke jadwal lama jika masih sah, atau membatalkan seluruh sisa layanan terkait setelah tagihan terbentuk lunas dan alasan sah. Tidak boleh melepas sisa tagihan atau membatalkan layanan berbayar otomatis. Setiap keputusan mencatat event dan mematikan flag hanya sesudah guard terpenuhi. Tidak ada pemindahan slot/penutupan uang dari perubahan flag saja.
+Admin dapat membuka pemilihan pada request sama dengan kelayakan awal, mempertahankan jadwal lama bila masih sah, atau membatalkan bagian belum diberikan sesuai F08. Penutupan memakai adjustment/CLOSED_UNSERVED dan kas utuh, bukan memaksa pelunasan layanan belum diberikan. Flag requires_resolution dihapus hanya setelah keputusan sah dan event tercatat.
 ## Function dan route web
-requestReschedule, reviewRequest, selectSlot, applyRequest, resolveRequest. POST /admin/reschedule-requests/{id}/resolve; POST /appointments/{id}/reschedule-requests; POST /admin/reschedule-requests/{id}/approve, /reject, /apply; PATCH /reschedule-requests/{id}/selection.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /appointments/{appointment}/reschedule-requests | BookingController@reschedule |
+| POST | /reschedule-requests/{reschedule}/{decision} | BookingController@review |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
@@ -44,3 +53,7 @@ Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatal
 - Slot lama tersedia lagi setelah apply, tidak sebelum apply.
 ## Hubungan fitur
 F05 okupansi, F06 lifecycle, F08 ledger, F10 kedatangan.
+
+## Penegasan anchor dan no-show
+Batas online target tiga jam kerja dihitung sejak pengajuan selection, tidak diulang saat Admin terlambat APPLY. Requested_at request asal menentukan kelayakan H−2/kuota; target stale/hilang meminta selection baru. Admin offline/asal klinik dapat menata target lebih dekat pada slot sah dengan alasan.
+APPLY melepas slot lama dan mengunci slot baru dalam satu transaction. Setelah NO_SHOW, event attempt lama tetap; attempt baru mendapat status aktif yang sah sesuai kelayakan pembayaran asal. Tidak mempertahankan NO_SHOW pada jadwal baru, tidak meminta DP baru. Hak reschedule berakhir sebelum ada layanan memakai pelepasan belum diberikan F08, bukan penagihan sisa. Notifikasi usaha lama dibatalkan via attempt/version.

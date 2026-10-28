@@ -314,6 +314,6 @@ Keputusan 21 Oktober 2026: cancel/discontinue hanya psikolog setelah seluruh tag
 ## 6. Hubungan dengan Frontend React
 
 Frontend telah dilengkapi dengan service layer yang siap mengonsumsi endpoint ini:
-- [`packageService.ts`](file:///c:/laragon/www/psikolog/src/services/api/packageService.ts) $\rightarrow$ terhubung ke `/api/v1/packages`.
-- [`appointmentService.ts`](file:///c:/laragon/www/psikolog/src/services/api/appointmentService.ts) $\rightarrow$ terhubung ke `/api/v1/appointments`; client mengirim data pembayaran administratif, sedangkan `dp_amount` selalu dihitung server.
-- [`PackagesTab.tsx`](file:///c:/laragon/www/psikolog/src/components/psychologist/tabs/PackagesTab.tsx) $\rightarrow$ antarmuka psikolog untuk mengelola paket secara dinamis.
+- [`packageService.ts`](../../resources/js/legacy/api/packageService.ts) $\rightarrow$ terhubung ke `/api/v1/packages`.
+- [`appointmentService.ts`](../../resources/js/legacy/api/appointmentService.ts) $\rightarrow$ terhubung ke `/api/v1/appointments`; client mengirim data pembayaran administratif, sedangkan `dp_amount` selalu dihitung server.
+- [`PackagesTab.tsx`](../../resources/js/components/psychologist/tabs/PackagesTab.tsx) $\rightarrow$ antarmuka psikolog untuk mengelola paket secara dinamis.

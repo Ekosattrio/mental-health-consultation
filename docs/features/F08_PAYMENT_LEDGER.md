@@ -14,11 +14,11 @@ Pasien melihat saldo/riwayat sendiri dan mengirim bukti. Admin melihat harga/dis
 | proof file/version | Transfer upload | private PDF/JPEG/PNG<=10MiB |
 | reason,reference entry | Reject/correction/discount/custom | wajib dan tertaut |
 | total_additional_minutes | Additional time | total aktual satu usaha sesi + expected_revision |
-Status payment: PENDING_VERIFICATION/PENDING_RECONCILIATION/VERIFIED/REJECTED. Tagihan UNPAID/PARTIAL/PAID derived dari kewajiban dan penerimaan VERIFIED. Pembatalan adalah status layanan terpisah, wajib lunas atas tagihan terbentuk; tidak menghapus sisa agar menjadi PAID. OVERPAID indikator aritmetika terpisah, bukan fitur resolusi.
+Status payment: PENDING_VERIFICATION/PENDING_RECONCILIATION/VERIFIED/REJECTED. Tagihan UNPAID/PARTIAL/PAID derived dari kewajiban dan penerimaan VERIFIED. Pembatalan adalah status layanan terpisah, pelepasan bagian belum diberikan berjejak; bukan pembayaran PAID atau penghapusan kas. OVERPAID indikator aritmetika terpisah, bukan fitur resolusi.
 Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABASE_ARCHITECTURE.md). actor_id dan waktu keputusan diambil server, bukan dipercaya dari form.
 ## Alur normal
-Ketentuan terbaru: cicilan atau penuh di awal diperbolehkan, wajib lunas paling lambat hari sesi terakhir. Psikoterapi baru memakai snapshot kesepakatan empat sesi dan alokasi penerimaan ke invoice berurutan. Dana untuk sesi belum dijadwalkan adalah prabayar pada rangkaian itu, bukan overpayment salah transfer, invoice baru atau kas kedua. Lewat kesepakatan total tetap selisih lebih bayar untuk penanganan eksternal. Pembatalan tetap memeriksa invoice terbentuk saja. [Alur lengkap, contoh, batas FE dan handoff backend](../ALUR_PEMBAYARAN_SESI.md) menggantikan penafsiran larangan semua prabayar pada catatan lama.
-1. Billing account dimiliki appointment Konseling/Psikoterapi atau satu case Asesmen. BASE berisi normal PLUS dan promo global MINUS; minimum DP flat min(100000,dasar_net) sekali pada booking/rangkaian baru. Sesi lanjutan plan/case memakai0 setelah DP awal verified; reschedule tidak membuat DP atau verifikasi awal baru.
+Ketentuan terbaru: cicilan atau penuh di awal diperbolehkan, wajib lunas paling lambat hari sesi terakhir. Psikoterapi baru memakai snapshot kesepakatan empat sesi dan alokasi penerimaan ke invoice berurutan. Dana untuk sesi belum dijadwalkan adalah prabayar pada rangkaian itu, bukan overpayment salah transfer, invoice baru atau kas kedua. Lewat kesepakatan total tetap selisih lebih bayar untuk penanganan eksternal. Pembatalan hanya mengurangi bagian belum diberikan, dengan referensi invoice terbentuk dan tanpa mengubah kas. [Alur lengkap, contoh, batas FE dan handoff backend](../ALUR_PEMBAYARAN_SESI.md) menggantikan penafsiran larangan semua prabayar pada catatan lama.
+1. Billing account dimiliki satu appointment atau satu case. BASE memakai harga normal PLUS/promo MINUS. Minimum awal dihitung dari initial_payment_policy_snapshot: FIXED=min(fixed_amount,dasar_net), PERCENT=min(dasar_net,ceil(dasar_net*basis_points/10000)); lanjutan0 setelah DP asal terverifikasi. Default PERCENT 5000 basis poin sesuai ide pemilik; contoh FIXED 100000 hanya skenario konfigurasi opsional.
 2. Pasien mengirim nominal klaim/bukti, belum menambah kas. Admin mencocokkan uang, memasukkan actual_amount/method/received_at lalu verify.
 3. Penerimaan net VERIFIED = RECEIPT minus REVERSAL. Jika >=minimum DP, booking CONFIRMED. PAID hanya jika memenuhi seluruh kewajiban.
 4. Saat datang, Admin wajib approve uang yang terbukti diterima. Bila DP belum cukup, tagih di luar sistem dan catat penerimaan aktual; check-in setelah minimum terpenuhi. Pelunasan dapat setelah layanan.
@@ -31,7 +31,7 @@ Ketentuan terbaru: cicilan atau penuh di awal diperbolehkan, wajib lunas paling 
 | Pemicu / aktor | Kondisi awal | Hasil dan efek |
 |---|---|---|
 | Submit proof / pemilik | dalam deadline | PENDING_VERIFICATION; booking WAITING_VERIFICATION |
-| Reject / Admin | belum VERIFIED | REJECTED + alasan + correction window |
+| Reject / Admin | belum VERIFIED | REJECTED + alasan; correction window bila masih tersedia |
 | Correct upload / pemilik | REJECTED, window sah | proof versi baru, submission pending |
 | Verify / Admin | uang nyata cocok | VERIFIED + receipt; booking sesuai DP |
 | SLA / job | bukti aktif belum ditolak | PENDING_RECONCILIATION; booking AUTO_SLA |
@@ -43,13 +43,28 @@ Rp1 tidak otomatis melunasi. Retry satu key tidak menambah kas dua kali. Salah k
 Diskon tidak boleh menyebabkan total negatif atau menurunkan kewajiban di bawah uang diterima tanpa penanganan selisih. CUSTOM_CHARGE negatif ditolak.
 Penyelesaian lebih bayar nyata dilakukan di luar sistem sesuai keputusan developer. Ledger tetap mencatat uang yang benar-benar diterima; tidak membuat status/tiket resolusi, formulir keputusan, refund, credit atau proses hangus otomatis. Selisih hitungan hanya informasi, bukan dompet pasien atau fitur penyelesaian.
 ## Function dan route web
-submitPayment, uploadProofVersion, verify, reject, correctPayment, issueAddendum, discount, reviseAdditionalTime. /billing-accounts/{id}/payment-submissions; /payments/{id}/proofs; /admin/payments/*; /admin/billing-accounts/{id}/charges,/discounts; PUT /admin/appointments/{id}/additional-time.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/appointments/{appointment}/additional-time | BillingController@time |
+| POST | /admin/appointments/{appointment}/payments | BillingController@record |
+| POST | /admin/billing-accounts/{billing}/{action} | BillingController@change |
+| POST | /appointments/{appointment}/payment-submissions | BillingController@submit |
+| GET / HEAD | /invoices/{invoice}/download | FileController@invoice |
+| POST | /payments/{payment}/{action} | BillingController@payment |
+| GET / HEAD | /receipts/{receipt}/download | FileController@receipt |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
 ## Acceptance criteria
-- Tagihan900000, DP100000 dan pembayaran1: diterima100001, sisa799999, belum lunas tetapi DP minimum100000 sudah terpenuhi; booking boleh CONFIRMED setelah verifikasi.
+Contoh bernilai DP 100000 di bawah mengasumsikan mode FIXED opsional; default aktif50% tidak menghasilkan minimum100000 untuk paket900000.
+- Tagihan900000, DP 100000 dan pembayaran1: diterima100001, sisa799999, belum lunas tetapi DP minimum100000 sudah terpenuhi; booking boleh CONFIRMED setelah verifikasi.
 - DP450000 lalu transfer600000 untuk900000: diterima1050000, selisih150000 tidak hilang.
 - Sudah bayar900000 lalu biaya225000: receipt utuh, addendum225000, total1125000.
 - Tambahan5menit lalu total10menit hanya satu blok; total40menit tiga blok, selisih dua blok sesudah satu blok sebelumnya.
@@ -58,9 +73,9 @@ Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatal
 F04 harga, F06 deadline/SLA, F09 reschedule, F10 kedatangan, F14 laporan, F15 file.
 
 ## Pembatalan dan Expiry
-Pembatalan/discontinue wajib lunas atas seluruh tagihan sah yang sudah terbentuk dalam layanan/rangkaian terkait. Lock semua billing terkait, periksa penerimaan VERIFIED dan tolak409 PAYMENT_REQUIRED_BEFORE_CANCELLATION jika ada sisa. Setelah lunas, hentikan semua sisa appointment terkait atomik; completed, invoice, receipt dan kas tetap. Rangkaian lain tidak berubah. Sesi belum dipesan bukan utang.
-Contoh dua sesi dipesan total1.000.000, terverifikasi600.000: lunasi400.000 dahulu. Tidak menambahkan utang sesi3-4, tidak menerbitkan pelepasan sisa atau refund.
-Expiry hold/jendela teknis tidak melunasi, memutihkan sisa, atau membatalkan layanan berbayar otomatis. Request sah harus diselesaikan; uang terlambat tetap direkonsiliasi tanpa merebut slot. Keputusan terlambat/no-show/cancel tetap manual.
+Pembatalan/discontinue sebelum layanan dimulai melepaskan sisa yang belum diberikan melalui adjustment beralasan; uang terverifikasi tetap utuh. Rangkaian sebagian dilayani memerlukan penetapan bagian belum diberikan oleh owner. Lihat BUSINESS_RULES dan F08; tidak ada refund otomatis.
+Contoh layanan belum dimulai: invoice900000, kas450000; adjustment pelepasan450000 menghasilkan CLOSED_UNSERVED tanpa refund, tanpa receipt baru dan tanpa mengubah kas450000.
+Expiry tanpa bukti tepat waktu menutup bagian belum diberikan melalui adjustment CLOSED_UNSERVED yang berjejak, tanpa menghapus kas atau berpura-pura PAID. Request sah tetap diselesaikan. Uang terlambat direkonsiliasi tanpa merebut slot; keputusan kehadiran/no-show mengikuti F10.
 Koreksi fakta salah input tetap berjejak; bukan sarana menghapus kewajiban sah agar lolos cancel. Histori legacy tidak diubah diam-diam.
 
 ## Formula additional time Konseling
@@ -78,14 +93,14 @@ Server membaca pilihan dari package_version_id appointment; client input menit t
 Contoh normal Rp900.000, promo Rp800.000 dan tambahan 40 menit (3 blok): NORMAL_PRICE menghasilkan Rp675.000; FINAL_PRICE menghasilkan Rp600.000. Revisi 5 menjadi 10 menit tetap satu blok, sesuai basis yang sudah tersimpan.
 
 ## Diskon individual dan minimum DP
-Setiap potongan mempunyai target_line_id yang merujuk line yang dapat dikurangi. Promo dan diskon terhadap BASE_SERVICE menurunkan effective_base_due; required_initial_amount = min(100000,effective_base_due) pada booking/rangkaian baru; lanjutan pada plan/case yang sama0 setelah awal terverifikasi. initial_minimum_due tersimpan adalah snapshot awal, bukan angka yang boleh dipakai membabi buta setelah potongan dasar disahkan.
+Setiap potongan merujuk reference_line_id (form target_line_id adalah alias kontrak yang dinormalisasi server). Promo/diskon BASE mengubah dasar net; rumus minimum memakai parameter snapshot asal, bukan owner_settings terbaru. Minimum awal dihitung dari initial_payment_policy_snapshot: FIXED=min(fixed_amount,dasar_net), PERCENT=min(dasar_net,ceil(dasar_net*basis_points/10000)); lanjutan0 setelah DP asal terverifikasi. Contoh100000 hanya konfigurasi kompatibilitas preview, bukan ketentuan nominal yang tidak dapat diubah.
 Contoh paket900000 diberi diskon dasar200000 sebelum pembayaran: dasar net700000, DP tetap100000. Jika dasar net75000, DP75000. Biaya tambahan bukan bagian hitungan DP dasar. Potongan tidak membuat dasar negatif atau menghilangkan uang terverifikasi. Invoice/receipt lama tetap utuh, perubahan melalui ADJUSTMENT.
 
 ## Pemeriksaan duplikasi penerimaan manual
 Idempotency mengatasi retry, bukan dua input petugas dengan key berbeda. Sebelum VERIFY, backend mencari kandidat bukti checksum sama dan kecocokan referensi/metode/waktu/nominal pada penerimaan yang sudah diverifikasi. Ini sinyal pemeriksaan, bukan unique global referensi bank atau alasan menghapus uang nyata yang berbeda.
 Jika ada kandidat, response petugas meminta duplicate_review_acknowledged dan alasan hasil pencocokan; tanpa itu tolak409 POSSIBLE_DUPLICATE_PAYMENT. Satu transfer yang diajukan ulang tidak dicatat lagi: tolak submission duplikat dengan referensi/audit ke transaksi yang benar. Jika terbukti dua transfer nyata, petugas mencatat keduanya dengan alasan dan selisih ditangani di luar sistem. Pasien tidak menerima identitas/nominal transaksi milik orang lain dari pemeriksaan ini. Gateway bank tidak ada, sehingga kebenaran uang nyata tetap bergantung pemeriksaan petugas.
 ## Koreksi uang yang sebenarnya tidak diterima
-Pembayaran baru wajib positif; correct_amount pada koreksi boleh0. Jika Admin keliru mencatat uang masuk padahal tidak ada uang, append REVERSAL penuh yang merujuk transaksi salah, tanpa replacement atau receipt0. Net penerimaan kembali benar, bukti salah tetap berjejak dan ditandai dikoreksi pada tampilan. Layanan/kehadiran yang benar-benar terjadi tidak dihapus akibat koreksi uang; saldo ditindaklanjuti sesuai fakta. Koreksi ini tidak melewati guard pelunasan untuk cancel atau menghapus kejadian layanan nyata.
+Pembayaran baru wajib positif; correct_amount pada koreksi boleh0. Jika Admin keliru mencatat uang masuk padahal tidak ada uang, append REVERSAL penuh yang merujuk transaksi salah, tanpa replacement atau receipt0. Net penerimaan kembali benar, bukti salah tetap berjejak dan ditandai dikoreksi pada tampilan. Layanan/kehadiran yang benar-benar terjadi tidak dihapus akibat koreksi uang; saldo ditindaklanjuti sesuai fakta. Koreksi uang tidak menghapus layanan nyata; cancel memakai aturan bagian belum diberikan yang berbeda dari reversal kas.
 ## Guard waktu dan nominal klaim
 Additional time hanya IN_CONSULTATION/COMPLETED dan menit layanan tambahan yang sudah terjadi, bukan perkiraan pada WAITING_PAYMENT/CHECKED_IN. Simpan claimed_amount pasien terpisah dari amount aktual yang disahkan; selisih hasil pemeriksaan muncul pada histori berizin. Uang VERIFIED tidak ditimpa oleh pengunggahan ulang.
 
@@ -98,3 +113,12 @@ Contoh: total tagihan Rp900.000, DP terverifikasi Rp100.000, sehingga pasien seh
 Jika tagihan sah termasuk tambahan biaya sehingga totalnya Rp1.050.000, penerimaan Rp1.050.000 bukan kelebihan bayar. Jika hanya tombol verifikasi diklik dua kali untuk transfer yang sama, itu retry/duplikat pencatatan yang dicegah, bukan dua penerimaan nyata. Jika Admin salah mengetik Rp600.000 padahal uang diterima Rp450.000, itu koreksi salah input, bukan kelebihan bayar nyata.
 
 Pencatatan kas mempertahankan seluruh uang nyata; selisih tidak otomatis dianggap biaya/pendapatan jasa tambahan. Penyelesaian eksternal tidak membentuk transaksi refund/credit/hangus di aplikasi, dan bukan pertanyaan bisnis yang masih menunggu keputusan. Detail saldo/selisih tidak dikirim pada DTO Admin; akses informasi perhitungan tetap sesuai policy pasien/Superadmin.
+
+## Penolakan terlambat, konfigurasi DP dan penutupan belum diberikan
+Penolakan bukti sesudah start_at tetap menyimpan REJECTED dan alasan; correction_deadline_at=null bila tidak ada jendela masa depan. Sistem tidak melempar error hanya karena correction window berakhir. Admin memeriksa/menagih saat datang dan mencatat uang nyata.
+Formula DP FIXED: min(fixed_amount,effective_base_due). PERCENT: min(effective_base_due,ceil(effective_base_due*basis_points/10000)). Nilai/mode disnapshot pada transaksi dan tidak dipilih client. Default adalah PERCENT 5000 basis poin sesuai ide pemilik; fixed100000 bukan aturan aktif. Lanjutan setelah awal verified tetap0.
+CLOSED_UNSERVED berbeda dari CLOSED_PAID. Jika belum dilayani, invoice900000/kas450000 dibatalkan: append ADJUSTMENT MINUS450000 beralasan dengan reference_line_id asal, tutup koleksi, pertahankan kas450000 dan receipt awal. Ini bukan diskon/refund/pembayaran baru. Jika belum ada uang, bagian belum diberikan dapat dilepaskan seluruhnya; tidak membuat receipt0. Bagian yang sudah diberikan tidak dihapus otomatis.
+PaymentAgreement, PaymentAllocation dan AppointmentBillingLink mempunyai tabel/relasi eksplisit; alokasi bukan uang baru. FK saja tidak membatasi sum alokasi/diskon atau memastikan seluruh referensi satu pasien: action transaksi wajib mengunci dan memeriksanya sebelum controller aktif.
+
+## Penyesuaian kewajiban belum diberikan
+Pelepasan sisa memakai invoice ADJUSTMENT dan line kind=CORRECTION,direction=MINUS,reference_line_id asal,reason wajib serta metadata.reason_code=UNSERVED_RELEASE. CORRECTION di sini adalah kategori penyesuaian kewajiban terbit; INPUT_ERROR dan UNSERVED_RELEASE mempunyai alasan berbeda. Ini tidak membuat payment REVERSAL, karena uang nyata tidak dikembalikan. Pengurangan dibatasi bagian belum diberikan dan sisa yang boleh ditutup, diperiksa action di bawah lock.

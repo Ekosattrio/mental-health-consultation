@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Panduan ini wajib diikuti oleh AI agent yang bekerja di project ini.
-Lokasi otoritatif panduan adalah docs/AGENTS.md, ditautkan README root. Seluruh Markdown milik proyek selain README root berada di docs/ sesuai instruksi developer20Oktober2026.
+Lokasi otoritatif panduan adalah docs/AGENTS.md, ditautkan README root. Seluruh Markdown milik proyek selain README root berada di docs/ sesuai instruksi developer20 Oktober 2026.
 
 ## Bahasa
 
@@ -53,4 +53,4 @@ Untuk sesi ini, AI juga dilarang menjalankan:
 
 ## Project Saat Ini
 
-Project JiwaSehat memakai fondasi Laravel13 di root dan React/Vite TypeScript di resources/js. Arsitektur aktif Laravel13 + Inertia3 + React19 dengan routes/web.php. Home/login/logout/workspace dasar memakai server; mock/LocalStorage hanya preview Eko lokal. Seluruh fitur domain backend belum otomatis diimplementasikan. Developer mengizinkan penataan folder, inisialisasi Laravel dan pemindahan React pada20Oktober2026. Pembatasan sesi docs-only terdahulu tidak berlaku untuk pekerjaan setup yang baru diizinkan ini; larangan Git, dev server/build dan test tanpa izin tetap berlaku.
+Project JiwaSehat memakai fondasi Laravel13 di root dan React/Vite TypeScript di resources/js. Arsitektur aktif Laravel13 + Inertia3 + React19 dengan routes/web.php. Home/login/logout/workspace dasar memakai server; mock/LocalStorage hanya preview Eko lokal. Backend domain, controller dan workspace operasional telah diimplementasikan pada26Oktober2026; bukti dan batasnya di docs/SESSION_HANDOFF.md. Developer mengizinkan penataan folder, inisialisasi Laravel dan pemindahan React pada20 Oktober 2026. Pembatasan sesi docs-only terdahulu tidak berlaku untuk pekerjaan setup yang baru diizinkan ini; larangan Git, dev server/build dan test tanpa izin tetap berlaku.

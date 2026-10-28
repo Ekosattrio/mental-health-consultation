@@ -1,3 +1,9 @@
+## Implementasi aktif26 Oktober2026
+
+[Hasil implementasi](IMPLEMENTASI_WEB_2026-10-26.md) dan [handoff](SESSION_HANDOFF.md) menggantikan status tahap sebelumnya. Otoritas bisnis tetap keputusan aktif24 Oktober: DP default50%, online180menit kerja penuh/same-day, offline Admin same-day, pelepasan sisa belum diberikan berjejak. Angka/larangan lama pada log di bawah adalah histori. Ditemukan dan diperbaiki race snapshot InnoDB: mutex praktik sekarang diperoleh sebelum ordinary read pertama di transaksi bisnis dan pada jalur scheduler.
+
+> Catatan historis/source pada waktu penulisan. Aturan target terbaru: [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md); status implementasi: [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md). Pernyataan aturan/tes lama di bawah tidak otomatis berlaku pada tahap sekarang.
+
 # Migrasi Inertia disetujui — 20 Oktober 2026
 
 ## Pembayaran Hari Terakhir - 22 Oktober 2026
@@ -29,7 +35,7 @@ Developer meminta seluruh blocker integrasi diperbaiki agar dapat menyelesaikan 
 
 
 ## 22 Oktober 2026 - Keputusan Final Developer
-[Keputusan final integrasi](KEPUTUSAN_FINAL_2026_10_22.md) menjadi prioritas di atas seluruh entri historis berikut. DP50% ditolak: gunakan flat Rp100.000 sekali di awal dan mengurangi biaya. Semua booking/reschedule H+1 termasuk Admin/owner. Tidak ada extend; setelah empat sesi booking rangkaian baru. Cancel/discontinue wajib lunas seluruh tagihan sah terbentuk, menghentikan semua sisa layanan terkait tanpa write-off/refund. Batas reschedule, bukti ditolak/unggah ulang dan hak Admin mengikuti Desman. Kontrak per-sesi diterima, tetapi preview ledger gabungan belum otomatis dimigrasikan.
+[Keputusan final integrasi](KEPUTUSAN_FINAL_2026_10_22.md) menjadi prioritas di atas seluruh entri historis berikut. DP 50% ditolak: gunakan flat Rp100.000 sekali di awal dan mengurangi biaya. Semua booking/reschedule H+1 termasuk Admin/owner. Tidak ada extend; setelah empat sesi booking rangkaian baru. Cancel/discontinue wajib lunas seluruh tagihan sah terbentuk, menghentikan semua sisa layanan terkait tanpa write-off/refund. Batas reschedule, bukti ditolak/unggah ulang dan hak Admin mengikuti Desman. Kontrak per-sesi diterima, tetapi preview ledger gabungan belum otomatis dimigrasikan.
 
 Bagian bertanggal lebih lama di bawah dipertahankan sebagai histori, bukan aturan aktif yang dapat menimpa keputusan ini.
 
@@ -574,3 +580,7 @@ Bagian ini berasal dari snapshot audit sebelumnya. Keputusan yang sudah dikonfir
 - Credit atas selisih lebih bayar belum disetujui. Catat `overpaid_amount` tanpa otomatis mengalihkannya, mengembalikan, menghanguskan, atau mengubah harga invoice.
 - Koreksi atas contoh laporan sebelumnya: laporan termasuk untuk semua paket Asesmen. Tambahan Rp200.000 berlaku untuk laporan Konseling yang diminta pasien, bukan tagihan ganda laporan asesmen.
 - Seluruh perubahan sesi ini hanya dokumentasi. Implementasi React/Laravel belum diubah atau diuji.
+
+## Integrasi provider —26Oktober2026
+
+Pengguna mengizinkan implementasi nyata WhatsApp dan Google SSO. Pengirim WA +628558589536 dikonfigurasi privat, owner recipient canonical users.phone akun Superadmin dan dapat diubah lewat profil. Reminder pasien opt-in per booking, T−2jam biasa, invalidasi attempt/consent/kedaluwarsa. Payload retry terenkripsi dan beku; ACK wajib untuk SENT. Google memakai GIS One Tap + SDK verifikasi server, sub sebagai identitas, linking email lokal memerlukan kata sandi, akun baru PATIENT, remember30hari dan logout menghentikan auto-select. Nama/email dari Google; nomor/alamat manual bila data tidak tersedia, People API opsional. Detail [panduan WhatsApp dan Google](INTEGRASI_WHATSAPP_GOOGLE_2026-10-26.md).

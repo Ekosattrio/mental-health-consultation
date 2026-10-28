@@ -22,7 +22,7 @@ Request JSON kecil untuk availability/autosave/status kirim kelak diperbolehkan 
 
 Database/backend adalah otoritas harga, saldo, permission, deadline dan okupansi. React menyimpan state interaksi/draft non-sensitif; tidak mengesahkan uang atau mengubah role melalui Context. Idempotency, expected_version, unique constraint dan transaction/locking tetap wajib walau tidak memakai REST terpisah.
 
-[DATABASE_ARCHITECTURE](DATABASE_ARCHITECTURE.md) menjadi kamus domain: UUID CHAR36, Rupiah integer, timestamp UTC/tanggal WIB. Okupansi hanya appointment; billing tidak mempunyai FK melingkar; invoice/receipt/event terbit immutable. Migration users/cache/jobs saat ini hanya fondasi, bukan implementasi seluruh schema.
+[DATABASE_ARCHITECTURE](DATABASE_ARCHITECTURE.md) menjadi kamus domain: UUID CHAR36, Rupiah integer, timestamp UTC/tanggal WIB. Okupansi hanya appointment; billing tidak mempunyai FK melingkar; invoice/receipt/event terbit immutable. Migration/model domain kini tersedia; aturan transaksi/policy/lock/scheduler tetap tahap berikutnya.
 
 ## Satu VPS
 
@@ -36,4 +36,4 @@ File privat di luar webroot; tidak ada route upload/download generik tanpa polic
 
 Halaman utama Home/Auth/Login/Dashboard memakai Inertia. Preview Eko local terisolasi masih memakai App.tsx/AppContext/mock. Tidak boleh menjalankan mutasi mock dan backend untuk intent yang sama. Migrasi dilakukan per fitur dengan satu sumber data.
 
-SSR dan devtools Inertia dinonaktifkan. Belum ada render HTML penuh untuk konten React/SEO; bila dibutuhkan, evaluasi Blade publik atau SSR secara terpisah. Enkripsi history membutuhkan HTTPS/secure context dan tidak menggantikan authorization. Browser/build/integrasi/database belum diuji pada sesi ini; rincian [SETUP](SETUP.md).
+SSR dan devtools Inertia dinonaktifkan. Belum ada render HTML penuh untuk konten React/SEO; bila dibutuhkan, evaluasi Blade publik atau SSR secara terpisah. Enkripsi history membutuhkan HTTPS/secure context dan tidak menggantikan authorization. Bukti tes database tahap terbaru pada [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md); browser/build/integrasi controller belum dikerjakan.

@@ -1,3 +1,5 @@
+> Histori migrasi arsitektur20Oktober. Status schema/model terbaru pada [handoff24 Oktober](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md); aturan aktif pada [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md).
+
 # Perubahan fondasi web untuk Eko — 20 Oktober 2026
 
 ## Keputusan dan alasannya

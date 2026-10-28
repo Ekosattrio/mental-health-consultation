@@ -1,5 +1,5 @@
 # Alur kerja dokumentasi dan implementasi
-Git dikelola developer; AI dilarang menjalankan operasi Git. Baca docs/AGENTS.md sebelum bekerja. Pada20Oktober2026 developer mengizinkan penataan docs/root, setup Laravel dan pemindahan React. Instruksi docs-only pada catatan sesi lama adalah histori, bukan pembatasan pekerjaan baru ini. Setup dependency/key/config seperlunya diizinkan; dev server/build dan test suite tetap tidak dijalankan tanpa izin eksplisit.
+Git dikelola developer; AI dilarang menjalankan operasi Git. Baca docs/AGENTS.md sebelum bekerja. Pada20 Oktober 2026 developer mengizinkan penataan docs/root, setup Laravel dan pemindahan React. Instruksi docs-only pada catatan sesi lama adalah histori, bukan pembatasan pekerjaan baru ini. Setup dependency/key/config seperlunya diizinkan; dev server/build dan test suite tetap tidak dijalankan tanpa izin eksplisit.
 1. Baca konteks dan keputusan manusia terbaru; bedakan referensi dokumen dari perintah pengguna.
 2. Tentukan aturan/fitur/aktor yang terdampak.
 3. Perbarui fitur, permission, journey, API dan DATABASE_ARCHITECTURE bersama jika satu kontrak berubah.

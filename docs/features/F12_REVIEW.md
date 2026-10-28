@@ -22,8 +22,17 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Belum selesai/tidak berizin ditolak. Duplikat billing account memberi409. Review anonim tetap berelasi internal untuk audit. Hapus publik memakai moderasi, tidak menghapus jejak.
 ## Function dan route web
-createReview, editReview, moderate, listPublished. POST /billing-accounts/{id}/review; PATCH /reviews/{id}; POST /admin/reviews/{id}/moderate; GET /public/reviews.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/reviews/{review}/moderate | ClinicalAdministrationController@moderate |
+| POST | /billing-accounts/{billing}/review | ClinicalAdministrationController@review |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.

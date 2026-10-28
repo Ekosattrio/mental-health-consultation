@@ -1,3 +1,5 @@
+> Catatan historis/source pada waktu penulisan. Aturan target terbaru: [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md); status implementasi: [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md). Pernyataan aturan/tes lama di bawah tidak otomatis berlaku pada tahap sekarang.
+
 # Panduan Merge Integrasi
 
 Untuk developer, bukan perintah yang dijalankan agent. Tidak menggunakan force, rebase atau reset. Branch kerja saat diperiksa: integrasi/desman; merge Desman masih menunggu staging/commit developer.

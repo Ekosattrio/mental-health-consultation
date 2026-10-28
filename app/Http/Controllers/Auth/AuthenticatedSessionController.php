@@ -12,8 +12,9 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        $intent=$request->query('package');if(is_string($intent)&&preg_match('/^[A-Z0-9_]{1,80}$/D',$intent)){$request->session()->put('booking_intent',$intent);}
         return Inertia::render('Auth/Login');
     }
 
@@ -21,6 +22,7 @@ class AuthenticatedSessionController extends Controller
     {
         $request->authenticate();
         $request->session()->regenerate();
+        $request->session()->put('auth_version', $request->user()->auth_version);
 
         return redirect()->route('dashboard');
     }
@@ -32,6 +34,6 @@ class AuthenticatedSessionController extends Controller
         $request->session()->regenerateToken();
         Inertia::clearHistory();
 
-        return redirect()->route('home');
+        return redirect()->route('home')->withCookie(cookie('google_signed_out','1',43200,null,null,null,true,false,'lax'));
     }
 }

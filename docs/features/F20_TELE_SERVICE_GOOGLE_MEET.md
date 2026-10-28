@@ -36,7 +36,7 @@ Mapping booking: recipient_phone ke appointments.tele_service_recipient_phone, p
 
 ## Alur normal
 
-1. Pasien login, memilih paket Telelayanan dan interval kosong. H+1, lead enam jam kerja, durasi, hold/DP, profiling dan consent tetap mengikuti aturan umum.
+1. Pasien login, memilih paket Telelayanan dan interval kosong. sesuai batas kalender F05, lead tiga jam kerja penuh, durasi, hold/DP, profiling dan consent tetap mengikuti aturan umum.
 2. Form menampilkan nomor tujuan dan pemberitahuan: “Tautan Google Meet dan informasi sesi akan dikirim ke WhatsApp ini.” Pilihan nomor/penerimaan tersimpan bersama booking; Admin mendapat tugas menyiapkan tautan.
 3. Admin menghubungi pasien melalui proses administrasi, membuat/memperoleh tautan Google Meet di luar aplikasi, lalu membuka detail booking Telelayanan.
 4. Admin menempelkan tautan dan memeriksa nomor serta jadwal. Server memvalidasi dan menyimpan revisi tautan + outbox dalam transaction; setelah commit, worker otomatis mengirim WA. Menyimpan tautan menjadi pemicu kirim, tidak perlu Admin membuka WhatsApp secara manual untuk mengirim pesan itu.
@@ -73,14 +73,15 @@ Kesiapan tautan adalah informasi terpisah dari status appointment. NEEDS_LINK/RE
 
 ## Function dan route web
 
-getAuthorizedTeleService, saveAndDispatchLink, replaceLinkOrRecipient, resendCurrentLink, reconcileOnlineAttendance. Path relatif root domain melalui routes/web.php; kontrak transport Inertia/JSON pendukung mengikuti WEB_CONTRACT.md.
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
 
-- GET /appointments/{id}/tele-service: pemilik/petugas; tautan aktif, jadwal dan nomor tersaring sesuai akses.
-- POST /admin/appointments/{id}/tele-service-links: Admin/Superadmin menyimpan revisi dan memicu outbox otomatis; mengirim meeting_url, recipient_phone, expected versions dan reason.
-- POST /admin/appointments/{id}/tele-service-links/{link_id}/resend: hanya revisi/attempt aktif; idempotency key dan reason wajib.
-- Check-in/start/complete tetap endpoint operasional F10, bukan webhook dari klik tautan.
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/appointments/{appointment}/tele-service-links | NotificationController@meet |
+| POST | /admin/notification-deliveries/{notification}/retry | NotificationController@retry |
 
-Sukses penyimpanan mengembalikan 201 dengan delivery_status=QUEUED, bukan janji WA telah diterima. Konflik versi/status 409, non-Telelayanan/URL/nomor invalid 422, tidak berwenang 403/404. Server menurunkan recipient_user_id/actor/attempt/version, tidak menerima override bebas dari client.
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
 
 ## Data, audit dan notifikasi
 
@@ -101,3 +102,7 @@ Tautan Google Meet merupakan tautan eksternal, bukan signed URL Laravel. Login w
 ## Hubungan fitur
 
 [F04 katalog](F04_PACKAGE_CATALOG.md), F05 kalender, F06 booking, F08 pembayaran, F09 reschedule, F10 operasional, [F13 notifikasi](F13_NOTIFICATION.md), F15 privacy dan F17 ruang kerja Admin. Kontrak HTTP di [WEB_CONTRACT](../WEB_CONTRACT.md).
+
+## Aktivasi pengiriman
+
+Bridge Baileys memakai pengirim yang ditetapkan pengguna, session persisten, penautan privat Superadmin dan ACK provider. Persetujuan booking Telelayanan mencakup pengingat pasien T−2jam; link tetap dibuat manual oleh Admin, bukan API Google Calendar/Meet berbayar. Login Google tidak otomatis membuat link Meet. Lihat [panduan integrasi](../INTEGRASI_WHATSAPP_GOOGLE_2026-10-26.md).

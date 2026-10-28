@@ -15,7 +15,7 @@ Nama pasien aktual, penanggung jawab secukupnya, kode booking/case, layanan, ses
 | FORMAL_REPORT | Laporan Konseling permintaan Rp200000 |
 | CUSTOM_CHARGE | Label,qty,nominal positif |
 | CORRECTION | Referensi item asal dan arah penyesuaian |
-| Pembatalan layanan | Tidak menerbitkan pelepasan sisa; wajib lunas atas tagihan terbentuk, receipt asal tetap immutable |
+| Pembatalan layanan belum diberikan | ADJUSTMENT beralasan atas sisa belum diberikan; CLOSED_UNSERVED, kas/receipt lama utuh, tidak membuat receipt0 |
 Total kewajiban = PLUS-MINUS seluruh invoice terkait. Tidak ada refund. Semua Asesmen termasuk laporan; jangan otomatis menagih FORMAL_REPORT200000 untuknya. Psikoterapi invoice per sesi; asesmen satu invoice dasar per case.
 ## Receipt
 Hanya untuk uang VERIFIED: nomor transaksi, received_at, verified_at, metode, nominal diterima dan tagihan saat terbit. Receipt penuh pasien/owner dapat memuat total terbayar/sisa saat itu. Unggahan/PENDING_RECONCILIATION bukan receipt uang diterima.

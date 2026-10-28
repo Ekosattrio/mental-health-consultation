@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Domain\WorkspaceData;
 use App\Enums\UserRole;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,16 +13,20 @@ class DashboardController extends Controller
 {
     public function redirect(Request $request): RedirectResponse
     {
+        $intent = $request->query('package', $request->session()->pull('booking_intent'));
+        $parameters = is_string($intent) && preg_match('/^[A-Z0-9_]{1,80}$/D', $intent) ? ['package' => $intent] : [];
+
         return redirect()->route(match ($request->user()->role) {
             UserRole::Patient => 'patient.dashboard',
             UserRole::Admin => 'admin.dashboard',
             UserRole::Superadmin => 'superadmin.dashboard',
-        });
+        }, $parameters);
     }
 
     public function show(Request $request): Response
     {
-        return Inertia::render('Dashboard', [
+        return Inertia::render('Practice/Workspace', [
+            'workspace' => app(WorkspaceData::class)->for($request->user(), $request->validate(['appointment_id' => 'sometimes|uuid', 'status' => 'sometimes|in:WAITING_PAYMENT,WAITING_VERIFICATION,CONFIRMED,CONFIRMED_AUTO_SLA,CHECKED_IN,IN_CONSULTATION,COMPLETED,NO_SHOW,CANCELLED,EXPIRED', 'page' => 'sometimes|integer|min:1', 'patient_id' => 'sometimes|uuid', 'date' => 'sometimes|date_format:Y-m-d', 'search' => 'sometimes|string|max:100'])),
             'dashboard' => [
                 'title' => match ($request->user()->role) {
                     UserRole::Patient => 'Ruang Pasien',

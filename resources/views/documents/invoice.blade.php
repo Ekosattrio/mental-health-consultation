@@ -1,0 +1,8 @@
+<!doctype html><html lang="id"><head><meta charset="UTF-8"><style>
+body{font-family:"DejaVu Sans",sans-serif;font-size:10px;color:#243746;line-height:1.6}h1{font-size:21px;color:#0f766e;margin:0}.header{border-bottom:3px solid #0f766e;padding-bottom:18px;margin-bottom:24px}.muted{color:#64748b}table{width:100%;border-collapse:collapse;margin-top:20px}th,td{padding:10px;border-bottom:1px solid #dbe4ea;text-align:left}th{background:#f1f5f9}.right{text-align:right}.footer{margin-top:40px;border-top:1px solid #dbe4ea;padding-top:15px}tr{page-break-inside:avoid}
+</style></head><body><div class="header"><h1>{{ $identity['practice']['clinic_name'] ?? 'JiwaSehat' }}</h1><div>{{ $identity['practice']['address'] ?? $identity['practice']['clinic_address'] ?? '' }}</div><div>{{ $identity['practice']['phone'] ?? '' }}</div></div>
+<h2>{{ $title }}</h2><div class="muted">Diterbitkan {{ $date }}</div>
+@if(isset($identity['patient']))<p>Pasien: {{ $identity['patient']['full_name'] ?? '' }}<br>Booking: {{ $identity['booking_code'] ?? '' }}</p>@endif
+<table><thead><tr><th>Rincian</th><th class="right">Nominal</th></tr></thead><tbody>@foreach($lines as $line)<tr><td>{{ $line['label'] }}</td><td class="right">{{ $line['amount'] }}</td></tr>@endforeach</tbody></table>
+<table>@foreach($summary as $label=>$value)<tr><td>{{ $label }}</td><td class="right">{{ $value }}</td></tr>@endforeach</table>
+<div class="footer">Dokumen diterbitkan secara elektronik. Penerimaan pembayaran dibuktikan oleh receipt terverifikasi. Perubahan biaya/jadwal diterbitkan sebagai dokumen atau riwayat tertaut; dokumen ini tidak ditimpa.</div></body></html>

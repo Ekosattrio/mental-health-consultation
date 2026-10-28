@@ -1,5 +1,5 @@
 # Checklist implementasi untuk Eko
-Checklist domain tetap target. Fondasi web Laravel/Inertia telah dibuat20Oktober2026; bukan berarti fitur domain atau integrasi sudah diuji.
+Checklist domain tetap target. Fondasi web Laravel/Inertia telah dibuat20 Oktober 2026; bukan berarti fitur domain atau integrasi sudah diuji.
 ## Baca
 Mulai dari [panduan proyek Eko](EKO_PROJECT_GUIDE.md), lalu urutan detail di bawah. Temuan koreksi terbaru ada pada [audit integrasi](audits/AUDIT_INTEGRASI_DOKUMEN_2026-10-19.md).
 PROJECT_CONTEXT -> BUSINESS_RULES -> ROLES_PERMISSIONS -> aktor/journey -> F01–F20 -> WEB_CONTRACT -> DATABASE_ARCHITECTURE.
@@ -15,7 +15,7 @@ DTO adalah struktur pertukaran request/response. Buat tipe/proyeksi per role; ja
 - Session Laravel web+CSRF dan form Inertia. Login/logout dasar tersedia; register/Google/reset/revoke-all serta UX session expired dan blocked lengkap masih dilanjutkan.
 - Guest tidak menerima harga; pasien login menerima harga normal dicoret/promo dan snapshot.
 - Admin melihat harga/diskon/total, tidak saldo/aggregate paid/receipt penuh; proof/input aktif tersedia untuk verifikasi.
-- Booking deadline aktual min24jam/awal sesi, H+1+enam jam kerja, server availability/versi, idempotent retry.
+- Booking deadline aktual min24jam/awal sesi, sesuai batas kalender F05+tiga jam kerja penuh, server availability/versi, idempotent retry.
 - Upload private nyata, versi koreksi, alasan reject/deadline; auto-confirm tidak sama dengan uang VERIFIED.
 - Kedatangan wajib cek/approve/penagihan offline/input aktual; check-in setelah minimum.
 - Reschedule request terpisah, eligibility requested_at, kuota saat APPLIED, release lama atomik; post-no-show kembali aktif dengan histori.
@@ -30,7 +30,7 @@ DTO adalah struktur pertukaran request/response. Buat tipe/proyeksi per role; ja
 - Telelayanan F20: paket Google Meet, konfirmasi nomor WA saat booking, form link Admin/Superadmin, save otomatis enqueue Baileys, status kirim dan resend. Terapkan revisi per attempt, pembatalan antrean lama, penerima tanpa akun dan pemeriksaan kehadiran online manual.
 ## Kondisi UI
 - row_version/expected_version berbeda dari version konten, attempt dan revision menit. Jangan pakai nama amount_claimed/claim_amount atau arah DECREASE; canonical claimed_amount dan PLUS/MINUS.
-- Pembatalan/discontinue hanya setelah seluruh tagihan terbentuk lunas; hentikan semua sisa layanan pada plan yang sama, pertahankan histori. Tidak ada pelepasan sisa, auto-cancel berbayar, atau utang sesi belum dipesan. Review tetap mensyaratkan layanan nyata.
+- Pembatalan sebelum layanan: adjustment pelepasan bagian belum diberikan, CLOSED_UNSERVED, uang aktual tetap. Bagian yang sudah diberikan tetap ditagih. Tidak ada refund/utang sesi belum dipesan. Review mensyaratkan layanan nyata.
 - Follow-up asesmen mewarisi pembayaran/clock case; counter reschedule/progres dihitung, bukan field writable kedua. Request expired teknis dengan requires_resolution tetap memerlukan keputusan.
 - Profiling offline memakai PAPER, tanpa submission/upload kertas; kertas langsung dari pasien ke Superadmin. Admin hanya identitas/jadwal/administrasi/pembayaran. Online wajib DIGITAL; endpoint tulis answers tidak terbuka untuk Admin. Revisi digital memakai rantai supersedes_id linear, bukan overwrite/fork.
 - Export worker memakai dataset_snapshot/as_of sesuai role; tidak mengambil data hidup ulang setelah antrean. UI memuat result dari server dan menangani409 untuk mutasi stale.

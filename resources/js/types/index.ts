@@ -302,6 +302,10 @@ export interface ToastNotification {
 }
 
 export interface LandingPageCmsConfig {
+  ctaTitle?:string;
+  ctaSubtitle?:string;
+  footerText?:string;
+  faqs?:{q:string;a:string}[];
   heroBadge: string;
   heroTitle: string;
   heroSubtitle: string;

@@ -10,7 +10,7 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 1. Pilih kalender versi efektif: override tanggal menggantikan seluruh interval hari; jika tidak ada gunakan interval mingguan, kurangi libur/istirahat.
 2. Bentuk interval kontinu yang cukup untuk durasi; 240 menit tidak boleh melintasi istirahat.
 3. Kurangi appointment yang mengokupansi dan periksa kuota.
-4. Terapkan H+1 dan enam jam kerja bagi pasien online.
+4. Terapkan sesuai batas kalender F05 dan tiga jam kerja penuh bagi pasien online.
 5. Saat submit, lock resource hari dan hitung ulang; hasil GET availability bukan jaminan slot.
 6. Saat jam berubah, preview seluruh appointment aktif terdampak. Apply mencatat operational_change dan clinic-origin request, tandai requires_reschedule dan kirim informasi agar pasien memilih kembali. Jangan memindahkan jadwal diam-diam.
 ## Status dan transisi
@@ -23,8 +23,18 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Interval overlap, end<=start, durasi tidak muat, atau kuota penuh mendapat 422/409. Perubahan kalender tidak disimpan separuh: event dampak/notifikasi-outbox harus tercatat bersama versi. Perubahan retroaktif dilarang; perubahan hari ini berlaku mulai now server dan tidak mengubah layanan yang sudah dimulai.
 ## Function dan route web
-listAvailability, previewCalendarChange, applyCalendarChange, createSpecialOpening. GET /availability; POST /admin/calendar/preview; POST /admin/calendar/apply.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/calendar/apply | ManagementController@calendarApply |
+| POST | /admin/calendar/preview | ManagementController@calendarPreview |
+| GET / HEAD | /availability | BookingController@slots |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
@@ -39,3 +49,7 @@ F06 booking, F09 reschedule, F17 input Admin, dokumen OPERATING_WINDOW_AND_BOOKI
 ## Kuota turun dan layanan yang masih berlangsung
 Jika kuota baru di bawah jumlah reservasi yang telah sah, reservasi lama tetap diakui; hentikan booking baru sampai count di bawah limit. Penutupan/perubahan interval yang membuat jadwal tidak valid tetap memakai workflow pasien terdampak, bukan memilih pasien untuk dibatalkan secara acak.
 IN_CONSULTATION tanpa actual_ended_at menandakan praktisi masih melayani. Admin tidak boleh membuat walk-in yang dimulai saat itu sebelum layanan lama selesai/ditangani. Kelebihan durasi dicatat sebagai fakta aktual dan dampak jadwal; end_at jadwal tidak diedit untuk menyembunyikan bentrokan. Appointment berikutnya tidak bergeser otomatis.
+
+## Batas aktif24 Oktober
+Online addWorkingMinutes(reservation_created_at,180), same-day boleh. Kalender Admin=klinik, istirahat dikecualikan; 10.30 dengan jeda12–13 menjadi14.30. Reminder120 menit waktu nyata. Offline Admin tidak memakai lead online, tetapi slot/durasi/overlap/kuota tetap diperiksa. Sumber okupansi hanya appointment, bukan cache flag.
+ScheduleResource unik praktisi+tanggal WIB adalah baris mutex: wajib lockForUpdate sebelum query overlap dan perubahan jadwal. SQL unique tanggal itu tidak berarti hanya satu appointment/hari dan tidak menjamin overlap sendiri. Detail contoh/deadline pada OPERATING_WINDOW_AND_BOOKING_CUTOFF.

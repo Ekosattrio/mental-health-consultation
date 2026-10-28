@@ -1,6 +1,6 @@
 # F06 — Booking dan perlindungan reservasi
 
-> Semua booking/reschedule/sesi lanjutan minimal H+1 WIB untuk seluruh role, termasuk Admin/owner; tidak ada DP baru pada lanjutan/reschedule setelah DP awal terverifikasi. [Keputusan final](../KEPUTUSAN_FINAL_2026_10_22.md).
+> Online boleh same-day setelah tiga jam kerja penuh; offline Admin boleh hari ini/sekarang. DP tidak diulang pada reschedule/lanjutan. Ikuti [keputusan aktif](../KEPUTUSAN_AKTIF_2026-10-24.md).
 
 ## Latar belakang dan tujuan
 Mengikat pasien, versi paket, consent, interval dan tagihan tanpa memulai dari status pembayaran yang ambigu.
@@ -14,11 +14,11 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 1. Lengkapi identitas dan consent. Online: pasien mengisi/submit profiling digital. Offline: Admin memilih PAPER; pasien mengisi kertas untuk Superadmin dan booking tidak menunggu submission digital. Consent aplikasi yang dicatat Admin tetap penerimaan nyata penanggung jawab, berbeda dari jawaban profiling.
 2. Tampilkan preview server harga normal/promo/final, DP dan deadline.
 3. Submit memakai idempotency key. Server lock resource hari, validasi versi kalender dan paket, buat appointment, billing account atau assessment case, invoice dasar, tautkan submission/consent dalam transaction. Khusus booking Psikoterapi pertama, buat treatment_plan ACTIVE empat unit dalam transaction yang sama lalu tautkan appointment sesi1; tanpa approval owner sebelumnya. Hanya sesi1 dijadwalkan/ditagih. Plan aktif yang sudah ada diarahkan ke Admin untuk lanjutan, bukan auto-create kedua; detail guard/retry dan kebutuhan setelah plan terminal mengikuti F11.
-4. Status WAITING_PAYMENT melindungi interval sampai min(created_at+24h,start_at).
+4. Status WAITING_PAYMENT melindungi interval sampai min(created_at+24h,start_at−2h).
 5. Bukti tepat waktu menghasilkan WAITING_VERIFICATION, pembayaran diverifikasi menghasilkan CONFIRMED jika DP terpenuhi.
 6. Job SLA dapat membuat CONFIRMED_AUTO_SLA; check-in tetap memerlukan pemeriksaan uang.
 7. Appointment included lanjutan Asesmen memakai pembayaran/SLA case asal, bukan WAITING_PAYMENT atau hold24jam baru. Verifikasi case mengevaluasi ulang appointment yang menunggu tanpa menimpa terminal/kehadiran. Anchor adalah TESTING assessment_sequence=1; clock bukti pertama/hold asal tidak diperpanjang follow-up. Detail F18.
-8. Expiry hold teknis tidak membuat status PAID, tidak melepaskan sisa tagihan atau membatalkan layanan berbayar otomatis. Uang/bukti terlambat direkonsiliasi. Pembatalan manual seluruh sisa layanan wajib lunas sesuai F08/F11.
+8. Expiry hold teknis tidak membuat status PAID; penutupan bagian belum diberikan mengikuti adjustment CLOSED_UNSERVED, bukan penghapusan kas. Uang/bukti terlambat direkonsiliasi. Pembatalan sisa layanan memakai aturan pelepasan belum diberikan pada F08/F11.
 ## Status dan transisi
 | Pemicu / aktor | Kondisi awal | Hasil dan efek |
 |---|---|---|
@@ -31,14 +31,34 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Slot telah diambil memberi 409 dan data form tetap. Versi paket berubah meminta preview baru. Retry key sama+payload sama mengembalikan hasil yang sama; key sama+payload beda ditolak. Bukti terlambat tidak menghidupkan slot expired; uang nyata tetap dicatat untuk rekonsiliasi.
 ## Function dan route web
-previewBooking, createBooking, getBooking, listOwnBookings. POST /appointments/preview, /appointments; GET /appointments, /appointments/{id}. Cash/walk-in memakai ledger F08 dan tetap lock resource.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/appointments/custom | BookingController@custom |
+| POST | /appointments | BookingController@store |
+| POST | /appointments/preview | BookingController@preview |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
 ## Acceptance criteria
 - Tidak ada dua status HELD dan WAITING_PAYMENT yang menafsirkan okupansi secara berbeda.
-- Deadline selalu min24h dan waktu sesi; bukti dengan received_at tepat deadline diterima.
+- Deadline selalu min24h dan waktu sesi−2jam; bukti dengan received_at tepat deadline diterima.
 - Identitas/benefit/harga lama tidak berubah ketika katalog/profil diedit.
 ## Hubungan fitur
 F03, F04, F05, F07, F08, F15.
+
+## Booking manual dan kustom — keputusan24 Oktober
+Admin offline boleh same-day pada interval bebas. CUSTOM memerlukan label, interval/durasi dan alasan arahan owner. REQUIRED membuat billing dengan fee positif; INCLUDED menaut appointment_billing_links ke billing pasien yang sama tanpa DP/BASE baru; NOT_REQUIRED tidak membuat billing/pembayaran/receipt dan tidak diberi label PAID. Simpan external_agreed_at bila diketahui, tanpa memundurkan created_at. Cari booking/profil asal agar janji eksternal tidak digandakan. Booking <2jam mengirim notifikasi segera berlabel tambahan manual; bukan reminder masa lalu.
+Bukti tepat waktu cukup untuk notifikasi owner T−2jam; verifikasi kas dapat pada kedatangan. Perhitungan kalender/deadline mengikuti OPERATING_WINDOW_AND_BOOKING_CUTOFF. Timestamp browser tidak menjadi anchor.
+## Target penerapan
+Schema/model tersedia pada tahap24 Oktober. Function/route di atas masih kontrak; controller dan integrasi Eko menunggu tahap berikutnya.
+
+## Kontak WhatsApp per booking
+
+Semua paket dapat menerima pengingat jika reminder_wa_accepted=true dan reminder_recipient_phone valid; keduanya dicatat dengan timestamp server. Nomor08 dinormalisasi +62. Telelayanan memerlukan persetujuan link/pengingat; nomor link tetap berversi tersendiri. Kontak pengingat bisa diperbarui melalui akses booking sendiri/petugas, bukan mengedit profil orang lain. Rincian [F13](F13_NOTIFICATION.md).

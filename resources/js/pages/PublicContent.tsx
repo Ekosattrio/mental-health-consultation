@@ -1,0 +1,2 @@
+import WebLayout from '../layouts/WebLayout';
+export default function PublicContent({content}:{content:{version:number;payload:{title?:string;body?:string}}}){return <WebLayout title={content.payload.title??'Informasi layanan'}><article className="max-w-3xl mx-auto p-6 my-8 bg-white rounded-3xl border border-slate-200"><h1 className="text-2xl font-extrabold">{content.payload.title}</h1><p className="whitespace-pre-wrap mt-5 text-slate-700">{content.payload.body}</p><p className="text-xs text-slate-400 mt-6">Versi {content.version}</p></article></WebLayout>;}

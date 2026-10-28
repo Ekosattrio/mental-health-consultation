@@ -1,65 +1,39 @@
-# Setup Laravel 13, Inertia 3 dan React
+# Setup lokal Laravel13, Inertia3 dan React
 
-Diperbarui 20 Oktober 2026 setelah persetujuan developer. Laravel berada di root, React di resources/js, stylesheet di resources/css dan Blade di resources/views. Perubahan untuk Eko dirinci di [catatan migrasi](PERUBAHAN_INERTIA_UNTUK_EKO_2026-10-20.md).
+Status26 Oktober2026: backend domain, controller, workspace React, PDF, ekspor, scheduler dan adapter notifikasi telah dibuat. [Hasil implementasi](IMPLEMENTASI_WEB_2026-10-26.md) menjelaskan alur dan pembatasan akses. [Handoff](SESSION_HANDOFF.md) menyimpan hasil pemeriksaan terbaru.
 
-## Kebutuhan lokal
+## Kebutuhan
 
-- PHP minimal8.3 dengan openssl, curl, mbstring, fileinfo, PDO MySQL dan ekstensi standar Laravel.
-- Composer2.10+; archive dist dan source-fallback=false dipakai agar instalasi tidak beralih ke Git.
-- Node sesuai package.json: ^20.19.0 atau >=22.12.0; setup ini memakai Node24.
-- MySQL8 untuk data aplikasi. Database/tabel/akun tidak dibuat oleh sesi setup.
+PHP8.3+ dengan PDO MySQL, openssl, mbstring, fileinfo, curl, DOM/XML, zip dan ekstensi standar Laravel. MySQL8.0.16+; lingkungan lokal memakai8.4.3. Node sesuai package.json, dan22.13+ bila bridge Baileys dijalankan. Composer serta npm memakai lockfile proyek.
 
-PHP CLI yang dipakai adalah C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe. PHP8.3.33 yang ditemukan belum memuat php.ini/openssl CLI; jangan mengubah konfigurasi global tanpa kebutuhan. Web server/terminal Laragon harus memakai PHP dan ekstensi yang sesuai.
+CLI lokal yang dipakai: C:/laragon/bin/php/php-8.3.30-Win32-vs16-x64/php.exe. Versi dependency terkunci diperiksa melalui composer.lock dan package-lock.json; tidak perlu menyamakan angka minor adapter PHP dengan adapter React.
 
-Versi terkunci saat migrasi: Laravel13.37.0, inertia-laravel3.5.1, @inertiajs/react3.9.1, React19.3.0 dan Vite8.3.4. Versi adapter PHP dan React tidak harus memiliki angka minor sama. Lockfile adalah acuan instalasi ulang.
+## Instalasi baru
 
-## Instalasi dari checkout baru
+1. Dari root, composer install --prefer-dist --no-interaction dan npm ci --ignore-scripts. Konfigurasi Composer source-fallback=false menjaga penggunaan dist.
+2. Salin .env.example hanya jika .env belum ada. Isi DB, APP_URL dan APP_KEY. Jalankan key:generate hanya pada instalasi baru yang belum memiliki kunci; jangan mengganti kunci data lama.
+3. Buat database kosong milik aplikasi lalu php artisan migrate. Jangan memakai migrate:fresh pada data yang perlu dipertahankan.
+4. php artisan practice:install membuat owner dan konfigurasi awal tanpa pasien/appointment demo. Untuk tiga akun yang ditetapkan pengguna pada lingkungan ini, lihat [akun awal](AKUN_AWAL_DAN_CARA_MASUK.md).
+5. npm run build menyiapkan aset public/build. Jalankan Laravel dengan document root public/ atau php artisan serve. npm run preview bukan server aplikasi.
+6. Jalankan php artisan queue:work database --timeout=150 dan php artisan schedule:work pada lokal bila menguji otomasi. DB_QUEUE_RETRY_AFTER=180 lebih besar daripada timeout worker.
 
-Panduan operator; bukan pernyataan semua perintah ini boleh/dijalankan agent. Jalankan dari root:
+## Lingkungan dan data
 
-```powershell
-$env:COMPOSER_ROOT_VERSION = '1.0.0'
-composer install --prefer-dist --no-scripts --no-plugins --no-interaction
-npm ci --ignore-scripts
-if (-not (Test-Path -LiteralPath .env)) {
-    Copy-Item -LiteralPath .env.example -Destination .env
-}
-php artisan package:discover --ansi
-```
+Session Laravel memakai cookie/CSRF pada origin yang sama; tidak ada bearer token atau bootstrap Sanctum. SESSION_ENCRYPT=true, INERTIA_ENCRYPT_HISTORY=true. Gunakan localhost atau HTTPS untuk Web Crypto. Produksi wajib HTTPS dan SESSION_SECURE_COOKIE=true.
 
-Generate APP_KEY hanya jika .env baru dan kuncinya belum diisi; jangan merotasi kunci aplikasi yang telah digunakan. Setup sebelumnya sudah membuat kunci lokal. Composer/npm lockfile disimpan; file dependency vendor/node_modules tetap mengikuti struktur paket, bukan dipindahkan ke docs.
+Default QUEUE_CONNECTION=database, CACHE_STORE=file, FILESYSTEM_DISK=local dan SESSION_DRIVER=file. Direktori storage/app/private tidak dipublikasikan dengan storage:link. Download melalui controller berizin. Cache/file harus dapat ditulis proses aplikasi.
 
-## Konfigurasi lingkungan
+ENABLE_LEGACY_PREVIEW=false mematikan prototype LocalStorage. Bila Eko sengaja membukanya di lingkungan lokal, perilaku prototype yang lama tidak menjadi aturan produksi. Route preview tetap404 pada APP_ENV=production.
 
-- APP_URL sesuai origin Laravel. Default localhost:8000; domain Laragon boleh digunakan dengan konfigurasi web server yang sesuai.
-- DB_CONNECTION=mysql dan kredensial diisi operator. Jangan menampilkan .env/kredensial dalam laporan.
-- SESSION_DRIVER=file, SESSION_ENCRYPT=true, CACHE_STORE=file untuk bootstrap tanpa tabel sesi/cache; storage tetap privat. Target database session/cache dapat diaktifkan setelah tabel/konfigurasinya siap.
-- QUEUE_CONNECTION=database adalah target; jangan menjalankan worker sebelum migration/tabel jobs dan konfigurasi DB siap.
-- ENABLE_LEGACY_PREVIEW=false default. .env lokal sesi ini true untuk melihat desain Eko. Middleware tetap mensyaratkan APP_ENV=local; mengaktifkan flag di production tetap404. Jangan pakai APP_ENV=local pada deployment publik.
-- INERTIA_ENCRYPT_HISTORY=true. Fitur menggunakan Web Crypto dan membutuhkan secure context (HTTPS atau localhost). Untuk http://nama-proyek.test lokal, gunakan HTTPS atau matikan flag ini hanya pada lokal bila diperlukan. Produksi wajib HTTPS. Enkripsi history bukan pengganti policy.
-- Produksi: APP_ENV=production, APP_DEBUG=false, SESSION_SECURE_COOKIE=true; host/session/cache/proxy sesuai deployment. SSR dan devtools Inertia disabled di config/inertia.php.
-- MAIL_MAILER=log hanya lokal. Google OAuth, provider email dan Baileys belum diaktifkan.
+MAIL_MAILER=log hanya untuk lokal. Google SSO menunggu Client ID, WhatsApp menunggu penautan ponsel dan nomor tujuan owner. Kode integrasi sudah tersedia; lihat [panduan WhatsApp dan Google](INTEGRASI_WHATSAPP_GOOGLE_2026-10-26.md). Rincian pairing, supervisor, cron, backup/restore dan produksi: [operasional satu VPS](OPERASIONAL_VPS_DAN_INTEGRASI.md).
 
-VITE_API_BASE_URL/TIMEOUT, VITE_USE_SANCTUM/SANCTUM_STATEFUL_DOMAINS bukan konfigurasi web aktif. Sanctum sudah dilepas; jangan memanggil /sanctum/csrf-cookie. Inertia memakai CSRF sesi Laravel. Variabel VITE_* terlihat browser; jangan berisi rahasia.
+## Verifikasi
 
-Tidak ada migrate/migrate:fresh/seed/storage:link otomatis. Migration users/cache/jobs hanya fondasi awal, bukan seluruh46tabel domain. users memakai UUIDv4/password_hash, enum role/status dan row_version; FK sessions sesuai UUID. remember_token adalah kolom teknis Laravel. Belum ada provisioning satu owner maupun akun demo. Login nyata menunggu DB/users yang sesuai, bukan tombol role mock.
+- npm run lint: TypeScript.
+- npm test: regresi komponen/prototype dan integritas import.
+- npm run build: aset produksi.
+- php vendor/bin/phpunit: smoke Laravel.
+- php vendor/bin/phpunit -c tests/phpunit-domain.xml: alur domain pada MySQL acak; mencakup konkurensi dua proses.
+- php tests/database-foundation.php: constraint, migration, rollback/remigrate pada MySQL acak.
 
-## Entry dan route
-
-- main.tsx menjalankan createInertiaApp, lazy resolver pages/**/*.tsx dan stylesheet. Instalasi client manual, tanpa kewajiban plugin @inertiajs/vite tambahan.
-- app.blade.php memakai @viteReactRefresh, @vite dan komponen Blade head/app Inertia3.
-- routes/web.php mendaftarkan /, /login, /logout, /dashboard dan workspace per role; tidak ada shell catch-all atau api.php aktif. /up adalah health bawaan.
-- Home memakai data publik whitelist dari config/jiwasehat.php sementara CMS/katalog DB belum tersedia. Tidak ada harga publik, review palsu atau paket bookable.
-- Auth/Login memakai useForm; LoginRequest memeriksa kredensial/status, field tidak didukung dan rate limit; sukses regenerate session, logout invalidate/regenerate CSRF serta clear history. Workspace diperiksa backend auth+active+role.
-- /preview/eko memuat App.tsx lama dengan data demo/LocalStorage; akses hanya lokal+flag. Client HTTP terdahulu di resources/js/legacy/api adalah referensi, bukan data layer halaman baru. Modul resources/js/api adalah mock lokal lama, bukan route PHP.
-- Alias @ -> resources/js. Hasil build kelak di public/build; root index.html tidak lagi menjadi entry. Private disk tidak membuka download/upload otomatis.
-
-Web server wajib document root public/. Sebelum Vite dev server atau manifest build tersedia, halaman dapat gagal dengan ViteManifestNotFoundException; aset belum dibuat dalam sesi ini. Memasang dependency tidak sama dengan menjalankan aplikasi. Jangan mengandalkan npm run preview sebagai server aplikasi Laravel.
-
-## Pemeriksaan dan lanjutan
-
-Pemeriksaan sesi ini terbatas pada struktur/link/import, integritas pemindahan komponen, typecheck TypeScript, syntax PHP, metadata dependency/platform dan daftar route. Hasil final tercatat di [SESSION_HANDOFF](SESSION_HANDOFF.md).
-
-Tidak menjalankan browser/dev server/build/test suite, migration/seeding atau Git. Belum ada klaim login nyata, transaksi domain, render visual, provider eksternal atau deployment sudah teruji. Berikutnya pengembang menyiapkan database/provisioning aman, menyelesaikan domain per fitur, lalu menjalankan pemeriksaan integrasi/render setelah developer mengizinkan.
-
-Referensi resmi: [Laravel frontend](https://laravel.com/docs/13.x/frontend#inertia), [autentikasi Laravel](https://laravel.com/docs/13.x/authentication), [setup server Inertia3](https://inertiajs.com/docs/v3/installation/server-side-setup), [setup client manual](https://inertiajs.com/docs/v3/installation/client-side-setup), [form Inertia](https://inertiajs.com/docs/v3/the-basics/forms).
+Jangan menganggap smoke SQLite menggantikan pengujian constraint MySQL. Tidak ada perintah Git yang dijalankan agent. Referensi arsitektur resmi tersimpan pada [catatan Inertia](PERUBAHAN_INERTIA_UNTUK_EKO_2026-10-20.md).

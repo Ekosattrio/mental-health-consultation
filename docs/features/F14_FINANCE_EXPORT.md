@@ -24,8 +24,18 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Rentang terlalu besar ditangani async/batas operasional. Job gagal menjadi FAILED dengan retry. Data pengguna lain tidak boleh masuk dari filter patient_id bebas. XLSX/CSV menetralkan formula injection pada nama/catatan.
 ## Function dan route web
-cashSummary, cashTransactions, exportFinance, exportSchedule. GET /superadmin/finance; POST /superadmin/finance/exports; POST /admin/schedule-exports; GET /exports/{id}/download.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /exports | FinanceController@export |
+| GET / HEAD | /files/{file}/download | FileController@download |
+| GET / HEAD | /superadmin/finance | FinanceController@show |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.

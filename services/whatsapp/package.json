@@ -1,0 +1,8 @@
+{
+  "name": "jiwasehat-whatsapp-bridge",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22.13"},
+  "scripts": {"start": "node --env-file-if-exists=.env server.mjs", "test": "node --test bridge.test.mjs"},
+  "dependencies": {"@whiskeysockets/baileys": "7.0.0-rc14"}
+}

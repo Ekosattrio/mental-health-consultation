@@ -1,13 +1,14 @@
+> Diagram teks berikut diselaraskan ke keputusan24 Oktober. Gambar SVG lama disimpan sebagai histori aset, tidak dipakai sebagai target alur aktif. Controller/action belum dibuat.
+
 # UML Activity Diagram Fitur JiwaSehat
 
-> Diagram berikut adalah snapshot alur preview Eko, bukan bukti implementasi kontrak Desman. Target terbaru mengikuti [keputusan final](KEPUTUSAN_FINAL_2026_10_22.md) dan F01-F20; khusus per-sesi/hak Admin/request reschedule, diagram lama belum menggantikan kontrak baru.
+> Diagram berikut adalah snapshot alur preview Eko, bukan bukti implementasi kontrak Desman. Target terbaru mengikuti [keputusan final](KEPUTUSAN_AKTIF_2026-10-24.md) dan F01-F20; khusus per-sesi/hak Admin/request reschedule, diagram lama belum menggantikan kontrak baru.
 
 
 Diagram ini memakai UML activity diagram dengan swimlane pelaku, node awal/akhir, aktivitas, percabangan, dan aliran kontrol seperti contoh diagram aktivitas. Gambar SVG tiap diagram dapat dibuka langsung di Obsidian tanpa plugin. Kode PlantUML di bawah adalah sumber yang dapat disunting; alur dan celah implementasi dijelaskan di [[FEATURE_FLOWS]]. Revisi aturan terakhir: 21 Oktober 2026. Diagram mencakup flow target backend; status implementasi prototype dijelaskan pada FEATURE_FLOWS.
 
 ## 1. Landing Page dan Katalog
 
-![](assets/activity-diagrams/activity-01.svg)
 
 ```plantuml
 @startuml
@@ -34,7 +35,6 @@ stop
 
 ## 2. Login Google dan Registrasi
 
-![](assets/activity-diagrams/activity-02.svg)
 
 ```plantuml
 @startuml
@@ -65,7 +65,6 @@ stop
 
 ## 3. Kelengkapan Profil
 
-![](assets/activity-diagrams/activity-03.svg)
 
 ```plantuml
 @startuml
@@ -90,7 +89,6 @@ stop
 
 ## 4. Hak Akses Dashboard
 
-![](assets/activity-diagrams/activity-04.svg)
 
 ```plantuml
 @startuml
@@ -116,7 +114,6 @@ stop
 
 ## 5. Paket, Tarif, Diskon, dan Catatan
 
-![](assets/activity-diagrams/activity-05.svg)
 
 ```plantuml
 @startuml
@@ -143,7 +140,6 @@ stop
 
 ## 6. Jam Kerja dan Ketersediaan Slot
 
-![](assets/activity-diagrams/activity-06.svg)
 
 ```plantuml
 @startuml
@@ -166,14 +162,13 @@ stop
 
 ## 7. Booking Mandiri
 
-![](assets/activity-diagrams/activity-07.svg)
 
 ```plantuml
 @startuml
 title Booking Mandiri Pasien
 |Pasien|
 start
-:Pilih paket dan tanggal minimal H+1;
+:Pilih paket dan tanggal sesuai batas kalender F05;
 |Sistem|
 :Hitung slot tersedia;
 if (Ada slot?) then (Ya)
@@ -201,7 +196,7 @@ if (Ada slot?) then (Ya)
       |Admin|
       :Cocokkan bukti dan mutasi tanpa meminta transfer ulang;
       if (Penerimaan cocok?) then (Ya)
-        :Sepakati jadwal pengganti minimal H+1;
+        :Sepakati jadwal pengganti sesuai batas kalender F05;
         :Input penerimaan aktual dan tanggal diterima;
         |Sistem|
         :Ikat kasus ke booking pengganti dan gunakan bukti yang sama;
@@ -224,7 +219,6 @@ stop
 
 ## 8. Pre-Test Profiling
 
-![](assets/activity-diagrams/activity-08.svg)
 
 ```plantuml
 @startuml
@@ -249,7 +243,6 @@ stop
 
 ## 9. Consent dan Privasi
 
-![](assets/activity-diagrams/activity-09.svg)
 
 ```plantuml
 @startuml
@@ -274,7 +267,6 @@ stop
 
 ## 10. Verifikasi DP
 
-![](assets/activity-diagrams/activity-10.svg)
 
 ```plantuml
 @startuml
@@ -304,7 +296,6 @@ stop
 
 ## 11. Booking Walk-In
 
-![](assets/activity-diagrams/activity-11.svg)
 
 ```plantuml
 @startuml
@@ -315,11 +306,11 @@ start
 if (Pasien belum terdaftar?) then (Ya)
   :Isi data dasar pasien baru;
 endif
-:Pilih paket, tanggal minimal H+1, dan slot tersedia;
+:Pilih paket, tanggal sesuai batas kalender F05, dan slot tersedia;
 :Pilih cash atau bank;
 :Masukkan uang yang diterima;
 |Sistem|
-:Validasi nominal aktual DP atau FULL, tanggal H+1, dan slot;
+:Validasi nominal aktual positif, hitung kecukupan minimum, sesuai batas kalender F05, dan slot;
 if (Valid?) then (Ya)
   :Simpan pasien, booking, dan transaksi secara atomik;
   :Arahkan pasien melengkapi profil dan pre-test;
@@ -332,7 +323,6 @@ stop
 
 ## 12. Reschedule
 
-![](assets/activity-diagrams/activity-12.svg)
 
 ```plantuml
 @startuml
@@ -353,7 +343,7 @@ if (Sesi berstatus no-show?) then (Ya)
   endif
 endif
 |Pasien, Admin, atau Psikolog|
-:Pilih tanggal pengganti minimal H+1;
+:Pilih tanggal pengganti sesuai batas kalender F05;
 |Sistem|
 :Validasi hak, status, rencana, durasi, kuota, dan slot;
 if (Slot bebas?) then (Ya)
@@ -378,7 +368,6 @@ stop
 
 ## 13. Pelaksanaan Konsultasi
 
-![](assets/activity-diagrams/activity-13.svg)
 
 ```plantuml
 @startuml
@@ -388,14 +377,15 @@ start
 :Buka booking confirmed dan data pre-test;
 if (Akan membatalkan layanan?) then (Ya)
   |Sistem|
-  if (Seluruh biaya sudah lunas?) then (Ya)
+  if (Bagian belum diberikan sudah ditetapkan dan alasan sah?) then (Ya)
     |Psikolog|
-    :Isi alasan dan konfirmasi pembatalan;
+    :Isi alasan dan konfirmasi cakupan pembatalan;
     |Sistem|
-    :Hentikan rencana dan batalkan seluruh sisa appointment;
+    :Terbitkan adjustment pelepasan bagian belum diberikan dan tutup CLOSED_UNSERVED;
+    :Hentikan rencana dan batalkan sisa appointment terkait;
     :Lepas slot dan pertahankan histori completed serta pembayaran;
   else (Tidak)
-    :Tolak pembatalan sampai admin mencatat pelunasan;
+    :Minta owner meninjau bagian yang sudah dan belum diberikan;
   endif
   stop
 endif
@@ -403,7 +393,7 @@ endif
 if (Pasien terlambat?) then (Ya)
   :Konfirmasi manual dengan pasien;
   if (Sepakat jadwal pengganti?) then (Ya)
-    :Pilih jadwal pengganti minimal H+1 dan alasan;
+    :Pilih jadwal pengganti sesuai batas kalender F05 dan alasan;
     |Sistem|
     :Validasi slot dan kuota dalam lock;
     if (Valid?) then (Ya)
@@ -420,7 +410,7 @@ if (Pasien hadir?) then (Ya)
   if (Sesi selesai?) then (Ya)
     :Tandai completed;
   else (Tidak)
-    :Pertahankan jadwal terkonfirmasi sampai sesi selesai atau pembatalan lunas diproses;
+    :Pertahankan jadwal terkonfirmasi sampai sesi selesai atau penghentian berjejak diproses;
   endif
 else (Tidak)
   :Konfirmasi manual lalu tandai no-show beserta alasan;
@@ -428,7 +418,7 @@ else (Tidak)
   :Pertahankan rencana dan pembayaran, tanpa cancel atau jatah hangus otomatis;
   |Psikolog|
   if (Sepakat menjadwalkan ulang?) then (Ya)
-    :Pilih tanggal H+1, slot, dan alasan;
+    :Pilih sesuai batas kalender F05, slot, dan alasan;
     |Sistem|
     :Validasi hak, rencana aktif, pembayaran, durasi, kuota, dan slot;
     if (Valid?) then (Ya)
@@ -448,7 +438,6 @@ stop
 
 ## 14. Pembayaran Bertahap
 
-![](assets/activity-diagrams/activity-14.svg)
 
 ```plantuml
 @startuml
@@ -477,7 +466,6 @@ stop
 
 ## 15. Paket Berjalan dan Sesi Berikutnya
 
-![](assets/activity-diagrams/activity-15.svg)
 
 ```plantuml
 @startuml
@@ -488,7 +476,7 @@ start
 |Sistem|
 :Tampilkan rencana awal minimal 4 sesi;
 |Pasien|
-:Pilih slot minimal H+1 dan isi pre-test;
+:Pilih slot sesuai batas kalender F05 dan isi pre-test;
 :Unggah bukti DP Rp100.000;
 |Sistem|
 if (Slot dan data valid?) then (Ya)
@@ -531,7 +519,7 @@ repeat
     stop
   endif
   |Psikolog|
-  :Pilih slot sesi berikutnya minimal H+1;
+  :Pilih slot sesi berikutnya sesuai batas kalender F05;
   |Sistem|
   :Validasi slot dan buat satu appointment;
   |Psikolog|
@@ -543,7 +531,7 @@ repeat while (Belum empat sesi selesai?) is (Ya) not (Tidak)
 if (Perlu terapi lanjutan?) then (Ya)
   :Sarankan pasien booking lagi;
   |Pasien|
-  :Buat booking psikoterapi baru minimal H+1;
+  :Buat booking psikoterapi baru sesuai batas kalender F05;
   |Sistem|
   :Buat kode, rencana, DP, dan ledger baru;
   |Psikolog|
@@ -557,7 +545,6 @@ stop
 
 ## 16. Detail Pasien dan Data Klinis
 
-![](assets/activity-diagrams/activity-16.svg)
 
 ```plantuml
 @startuml
@@ -579,7 +566,6 @@ stop
 
 ## 17. Invoice dan Kwitansi
 
-![](assets/activity-diagrams/activity-17.svg)
 
 ```plantuml
 @startuml
@@ -605,7 +591,6 @@ stop
 
 ## 18. Ulasan dan Moderasi
 
-![](assets/activity-diagrams/activity-18.svg)
 
 ```plantuml
 @startuml
@@ -635,7 +620,6 @@ stop
 
 ## 19. CMS dan Media
 
-![](assets/activity-diagrams/activity-19.svg)
 
 ```plantuml
 @startuml
@@ -661,7 +645,6 @@ stop
 
 ## 20. Laporan dan Ekspor Keuangan
 
-![](assets/activity-diagrams/activity-20.svg)
 
 ```plantuml
 @startuml
@@ -690,7 +673,6 @@ stop
 
 ## 21. Backup dan Ekspor Data Klinis
 
-![](assets/activity-diagrams/activity-21.svg)
 
 ```plantuml
 @startuml
@@ -713,7 +695,6 @@ stop
 
 ## 22. Notifikasi WhatsApp
 
-![](assets/activity-diagrams/activity-22.svg)
 
 ```plantuml
 @startuml
@@ -739,7 +720,6 @@ stop
 
 ## 23. Mobile, Navigasi, dan Error
 
-![](assets/activity-diagrams/activity-23.svg)
 
 ```plantuml
 @startuml
@@ -760,4 +740,3 @@ endif
 stop
 @enduml
 ```
-

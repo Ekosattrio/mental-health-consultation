@@ -1,3 +1,5 @@
+> Catatan historis/source pada waktu penulisan. Aturan target terbaru: [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md); status implementasi: [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md). Pernyataan aturan/tes lama di bawah tidak otomatis berlaku pada tahap sekarang.
+
 # Migrasi Inertia disetujui — 20 Oktober 2026
 
 ## Pelunasan Sesi Terakhir - 22 Oktober 2026
@@ -32,7 +34,7 @@ Penegasan bisnis sesudah audit: pembayaran pasien khusus Admin untuk pemeriksaan
 
 
 ## 22 Oktober 2026 - Penyelarasan Integrasi
-- Pertahankan DP flat Rp100.000 di FE; tambah regresi variasi tarif, booking900.000, dan cancel setelah lunas. DP50% bukan keputusan yang diterima.
+- Pertahankan DP flat Rp100.000 di FE; tambah regresi variasi tarif, booking900.000, dan cancel setelah lunas. DP 50% bukan keputusan yang diterima.
 - Selaraskan aturan aktif H+1 seluruh role, tanpa extend, booking kembali setelah empat sesi, cancel/discontinue seluruh sisa layanan setelah lunas. Hak Admin dan scope Desman lain diterima sebagai kontrak target.
 - Gabungkan isi konflik source/env/README/log tanpa Git; arsipkan13dokumen lama agar tidak ada dua sumber aturan aktif. Perbaiki import tes setelah perpindahan src ke resources/js.
 - Pasang dependency locked tanpa lifecycle script; typecheck lolos dan tes regresi FE40/40 lolos (36 lama +4 DP/pembatalan). Dev/build/browser/database tidak dijalankan. Backend domain dan migrasi kontrak preview masih pekerjaan terpisah.

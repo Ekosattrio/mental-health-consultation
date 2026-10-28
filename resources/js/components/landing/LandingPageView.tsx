@@ -29,7 +29,7 @@ import {
 export interface LandingViewData {
   psychologists: PsychologistProfile[];
   users: Pick<User, 'id' | 'name' | 'role' | 'avatar'>[];
-  packages: (Omit<ConsultationPackage, 'price'> & { price?: number })[];
+  packages: (Omit<ConsultationPackage, 'price'> & { price?: number;normalPrice?:number })[];
   reviews: Pick<Review, 'id' | 'patientName' | 'isAnonymous' | 'anonymousAlias' | 'rating' | 'comment' | 'isApproved' | 'createdAt'>[];
   openAuthModal: (tab?: 'LOGIN' | 'REGISTER') => void;
   currentUser: Pick<User, 'id'> | null;
@@ -41,10 +41,11 @@ export interface LandingViewData {
 interface LandingPageViewProps {
   onSelectBooking: (psychologistId?: string, packageId?: string) => void;
   data: LandingViewData;
+  serverNavigation?:boolean;
 }
 
 // View presentasional Eko: tidak membaca Context, mock atau LocalStorage.
-export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBooking, data }) => {
+export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBooking, data,serverNavigation=false }) => {
   const { psychologists, users, packages, reviews, openAuthModal, currentUser, currentRole, landingCms, showToast } = data;
 
   const [isBioModalOpen, setIsBioModalOpen] = useState<boolean>(false);
@@ -59,6 +60,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBookin
 
   // Auth Guard helper: if guest or not logged in, route to login modal
   const requireAuth = (callback: () => void, featureName: string) => {
+    if(serverNavigation){callback();return;}
     if (!currentUser || currentRole === 'GUEST') {
       showToast(
         'Login Diperlukan',
@@ -505,14 +507,14 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBookin
                           </p>
 
                           {/* Price Display: Hidden for Guest, Shown after Sign In */}
-                          {currentUser && currentRole === 'PATIENT' && typeof pkg.price === 'number' ? (
+                          {currentUser && typeof pkg.price === 'number' ? (
                             <div className="mb-5 p-4 bg-teal-50/70 rounded-2xl border border-teal-100 space-y-1">
                               <span className="text-[11px] font-bold text-teal-700 block uppercase tracking-wider">
                                 Biaya Investasi Diri
                               </span>
                               <div className="flex items-baseline gap-1">
                                 <span className="text-2xl font-black text-slate-900">
-                                  Rp {pkg.price.toLocaleString('id-ID')}
+                                  {pkg.normalPrice&&pkg.normalPrice>pkg.price&&<del className="block text-sm font-medium text-slate-500">Rp {pkg.normalPrice.toLocaleString('id-ID')}</del>}Rp {pkg.price.toLocaleString('id-ID')}
                                 </span>
                                 <span className="text-xs text-slate-500 font-medium">/ {pkg.type === 'PSYCHOTHERAPY' ? 'sesi' : 'paket'}</span>
                               </div>
@@ -851,7 +853,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBookin
           </div>
 
           <div className="space-y-3">
-            {[
+            {(landingCms.faqs?.length?landingCms.faqs:[
               {
                 q: 'Apakah sesi konsultasi di JiwaSehat dijamin kerahasiaannya?',
                 a: 'Informasi pasien dibatasi sesuai kewenangan dan kebutuhan layanan. Rincian penggunaan data dan persetujuan dijelaskan sebelum layanan.'
@@ -872,7 +874,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBookin
                 q: 'Di mana lokasi ruang praktik konsultasi tatap muka?',
                 a: `Lokasi praktik: ${landingCms.clinicAddress}. Jam operasional: ${landingCms.clinicHours}.`
               }
-            ].map((faq, idx) => {
+            ]).map((faq, idx) => {
               const isOpen = openFaqIndex === idx;
               return (
                 <div
@@ -925,10 +927,10 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({ onSelectBookin
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-              Kesehatan Mental Anda Sama Berharganya dengan Kesehatan Fisik.
+              {landingCms.ctaTitle||'Kesehatan Mental Anda Sama Berharganya dengan Kesehatan Fisik.'}
             </h2>
             <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-              Jangan biarkan kecemasan dan stres membebani hari-hari Anda sendirian. Isi pre-test lalu jadwalkan konsultasi mulai besok bersama {soloUser?.name}.
+              {landingCms.ctaSubtitle||`Isi profiling lalu pilih waktu konsultasi yang tersedia bersama ${soloUser?.name}. Pemesanan online dapat dilakukan pada hari yang sama setelah tiga jam kerja penuh.`}
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4 pt-4">

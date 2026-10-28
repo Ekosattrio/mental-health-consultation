@@ -3,7 +3,7 @@
 Pekerja membantu kondisi operasional nyata: pasien datang, jadwal berubah, uang diperiksa dan biaya dicatat.
 Tujuan: melayani pasien tanpa membuat data ganda atau kehilangan jejak transaksi.
 ## Dapat melakukan dan alasannya
-- Daftar pasien, cari/verifikasi identitas, hubungkan akun setelah pemeriksaan, buat booking bantuan/walk-in minimal H+1 tanpa approval object.
+- Daftar pasien, cari/verifikasi identitas, hubungkan akun setelah pemeriksaan, buat booking bantuan/walk-in sesuai batas kalender F05 tanpa approval object.
 - Untuk pasien offline, pilih profiling_mode=PAPER tanpa pre-test digital. Pasien mengisi kertas dan menyerahkannya langsung ke Superadmin; Admin tidak menginput, membaca atau mengunggah jawaban dan tidak menandainya SUBMITTED digital.
 - Kelola jam klinik/slot/kuota dan daftar pasien terdampak; bantu jadwal tes/evaluasi/terapi sesuai rencana praktisi.
 - Lihat harga, diskon dan total tagihan; cek bukti/nominal input aktif, approve/reject serta catat uang nyata.

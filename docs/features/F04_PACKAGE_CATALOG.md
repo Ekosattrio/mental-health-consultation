@@ -29,8 +29,8 @@ Guest melihat nama/deskripsi tanpa harga. Pengguna login melihat harga. Admin/Su
 | normal_price | Ya | integer Rupiah >0 |
 | promo_price,promo_starts_at,promo_ends_at | Opsional | 0<promo<normal; end>start, harga lama dicoret saat efektif |
 | additional_time_price_basis | Wajib sebelum Konseling bookable | NORMAL_PRICE atau FINAL_PRICE; dipilih Admin/Superadmin, tanpa default tersembunyi |
-| duration_minutes | Sebelum bookable | positif; Lengkap240menit |
-| duration_min_minutes/duration_max_minutes | Opsional | deskripsi Lengkap120–240menit |
+| duration_minutes | Sebelum bookable | positif; Lengkap240 menit |
+| duration_min_minutes/duration_max_minutes | Opsional | deskripsi Lengkap120–240 menit |
 | billing_mode | Ya | PER_APPOINTMENT/PER_PACKAGE/PER_SESSION sesuai kategori |
 | minimum_sessions | Ya | awal4 psikoterapi, lainnya1 |
 | includes_result_report | Ya | true semua ASSESSMENT |
@@ -43,7 +43,7 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 1. Admin membuat master/versi paket, harga normal/promo, benefit dan durasi.
 2. Versi baru untuk booking baru; versi lama immutable.
 3. Guest hanya proyeksi tanpa nominal. Sesudah login, tampilkan harga normal dicoret + promo efektif.
-4. Booking menyimpan versi harga final dan DP flat min(Rp100.000, dasar net) sekali pada booking/rangkaian baru. Sesi lanjutan tidak meminta DP baru; diskon individual dicatat terpisah pada tagihan F08.
+4. Booking menyimpan versi harga final dan minimum awal dari konfigurasi FIXED/PERCENT yang disnapshot sekali pada booking/rangkaian baru. Sesi lanjutan tidak meminta DP baru; diskon individual dicatat terpisah pada tagihan F08.
 5. Asesmen Dasar satu harga Rp350.000 mencakup testing dan evaluasi pada waktu berbeda, diatur Admin pada case sama.
 6. Semua Asesmen termasuk laporan; laporan Konseling atas permintaan Rp200.000 diinput Admin. Hasil boleh offline.
 7. Psikoterapi Rp500.000 per sesi, minimum rencana4; invoice hanya per sesi dipesan.
@@ -76,8 +76,17 @@ Audit menyimpan actor, alasan, versi lama/baru dan pilihan basis. Request mengir
 ## Alur gagal dan pemulihan
 Durasi belum diketahui tidak diisi60menit otomatis. Bookable tanpa durasi ditolak422. Perubahan harga di tengah wizard meminta preview ulang sebelum reservasi dibuat. Diskon100%/harga0 belum baseline; tidak lolos guard harga positif.
 ## Function dan route web
-listPublicPackages, listAuthenticatedPackages, createPackage, createVersion, deactivate. GET /public/packages,/packages; POST /admin/packages,/admin/packages/{id}/versions.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/packages | ManagementController@package |
+| POST | /admin/packages/{package}/active | ManagementController@togglePackage |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.

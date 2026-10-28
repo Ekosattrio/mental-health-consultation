@@ -1,0 +1,6546 @@
+{
+  "tables": [
+    {
+      "name": "users",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "name",
+          "type": "VARCHAR(150)",
+          "requirement": "W",
+          "rule": "Nama akun"
+        },
+        {
+          "name": "email",
+          "type": "VARCHAR(254)",
+          "requirement": "N",
+          "rule": "Unik bila diisi; walk-in tanpa akun tidak diberi email palsu"
+        },
+        {
+          "name": "password_hash",
+          "type": "VARCHAR(255)",
+          "requirement": "N",
+          "rule": "Null jika Google-only"
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(40)",
+          "requirement": "W, PATIENT",
+          "rule": "Publik tidak boleh override"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(40)",
+          "requirement": "W, ACTIVE",
+          "rule": "Blocked untuk semua metode"
+        },
+        {
+          "name": "phone",
+          "type": "VARCHAR(25)",
+          "requirement": "N",
+          "rule": "Kontak akun"
+        },
+        {
+          "name": "email_verified_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Bukti kepemilikan email"
+        },
+        {
+          "name": "last_login_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu login"
+        },
+        {
+          "name": "remember_token",
+          "type": "VARCHAR(100)",
+          "requirement": "N",
+          "rule": "Teknis Laravel, disembunyikan pada serialisasi"
+        },
+        {
+          "name": "active_owner_guard",
+          "type": "TINYINT UNSIGNED generated",
+          "requirement": "N",
+          "rule": "CASE WHEN role='PSYCHOLOGIST' AND status='ACTIVE' THEN 1 ELSE NULL END; UNIQUE"
+        },
+        {
+          "name": "auth_version",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "Versi pencabutan sesi; berubah saat akses/reset password sensitif"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(email). Satu PSYCHOLOGIST aktif ditegakkan via owner_settings.singleton_key dan user FK; provisioning tidak membuka pembuatan owner kedua."
+      ],
+      "model": "User",
+      "enums": {},
+      "checks": [
+        "role IN ('PATIENT','ADMIN','PSYCHOLOGIST')",
+        "status IN ('ACTIVE','BLOCKED')",
+        "row_version > 0",
+        "role='PATIENT' OR (email IS NOT NULL AND CHAR_LENGTH(TRIM(email))>0)"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "email"
+          ],
+          "name": "users_email_unique"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "active_owner_guard"
+          ],
+          "name": "uq_users_single_active_owner"
+        }
+      ]
+    },
+    {
+      "name": "auth_identities",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "provider",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "GOOGLE"
+        },
+        {
+          "name": "subject",
+          "type": "VARCHAR(255)",
+          "requirement": "W",
+          "rule": "Provider sub"
+        },
+        {
+          "name": "linked_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Sesudah verifikasi akun"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(provider,subject), UNIQUE(user_id,provider)."
+      ],
+      "model": "AuthIdentity",
+      "enums": {},
+      "checks": [
+        "provider = 'GOOGLE'",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "provider",
+            "subject"
+          ],
+          "name": "uq_auth_identities_provider_subject"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "user_id",
+            "provider"
+          ],
+          "name": "uq_auth_identities_user_id_provider"
+        }
+      ]
+    },
+    {
+      "name": "owner_settings",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "singleton_key",
+          "type": "TINYINT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "CHECK =1"
+        },
+        {
+          "name": "owner_user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users; role PSYCHOLOGIST"
+        },
+        {
+          "name": "practice_identity",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Nama/alamat/logo/rekening/nomor placeholder; snapshot di invoice"
+        },
+        {
+          "name": "timezone",
+          "type": "VARCHAR(64)",
+          "requirement": "W, Asia/Jakarta",
+          "rule": "Tidak dikendalikan browser"
+        },
+        {
+          "name": "grace_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 15",
+          "rule": "Default operasional"
+        },
+        {
+          "name": "selection_window_hours",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 24",
+          "rule": "Default pemilihan reschedule"
+        },
+        {
+          "name": "proof_correction_hours",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 24",
+          "rule": "Default koreksi bukti; dibatasi awal sesi"
+        },
+        {
+          "name": "wa_owner_phone",
+          "type": "VARCHAR(25)",
+          "requirement": "N",
+          "rule": "Legacy; tidak dibaca untuk pengiriman. Tujuan owner canonical users.phone privat."
+        },
+        {
+          "name": "online_lead_working_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 180",
+          "rule": "Tiga jam kerja penuh; snapshot setiap reservasi"
+        },
+        {
+          "name": "reminder_lead_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 120",
+          "rule": "Dua jam waktu biasa sebelum sesi"
+        },
+        {
+          "name": "payment_hold_hours",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 24",
+          "rule": "Batas maksimum hold awal"
+        },
+        {
+          "name": "initial_payment_mode",
+          "type": "VARCHAR(20)",
+          "requirement": "W, PERCENT",
+          "rule": "FIXED/PERCENT; default50% sesuai ide pemilik, diterapkan migration000930"
+        },
+        {
+          "name": "initial_payment_fixed_amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W, 100000",
+          "rule": "Konfigurasi minimum awal; dibatasi net dasar"
+        },
+        {
+          "name": "initial_payment_basis_points",
+          "type": "SMALLINT UNSIGNED",
+          "requirement": "W, 5000",
+          "rule": "Dipakai bila mode PERCENT; bukan pengganti snapshot tagihan"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(singleton_key), UNIQUE(owner_user_id). Parameter default operasional dapat diubah owner untuk kejadian baru, bukan diam-diam merevisi deadline lama."
+      ],
+      "model": "OwnerSetting",
+      "enums": {
+        "initial_payment_mode": "InitialPaymentMode"
+      },
+      "checks": [
+        "singleton_key = 1",
+        "timezone = 'Asia/Jakarta'",
+        "online_lead_working_minutes > 0",
+        "reminder_lead_minutes > 0",
+        "payment_hold_hours > 0",
+        "initial_payment_basis_points BETWEEN 1 AND 10000",
+        "initial_payment_fixed_amount > 0",
+        "initial_payment_mode IN ('FIXED', 'PERCENT')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "singleton_key"
+          ],
+          "name": "uq_owner_settings_singleton_key"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "owner_user_id"
+          ],
+          "name": "uq_owner_settings_owner_user_id"
+        }
+      ]
+    },
+    {
+      "name": "patient_profiles",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "full_name",
+          "type": "VARCHAR(150)",
+          "requirement": "W",
+          "rule": "Tidak kosong"
+        },
+        {
+          "name": "birth_date",
+          "type": "DATE",
+          "requirement": "N",
+          "rule": "Wajib saat booking online"
+        },
+        {
+          "name": "birth_place",
+          "type": "VARCHAR(150)",
+          "requirement": "N",
+          "rule": "Administratif"
+        },
+        {
+          "name": "gender",
+          "type": "VARCHAR(30)",
+          "requirement": "N",
+          "rule": "Sesuai form"
+        },
+        {
+          "name": "phone",
+          "type": "VARCHAR(25)",
+          "requirement": "N",
+          "rule": "Boleh kontak penanggung jawab pada booking"
+        },
+        {
+          "name": "address",
+          "type": "TEXT",
+          "requirement": "N",
+          "rule": "Alamat"
+        },
+        {
+          "name": "city",
+          "type": "VARCHAR(150)",
+          "requirement": "N",
+          "rule": "Kota"
+        },
+        {
+          "name": "occupation",
+          "type": "VARCHAR(150)",
+          "requirement": "N",
+          "rule": "Anak boleh kosong"
+        },
+        {
+          "name": "emergency_contact",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Name/phone/relationship"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "requirement": "W, true",
+          "rule": "Tidak hard delete"
+        }
+      ],
+      "indexes": [
+        "INDEX(full_name), INDEX(phone); bukan unique, bukan dasar auto-claim."
+      ],
+      "model": "PatientProfile",
+      "enums": {},
+      "checks": [
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "full_name"
+          ],
+          "name": "ix_patient_profiles_full_name"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "phone"
+          ],
+          "name": "ix_patient_profiles_phone"
+        }
+      ]
+    },
+    {
+      "name": "patient_accesses",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "account_user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "relationship",
+          "type": "VARCHAR(50)",
+          "requirement": "W",
+          "rule": "SELF/PARENT/RESPONSIBLE/OTHER"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, ACTIVE",
+          "rule": "ACTIVE/REVOKED"
+        },
+        {
+          "name": "verified_by",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users; Admin untuk klaim"
+        },
+        {
+          "name": "verified_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu verifikasi"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib untuk klaim/revoke"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(account_user_id,patient_id)."
+      ],
+      "model": "PatientAccess",
+      "enums": {
+        "relationship": "PatientRelationship",
+        "status": "PatientAccessStatus"
+      },
+      "checks": [
+        "relationship IN ('SELF', 'PARENT', 'RESPONSIBLE', 'OTHER')",
+        "status IN ('ACTIVE', 'REVOKED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "account_user_id",
+            "patient_id"
+          ],
+          "name": "uq_patient_accesses_account_user_id_patient_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id"
+          ],
+          "name": "ix_patient_accesses_patient_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "verified_by"
+          ],
+          "name": "ix_patient_accesses_verified_by"
+        }
+      ]
+    },
+    {
+      "name": "consultation_packages",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "service_code",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Kode F04"
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "COUNSELING/ASSESSMENT/PSYCHOTHERAPY"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "requirement": "W, true",
+          "rule": "Master aktif"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(service_code), INDEX(category,is_active)."
+      ],
+      "model": "ConsultationPackage",
+      "enums": {
+        "category": "ServiceCategory"
+      },
+      "checks": [
+        "category IN ('COUNSELING', 'ASSESSMENT', 'PSYCHOTHERAPY')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "service_code"
+          ],
+          "name": "uq_consultation_packages_service_code"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "category",
+            "is_active"
+          ],
+          "name": "ix_consultation_packages_category_is_active"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_consultation_packages_created_by"
+        }
+      ]
+    },
+    {
+      "name": "package_versions",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "package_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK consultation_packages"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Urutan positif"
+        },
+        {
+          "name": "name",
+          "type": "VARCHAR(180)",
+          "requirement": "W",
+          "rule": "Nama saat transaksi"
+        },
+        {
+          "name": "description",
+          "type": "TEXT",
+          "requirement": "W",
+          "rule": "Deskripsi termasuk rentang durasi"
+        },
+        {
+          "name": "variant",
+          "type": "VARCHAR(40)",
+          "requirement": "N",
+          "rule": "BASIC/STANDARD/FULL/PER_SESSION"
+        },
+        {
+          "name": "delivery_mode",
+          "type": "VARCHAR(30)",
+          "requirement": "W, OFFLINE",
+          "rule": "OFFLINE/TELE_SERVICE"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "N",
+          "rule": "Wajib >0 jika bookable"
+        },
+        {
+          "name": "duration_min_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "N",
+          "rule": "Rentang deskripsi"
+        },
+        {
+          "name": "duration_max_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "N",
+          "rule": "Rentang deskripsi"
+        },
+        {
+          "name": "normal_price",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Harga normal >0"
+        },
+        {
+          "name": "promo_price",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "N",
+          "rule": "0<promo<normal"
+        },
+        {
+          "name": "promo_starts_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Null = tanpa batas awal"
+        },
+        {
+          "name": "promo_ends_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Eksklusif; sesudah awal"
+        },
+        {
+          "name": "additional_time_price_basis",
+          "type": "VARCHAR(20)",
+          "requirement": "N",
+          "rule": "NORMAL_PRICE/FINAL_PRICE; wajib sebelum COUNSELING bookable, null kategori lain; tanpa default"
+        },
+        {
+          "name": "billing_mode",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "PER_APPOINTMENT/PER_PACKAGE/PER_SESSION"
+        },
+        {
+          "name": "minimum_sessions",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "4 psikoterapi awal"
+        },
+        {
+          "name": "includes_result_report",
+          "type": "BOOLEAN",
+          "requirement": "W, false",
+          "rule": "True untuk ASSESSMENT"
+        },
+        {
+          "name": "requires_evaluation",
+          "type": "BOOLEAN",
+          "requirement": "W, false",
+          "rule": "True Asesmen Dasar"
+        },
+        {
+          "name": "benefits",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Daftar benefit"
+        },
+        {
+          "name": "is_bookable",
+          "type": "BOOLEAN",
+          "requirement": "W, false",
+          "rule": "Tidak aktif tanpa durasi/service siap"
+        },
+        {
+          "name": "effective_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Versi efektif terbaru <= waktu preview"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(package_id,version), UNIQUE(package_id,effective_at); INDEX(effective_at). Harga final dihitung pada waktu booking, disnapshot juga di billing BASE line."
+      ],
+      "model": "PackageVersion",
+      "enums": {
+        "delivery_mode": "DeliveryMode",
+        "additional_time_price_basis": "AdditionalTimePriceBasis",
+        "billing_mode": "BillingMode"
+      },
+      "checks": [
+        "version > 0",
+        "normal_price > 0",
+        "promo_price IS NULL OR (promo_price > 0 AND promo_price < normal_price)",
+        "promo_starts_at IS NULL OR promo_ends_at IS NULL OR promo_ends_at > promo_starts_at",
+        "duration_minutes IS NULL OR duration_minutes > 0",
+        "is_bookable = 0 OR duration_minutes IS NOT NULL",
+        "duration_min_minutes IS NULL OR duration_max_minutes IS NULL OR duration_max_minutes >= duration_min_minutes",
+        "minimum_sessions > 0",
+        "delivery_mode IN ('OFFLINE', 'TELE_SERVICE')",
+        "additional_time_price_basis IS NULL OR additional_time_price_basis IN ('NORMAL_PRICE', 'FINAL_PRICE')",
+        "billing_mode IN ('PER_APPOINTMENT', 'PER_PACKAGE', 'PER_SESSION')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "package_id",
+            "version"
+          ],
+          "name": "uq_package_versions_package_id_version"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "package_id",
+            "effective_at"
+          ],
+          "name": "uq_package_versions_package_id_effective_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "effective_at"
+          ],
+          "name": "ix_package_versions_effective_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_package_versions_created_by"
+        }
+      ]
+    },
+    {
+      "name": "calendar_versions",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Monotonik"
+        },
+        {
+          "name": "effective_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Mulai berlaku"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Alasan perubahan"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(version)."
+      ],
+      "model": "CalendarVersion",
+      "enums": {},
+      "checks": [
+        "version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "version"
+          ],
+          "name": "uq_calendar_versions_version"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_calendar_versions_created_by"
+        }
+      ]
+    },
+    {
+      "name": "weekly_schedule_limits",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "calendar_version_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK calendar_versions"
+        },
+        {
+          "name": "day_of_week",
+          "type": "TINYINT UNSIGNED",
+          "requirement": "W",
+          "rule": "1–7 ISO"
+        },
+        {
+          "name": "daily_limit",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": ">0 untuk hari yang dibuka"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(calendar_version_id,day_of_week). Interval weekly_schedules versi/hari harus memiliki header limit ini; divalidasi service satu transaction. Override tanggal mempunyai daily_limit sendiri dan menggantikan header mingguan hari itu."
+      ],
+      "model": "WeeklyScheduleLimit",
+      "enums": {},
+      "checks": [
+        "day_of_week BETWEEN 1 AND 7",
+        "daily_limit > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "calendar_version_id",
+            "day_of_week"
+          ],
+          "name": "uq_weekly_schedule_limits_calendar_version_id_day_of_week"
+        }
+      ]
+    },
+    {
+      "name": "weekly_schedules",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "calendar_version_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK calendar_versions"
+        },
+        {
+          "name": "day_of_week",
+          "type": "TINYINT UNSIGNED",
+          "requirement": "W",
+          "rule": "1 Senin–7 Minggu"
+        },
+        {
+          "name": "start_time",
+          "type": "TIME",
+          "requirement": "W",
+          "rule": "WIB"
+        },
+        {
+          "name": "end_time",
+          "type": "TIME",
+          "requirement": "W",
+          "rule": "CHECK end>start"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(calendar_version_id,day_of_week,start_time). Larang overlap interval versi/hari via service."
+      ],
+      "model": "WeeklySchedule",
+      "enums": {},
+      "checks": [
+        "day_of_week BETWEEN 1 AND 7",
+        "end_time > start_time"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "calendar_version_id",
+            "day_of_week",
+            "start_time"
+          ],
+          "name": "uq_weekly_schedules_calendar_version_id_day_of_we_d82bec82"
+        }
+      ]
+    },
+    {
+      "name": "schedule_overrides",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "calendar_version_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK calendar_versions"
+        },
+        {
+          "name": "local_date",
+          "type": "DATE",
+          "requirement": "W",
+          "rule": "Tanggal WIB"
+        },
+        {
+          "name": "mode",
+          "type": "VARCHAR(10)",
+          "requirement": "W",
+          "rule": "OPEN/CLOSED"
+        },
+        {
+          "name": "daily_limit",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Positif untuk OPEN, 0 CLOSED"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Termasuk alasan buka hari libur"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(calendar_version_id,local_date)."
+      ],
+      "model": "ScheduleOverride",
+      "enums": {
+        "mode": "ScheduleOverrideMode"
+      },
+      "checks": [
+        "(mode = 'OPEN' AND daily_limit IS NOT NULL AND daily_limit > 0) OR (mode = 'CLOSED' AND daily_limit = 0)",
+        "mode IN ('OPEN', 'CLOSED')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "calendar_version_id",
+            "local_date"
+          ],
+          "name": "uq_schedule_overrides_calendar_version_id_local_date"
+        }
+      ]
+    },
+    {
+      "name": "schedule_override_intervals",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "override_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK schedule_overrides"
+        },
+        {
+          "name": "start_time",
+          "type": "TIME",
+          "requirement": "W",
+          "rule": "Jam WIB"
+        },
+        {
+          "name": "end_time",
+          "type": "TIME",
+          "requirement": "W",
+          "rule": "end>start"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(override_id,start_time); validasi non-overlap."
+      ],
+      "model": "ScheduleOverrideInterval",
+      "enums": {},
+      "checks": [
+        "end_time > start_time"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "override_id",
+            "start_time"
+          ],
+          "name": "uq_schedule_override_intervals_override_id_start_time"
+        }
+      ]
+    },
+    {
+      "name": "schedule_resources",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "psychologist_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users, role PSYCHOLOGIST"
+        },
+        {
+          "name": "local_date",
+          "type": "DATE",
+          "requirement": "W",
+          "rule": "Tanggal WIB"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(psychologist_id,local_date)."
+      ],
+      "model": "ScheduleResource",
+      "enums": {},
+      "checks": [
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "psychologist_id",
+            "local_date"
+          ],
+          "name": "uq_schedule_resources_psychologist_id_local_date"
+        }
+      ]
+    },
+    {
+      "name": "operational_changes",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "calendar_version_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK calendar_versions jika perubahan kalender"
+        },
+        {
+          "name": "actor_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users dari session"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Alasan"
+        },
+        {
+          "name": "effective_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Tidak retroaktif"
+        },
+        {
+          "name": "before_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Whitelist konfigurasi"
+        },
+        {
+          "name": "after_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Konfigurasi baru"
+        }
+      ],
+      "indexes": [
+        "INDEX(effective_at)."
+      ],
+      "model": "OperationalChange",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "effective_at"
+          ],
+          "name": "ix_operational_changes_effective_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "calendar_version_id"
+          ],
+          "name": "ix_operational_changes_calendar_version_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "actor_id"
+          ],
+          "name": "ix_operational_changes_actor_id"
+        }
+      ]
+    },
+    {
+      "name": "assessment_cases",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "package_version_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK package_versions, kategori ASSESSMENT"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(40)",
+          "requirement": "W, OPEN",
+          "rule": "Status case"
+        },
+        {
+          "name": "scope_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Cakupan, steps wajib, evaluasi/laporan termasuk"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "closed_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Penutupan layanan, bukan pelunasan"
+        },
+        {
+          "name": "closure_reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib penutupan dini"
+        }
+      ],
+      "indexes": [
+        "INDEX(patient_id,status,created_at)."
+      ],
+      "model": "AssessmentCase",
+      "enums": {
+        "status": "AssessmentCaseStatus"
+      },
+      "checks": [
+        "status IN ('OPEN', 'IN_PROGRESS', 'READY_FOR_REPORT', 'CLOSED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id",
+            "status",
+            "created_at"
+          ],
+          "name": "ix_assessment_cases_patient_id_status_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "package_version_id"
+          ],
+          "name": "ix_assessment_cases_package_version_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_assessment_cases_created_by"
+        }
+      ]
+    },
+    {
+      "name": "treatment_plans",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "package_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK consultation_packages, PSYCHOTHERAPY"
+        },
+        {
+          "name": "psychologist_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users; auto-create memakai praktisi tunggal konfigurasi server"
+        },
+        {
+          "name": "planned_sessions",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 4",
+          "rule": "Tetap4; CHECK planned_sessions=4, tanpa extend. Setelah selesai booking plan baru"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(40)",
+          "requirement": "W, ACTIVE",
+          "rule": "Tidak ada kolom active terpisah"
+        },
+        {
+          "name": "active_plan_guard",
+          "type": "VARCHAR(73) generated",
+          "requirement": "N",
+          "rule": "CASE WHEN status='ACTIVE' OR (status='AWAITING_SETTLEMENT' AND administrative_closed_at IS NULL) THEN CONCAT(patient_id,':',package_id) ELSE NULL END"
+        },
+        {
+          "name": "clinical_objective",
+          "type": "TEXT",
+          "requirement": "N",
+          "rule": "Owner-only"
+        },
+        {
+          "name": "completed_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Terakhir mencapai target"
+        },
+        {
+          "name": "discontinued_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Penghentian"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Alasan penutupan/penghentian"
+        },
+        {
+          "name": "administrative_closed_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Fakta penutupan administratif historis; koreksi lama tidak menghapusnya"
+        }
+      ],
+      "indexes": [
+        "INDEX(patient_id,package_id,status), UNIQUE(active_plan_guard). Satu plan ACTIVE per pasien/paket. Booking pertama atomik membuat plan4 + appointment/billing/invoice sesi1; rollback tidak meninggalkan plan yatim. Retry key/payload sama mengembalikan asal; key bersaing ->409 TREATMENT_PLAN_EXISTS. Admin menjadwalkan sesi2-4 dengan lock plan, versi dan nomor unik; setelah plan terminal boleh booking plan baru, bukan extend. Urutan lock resource-hari -> plan -> appointment/request -> billing. Cancel/discontinue mengambil cakupan lock yang sama sebelum melepaskan tagihan bagian belum diberikan melalui adjustment dan menghentikan semua sisa appointment."
+      ],
+      "model": "TreatmentPlan",
+      "enums": {
+        "status": "TreatmentPlanStatus"
+      },
+      "checks": [
+        "planned_sessions = 4",
+        "status IN ('ACTIVE', 'AWAITING_SETTLEMENT', 'COMPLETED', 'DISCONTINUED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id",
+            "package_id",
+            "status"
+          ],
+          "name": "ix_treatment_plans_patient_id_package_id_status"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "active_plan_guard"
+          ],
+          "name": "uq_treatment_plans_active_plan_guard"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "package_id"
+          ],
+          "name": "ix_treatment_plans_package_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "psychologist_id"
+          ],
+          "name": "ix_treatment_plans_psychologist_id"
+        }
+      ]
+    },
+    {
+      "name": "appointments",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "booking_code",
+          "type": "VARCHAR(40)",
+          "requirement": "W",
+          "rule": "Kode tampilan unik"
+        },
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "booked_by_user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users: pemesan atau Admin"
+        },
+        {
+          "name": "psychologist_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "package_version_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK package_versions; wajib STANDARD_SERVICE, null CUSTOM"
+        },
+        {
+          "name": "assessment_case_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK assessment_cases"
+        },
+        {
+          "name": "assessment_role",
+          "type": "VARCHAR(20)",
+          "requirement": "N",
+          "rule": "TESTING/EVALUATION/FOLLOW_UP hanya jika case ada"
+        },
+        {
+          "name": "assessment_sequence",
+          "type": "INT UNSIGNED",
+          "requirement": "N",
+          "rule": "Positif, unik per case"
+        },
+        {
+          "name": "profiling_mode",
+          "type": "VARCHAR(10)",
+          "requirement": "W, DIGITAL",
+          "rule": "DIGITAL/PAPER; online wajib DIGITAL, PAPER khusus pendaftaran offline oleh petugas tanpa submission digital"
+        },
+        {
+          "name": "treatment_plan_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK treatment_plans"
+        },
+        {
+          "name": "session_number",
+          "type": "INT UNSIGNED",
+          "requirement": "N",
+          "rule": "Unit positif dalam plan; unik untuk unit belum dilepas"
+        },
+        {
+          "name": "plan_unit_released_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Pelepasan unit untuk reservasi berakhir tanpa uang/layanan; histori tidak diaktifkan kembali"
+        },
+        {
+          "name": "plan_session_guard",
+          "type": "VARCHAR(75) generated",
+          "requirement": "N",
+          "rule": "CONCAT(treatment_plan_id,':',session_number) jika plan ada dan plan_unit_released_at null, selainnya NULL"
+        },
+        {
+          "name": "attempt_number",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "Bertambah saat pindah jadwal diterapkan"
+        },
+        {
+          "name": "start_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Jadwal terkini UTC"
+        },
+        {
+          "name": "end_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Jadwal, bukan durasi pembulatan biaya"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(40)",
+          "requirement": "W, WAITING_PAYMENT",
+          "rule": "Enum appointment"
+        },
+        {
+          "name": "booking_source",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "PATIENT_ONLINE/ADMIN_WALK_IN/ADMIN_ASSISTED"
+        },
+        {
+          "name": "responsible_user_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users; boleh null walk-in"
+        },
+        {
+          "name": "identity_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Pasien aktual, penanggung jawab, kontak, hubungan, peserta opsional"
+        },
+        {
+          "name": "tele_service_recipient_phone",
+          "type": "VARCHAR(25)",
+          "requirement": "N",
+          "rule": "Nomor WA tujuan yang dikonfirmasi; wajib untuk TELE_SERVICE, null offline"
+        },
+        {
+          "name": "tele_service_wa_accepted_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Timestamp server penerimaan pengiriman link/jadwal saat booking Telelayanan"
+        },
+        {
+          "name": "calendar_version_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK calendar_versions saat dibuat"
+        },
+        {
+          "name": "hold_expires_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Awal online min(created_at+24h,start_at-2h); null bila tidak ada pembayaran awal baru"
+        },
+        {
+          "name": "verification_started_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Bukti lengkap pertama"
+        },
+        {
+          "name": "verification_due_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "+12 jam kerja versi snapshot"
+        },
+        {
+          "name": "correction_deadline_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Batas perbaikan bukti"
+        },
+        {
+          "name": "requires_reschedule",
+          "type": "BOOLEAN",
+          "requirement": "W, false",
+          "rule": "Asal klinik/request sah, bukan status bayar"
+        },
+        {
+          "name": "checked_in_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu kedatangan"
+        },
+        {
+          "name": "checked_in_by",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users"
+        },
+        {
+          "name": "actual_started_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Mulai layanan aktual"
+        },
+        {
+          "name": "actual_ended_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Akhir layanan aktual"
+        },
+        {
+          "name": "terminal_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Completed/cancel/penutupan hak, bukan no-show sementara"
+        },
+        {
+          "name": "appointment_kind",
+          "type": "VARCHAR(30)",
+          "requirement": "W, STANDARD_SERVICE",
+          "rule": "STANDARD_SERVICE/CUSTOM"
+        },
+        {
+          "name": "payment_requirement",
+          "type": "VARCHAR(20)",
+          "requirement": "W, REQUIRED",
+          "rule": "REQUIRED/INCLUDED/NOT_REQUIRED"
+        },
+        {
+          "name": "custom_label",
+          "type": "VARCHAR(180)",
+          "requirement": "N",
+          "rule": "Wajib CUSTOM, administratif"
+        },
+        {
+          "name": "custom_notes",
+          "type": "VARCHAR(1000)",
+          "requirement": "N",
+          "rule": "Konteks administratif; bukan diagnosis/jawaban profiling"
+        },
+        {
+          "name": "custom_fee_amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "N",
+          "rule": "Wajib positif untuk CUSTOM berbayar; selainnya null"
+        },
+        {
+          "name": "owner_authorization_note",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Konteks arahan owner; wajib CUSTOM atau OWNER_EXTERNAL"
+        },
+        {
+          "name": "external_agreed_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu janji eksternal jika diketahui, bukan memundurkan created_at"
+        },
+        {
+          "name": "lead_working_minutes_snapshot",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 180",
+          "rule": "Aturan pada saat reservasi, bukan timer dari upload bukti"
+        },
+        {
+          "name": "reminder_lead_minutes_snapshot",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 120",
+          "rule": "Waktu biasa; snapshot reservasi"
+        },
+        {
+          "name": "reminder_recipient_phone",
+          "type": "VARCHAR(25)",
+          "requirement": "N",
+          "rule": "Nomor E.164 pengingat pasien per booking; hanya dengan persetujuan"
+        },
+        {
+          "name": "reminder_wa_accepted_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Timestamp server persetujuan pengingat; null bila dicabut"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(booking_code), UNIQUE(plan_session_guard), UNIQUE(assessment_case_id,assessment_sequence); INDEX(psychologist_id,start_at,end_at,status), INDEX(patient_id,created_at). CHECK bukan case dan plan sekaligus; assessment fields semua null atau semuanya terisi. Jika plan null, session_number/plan_unit_released_at harus null; jika plan terisi, session_number wajib positif. plan_unit_released_at hanya diisi saat penutupan tanpa layanan dengan penerimaan bersih0, tidak saat appointment masih aktif. FK patient/package cocok case/plan diperiksa service."
+      ],
+      "model": "Appointment",
+      "enums": {
+        "status": "AppointmentStatus",
+        "appointment_kind": "AppointmentKind",
+        "payment_requirement": "PaymentRequirement",
+        "booking_source": "BookingSource",
+        "profiling_mode": "ProfilingMode",
+        "assessment_role": "AssessmentRole"
+      },
+      "checks": [
+        "end_at > start_at",
+        "attempt_number > 0",
+        "lead_working_minutes_snapshot > 0",
+        "reminder_lead_minutes_snapshot > 0",
+        "(assessment_case_id IS NULL OR treatment_plan_id IS NULL)",
+        "(assessment_case_id IS NULL AND assessment_role IS NULL AND assessment_sequence IS NULL) OR (assessment_case_id IS NOT NULL AND assessment_role IS NOT NULL AND assessment_sequence IS NOT NULL AND assessment_sequence > 0)",
+        "(treatment_plan_id IS NULL AND session_number IS NULL AND plan_unit_released_at IS NULL) OR (treatment_plan_id IS NOT NULL AND session_number IS NOT NULL AND session_number BETWEEN 1 AND 4)",
+        "(appointment_kind = 'STANDARD_SERVICE' AND package_version_id IS NOT NULL AND custom_label IS NULL AND custom_fee_amount IS NULL) OR (appointment_kind = 'CUSTOM' AND package_version_id IS NULL AND custom_label IS NOT NULL AND CHAR_LENGTH(TRIM(custom_label)) > 0 AND assessment_case_id IS NULL AND treatment_plan_id IS NULL AND owner_authorization_note IS NOT NULL)",
+        "(appointment_kind = 'CUSTOM' AND payment_requirement = 'REQUIRED' AND custom_fee_amount IS NOT NULL AND custom_fee_amount > 0) OR (appointment_kind = 'CUSTOM' AND payment_requirement <> 'REQUIRED' AND custom_fee_amount IS NULL) OR appointment_kind = 'STANDARD_SERVICE'",
+        "booking_source <> 'PATIENT_ONLINE' OR (profiling_mode = 'DIGITAL' AND appointment_kind = 'STANDARD_SERVICE')",
+        "profiling_mode <> 'NONE' OR appointment_kind = 'CUSTOM'",
+        "payment_requirement <> 'NOT_REQUIRED' OR appointment_kind = 'CUSTOM'",
+        "payment_requirement <> 'NOT_REQUIRED' OR status NOT IN ('WAITING_PAYMENT','WAITING_VERIFICATION','CONFIRMED_AUTO_SLA')",
+        "booking_source <> 'OWNER_EXTERNAL' OR owner_authorization_note IS NOT NULL",
+        "status IN ('WAITING_PAYMENT', 'WAITING_VERIFICATION', 'CONFIRMED', 'CONFIRMED_AUTO_SLA', 'CHECKED_IN', 'IN_CONSULTATION', 'COMPLETED', 'NO_SHOW', 'CANCELLED', 'EXPIRED')",
+        "appointment_kind IN ('STANDARD_SERVICE', 'CUSTOM')",
+        "payment_requirement IN ('REQUIRED', 'INCLUDED', 'NOT_REQUIRED')",
+        "booking_source IN ('PATIENT_ONLINE', 'ADMIN_WALK_IN', 'ADMIN_ASSISTED', 'OWNER_EXTERNAL')",
+        "profiling_mode IN ('DIGITAL', 'PAPER', 'NONE')",
+        "assessment_role IS NULL OR assessment_role IN ('TESTING', 'EVALUATION', 'FOLLOW_UP')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "booking_code"
+          ],
+          "name": "uq_appointments_booking_code"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "plan_session_guard"
+          ],
+          "name": "uq_appointments_plan_session_guard"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "assessment_case_id",
+            "assessment_sequence"
+          ],
+          "name": "uq_appointments_assessment_case_id_assessment_sequence"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "psychologist_id",
+            "start_at",
+            "end_at",
+            "status"
+          ],
+          "name": "ix_appointments_psychologist_id_start_at_end_at_status"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id",
+            "created_at"
+          ],
+          "name": "ix_appointments_patient_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "booked_by_user_id"
+          ],
+          "name": "ix_appointments_booked_by_user_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "package_version_id"
+          ],
+          "name": "ix_appointments_package_version_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "treatment_plan_id"
+          ],
+          "name": "ix_appointments_treatment_plan_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "responsible_user_id"
+          ],
+          "name": "ix_appointments_responsible_user_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "calendar_version_id"
+          ],
+          "name": "ix_appointments_calendar_version_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "checked_in_by"
+          ],
+          "name": "ix_appointments_checked_in_by"
+        }
+      ]
+    },
+    {
+      "name": "appointment_events",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK appointments"
+        },
+        {
+          "name": "actor_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users; null job sistem"
+        },
+        {
+          "name": "event_type",
+          "type": "VARCHAR(60)",
+          "requirement": "W",
+          "rule": "Status/reschedule/no-show/correction"
+        },
+        {
+          "name": "attempt_number",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Usaha terkait"
+        },
+        {
+          "name": "old_value",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Status/interval sebelumnya"
+        },
+        {
+          "name": "new_value",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Status/interval berikutnya"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib perubahan manual/exception"
+        },
+        {
+          "name": "request_id",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Trace"
+        }
+      ],
+      "indexes": [
+        "INDEX(appointment_id,created_at)."
+      ],
+      "model": "AppointmentEvent",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id",
+            "created_at"
+          ],
+          "name": "ix_appointment_events_appointment_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "actor_id"
+          ],
+          "name": "ix_appointment_events_actor_id"
+        }
+      ]
+    },
+    {
+      "name": "operational_change_impacts",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "operational_change_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK operational_changes"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK appointments"
+        },
+        {
+          "name": "resolution",
+          "type": "VARCHAR(30)",
+          "requirement": "W, PENDING",
+          "rule": "PENDING/RESCHEDULED/CANCELLED/OWNER_RESOLVED"
+        },
+        {
+          "name": "resolved_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu penyelesaian"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(operational_change_id,appointment_id)."
+      ],
+      "model": "OperationalChangeImpact",
+      "enums": {
+        "resolution": "OperationalImpactResolution"
+      },
+      "checks": [
+        "resolution IN ('PENDING', 'RESCHEDULED', 'CANCELLED', 'OWNER_RESOLVED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "operational_change_id",
+            "appointment_id"
+          ],
+          "name": "uq_operational_change_impacts_operational_change__ecc26f12"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "ix_operational_change_impacts_appointment_id"
+        }
+      ]
+    },
+    {
+      "name": "reschedule_requests",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK appointments"
+        },
+        {
+          "name": "requested_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "origin",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "PATIENT/CLINIC/OWNER"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(40)",
+          "requirement": "W, REQUESTED",
+          "rule": "Enum request"
+        },
+        {
+          "name": "requested_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Dasar eligibility"
+        },
+        {
+          "name": "eligibility_checked_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Snapshot pemeriksaan"
+        },
+        {
+          "name": "appointment_version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Versi saat diajukan"
+        },
+        {
+          "name": "appointment_attempt_number",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Snapshot usaha sesi; dipakai bersama interval untuk memeriksa jadwal belum berubah"
+        },
+        {
+          "name": "reason_code",
+          "type": "VARCHAR(60)",
+          "requirement": "N",
+          "rule": "Klasifikasi administratif; reason tetap wajib"
+        },
+        {
+          "name": "owner_authorization_note",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib origin OWNER oleh Admin; referensi persetujuan owner eksternal/alasan owner sendiri"
+        },
+        {
+          "name": "old_interval",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "start/end/attempt lama"
+        },
+        {
+          "name": "requested_start_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Usulan baru"
+        },
+        {
+          "name": "requested_end_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Usulan baru"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Alasan pengajuan"
+        },
+        {
+          "name": "approved_by",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users"
+        },
+        {
+          "name": "approved_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu putus"
+        },
+        {
+          "name": "selection_expires_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Approval + window snapshot"
+        },
+        {
+          "name": "requires_resolution",
+          "type": "BOOLEAN",
+          "requirement": "W, false",
+          "rule": "Keputusan administratif masih wajib setelah jendela expired/penolakan terlambat; menahan penutupan hak"
+        },
+        {
+          "name": "applied_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Apply berhasil"
+        },
+        {
+          "name": "quota_effect",
+          "type": "TINYINT UNSIGNED",
+          "requirement": "W, 0",
+          "rule": "0/1; 1 hanya PATIENT APPLIED"
+        },
+        {
+          "name": "active_guard",
+          "type": "CHAR(36) generated",
+          "requirement": "N",
+          "rule": "appointment_id jika REQUESTED/APPROVED/SLOT_SELECTION_REQUIRED atau requires_resolution=true, selainnya NULL"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(active_guard), INDEX(appointment_id,status). Generated menggunakan CASE status/requires_resolution; alternatif validasi aplikasi saja tidak cukup. Sesudah APPLIED, origin/quota_effect/interval/waktu penerapan tidak diedit ulang; perubahan berikutnya memakai request/event baru, agar counter derived tidak berubah karena histori ditimpa."
+      ],
+      "model": "RescheduleRequest",
+      "enums": {
+        "origin": "RescheduleOrigin",
+        "status": "RescheduleStatus"
+      },
+      "checks": [
+        "appointment_version > 0",
+        "appointment_attempt_number > 0",
+        "quota_effect IN (0,1)",
+        "quota_effect = 0 OR (origin = 'PATIENT' AND status = 'APPLIED')",
+        "requested_end_at IS NULL OR requested_start_at IS NULL OR requested_end_at > requested_start_at",
+        "origin IN ('PATIENT', 'CLINIC', 'OWNER')",
+        "status IN ('REQUESTED', 'APPROVED', 'SLOT_SELECTION_REQUIRED', 'APPLIED', 'REJECTED', 'EXPIRED', 'CANCELLED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "active_guard"
+          ],
+          "name": "uq_reschedule_requests_active_guard"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id",
+            "status"
+          ],
+          "name": "ix_reschedule_requests_appointment_id_status"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "requested_by"
+          ],
+          "name": "ix_reschedule_requests_requested_by"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "approved_by"
+          ],
+          "name": "ix_reschedule_requests_approved_by"
+        }
+      ]
+    },
+    {
+      "name": "reschedule_events",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "request_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK reschedule_requests"
+        },
+        {
+          "name": "actor_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users"
+        },
+        {
+          "name": "from_status",
+          "type": "VARCHAR(40)",
+          "requirement": "N",
+          "rule": "Status lama"
+        },
+        {
+          "name": "to_status",
+          "type": "VARCHAR(40)",
+          "requirement": "W",
+          "rule": "Status baru"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib reject/expire/exception"
+        }
+      ],
+      "indexes": [
+        "INDEX(request_id,created_at)."
+      ],
+      "model": "RescheduleEvent",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "request_id",
+            "created_at"
+          ],
+          "name": "ix_reschedule_events_request_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "actor_id"
+          ],
+          "name": "ix_reschedule_events_actor_id"
+        }
+      ]
+    },
+    {
+      "name": "pretest_templates",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "template_key",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Kunci form"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Versi"
+        },
+        {
+          "name": "questions",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Field, tipe, required, allow_null"
+        },
+        {
+          "name": "effective_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Awal penggunaan"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(template_key,version)."
+      ],
+      "model": "PretestTemplate",
+      "enums": {},
+      "checks": [
+        "version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "template_key",
+            "version"
+          ],
+          "name": "uq_pretest_templates_template_key_version"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_pretest_templates_created_by"
+        }
+      ]
+    },
+    {
+      "name": "pretest_submissions",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK appointments; bind satu kali"
+        },
+        {
+          "name": "template_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK pretest_templates"
+        },
+        {
+          "name": "author_user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, DRAFT",
+          "rule": "DRAFT/SUBMITTED"
+        },
+        {
+          "name": "answers",
+          "type": "LONGTEXT",
+          "requirement": "W",
+          "rule": "JSON terenkripsi at rest via encrypted:array; tidak dikirim pada DTO Admin"
+        },
+        {
+          "name": "supersedes_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK pretest_submissions"
+        },
+        {
+          "name": "submitted_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Wajib jika submitted"
+        }
+      ],
+      "indexes": [
+        "INDEX(patient_id,appointment_id,submitted_at), UNIQUE(supersedes_id). row_version common hanya untuk autosave draft; submission SUBMITTED tidak diubah answers-nya. Revisi create row baru dengan supersedes_id, satu penerus per submission; tidak boleh membentuk cycle/fork atau lintas pasien/appointment/template. Draft penerus tidak mengganti jawaban efektif sampai submitted. Appointment membaca submitted yang ditautkan dan revisi sahnya, bukan pre-test terbaru pasien tanpa pembatasan appointment. PAPER tidak membuat submission kosong/flag SUBMITTED; dokumen kertas langsung ke Superadmin, tidak diunggah Admin dan tidak menjadi kolom answers pada appointment."
+      ],
+      "model": "PretestSubmission",
+      "enums": {
+        "status": "PretestStatus"
+      },
+      "checks": [
+        "(status = 'DRAFT' AND submitted_at IS NULL) OR (status = 'SUBMITTED' AND submitted_at IS NOT NULL)",
+        "supersedes_id IS NULL OR supersedes_id <> id",
+        "status IN ('DRAFT', 'SUBMITTED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id",
+            "appointment_id",
+            "submitted_at"
+          ],
+          "name": "ix_pretest_submissions_patient_id_appointment_id__eb54727e"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "supersedes_id"
+          ],
+          "name": "uq_pretest_submissions_supersedes_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "ix_pretest_submissions_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "template_id"
+          ],
+          "name": "ix_pretest_submissions_template_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "author_user_id"
+          ],
+          "name": "ix_pretest_submissions_author_user_id"
+        }
+      ]
+    },
+    {
+      "name": "consents",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK appointments, bind setelah booking"
+        },
+        {
+          "name": "actor_user_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users penanggung jawab yang benar-benar menerima; null bila tanpa akun"
+        },
+        {
+          "name": "accepted_by_name_snapshot",
+          "type": "VARCHAR(150)",
+          "requirement": "W",
+          "rule": "Nama penanggung jawab yang benar-benar menerima persetujuan"
+        },
+        {
+          "name": "recorded_by_user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users yang merekam: akun sendiri atau Admin pendamping; bukan pengganti identitas penerima"
+        },
+        {
+          "name": "document_key",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Jenis persetujuan"
+        },
+        {
+          "name": "document_version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Versi naskah"
+        },
+        {
+          "name": "accepted_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Penerimaan nyata"
+        },
+        {
+          "name": "withdrawn_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Event penarikan dicatat audit"
+        },
+        {
+          "name": "acceptance_source",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "SELF/ASSISTED_OFFLINE"
+        },
+        {
+          "name": "ip_address",
+          "type": "VARCHAR(45)",
+          "requirement": "N",
+          "rule": "Bukan identitas utama"
+        },
+        {
+          "name": "cms_content_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK cms_contents; versi dokumen yang benar-benar diterima"
+        }
+      ],
+      "indexes": [
+        "INDEX(patient_id,appointment_id), INDEX(document_key,document_version), FOREIGN KEY(document_key,document_version) REFERENCES cms_contents(section_key,version) RESTRICT. Tipe/kolasi pasangan harus sama. Naskah tepat yang diterima tidak boleh dihapus; penerimaan baru memeriksa versi PUBLISHED, histori boleh merujuk versi yang kemudian ARCHIVED. Binding/withdrawal diaudit, isi/nama penerima/naskah penerimaan tidak di-overwrite. Migration cms_contents dibuat sebelum FK consent ditambahkan."
+      ],
+      "model": "Consent",
+      "enums": {
+        "acceptance_source": "ConsentSource"
+      },
+      "checks": [
+        "document_version > 0",
+        "withdrawn_at IS NULL OR withdrawn_at >= accepted_at",
+        "acceptance_source IN ('SELF', 'ASSISTED_OFFLINE')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id",
+            "appointment_id"
+          ],
+          "name": "ix_consents_patient_id_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "document_key",
+            "document_version"
+          ],
+          "name": "ix_consents_document_key_document_version"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "ix_consents_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "actor_user_id"
+          ],
+          "name": "ix_consents_actor_user_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "recorded_by_user_id"
+          ],
+          "name": "ix_consents_recorded_by_user_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "cms_content_id"
+          ],
+          "name": "ix_consents_cms_content_id"
+        }
+      ]
+    },
+    {
+      "name": "billing_accounts",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "patient_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK patient_profiles"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK appointments untuk non-asesmen"
+        },
+        {
+          "name": "assessment_case_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK assessment_cases"
+        },
+        {
+          "name": "initial_minimum_due",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Nilai awal dari parameter initial_payment_policy_snapshot; lanjutan0 setelah minimum asal verified; tidak membaca konfigurasi owner terbaru"
+        },
+        {
+          "name": "collection_status",
+          "type": "VARCHAR(30)",
+          "requirement": "W, OPEN",
+          "rule": "OPEN/CLOSED_PAID/CLOSED_UNSERVED; pelepasan kewajiban belum diberikan berjejak, kas tetap"
+        },
+        {
+          "name": "collection_closed_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Wajib bila CLOSED_PAID; tidak menandakan layanan COMPLETED"
+        },
+        {
+          "name": "collection_closure_reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Pembatalan/expiry/berakhirnya hak sebelum layanan"
+        },
+        {
+          "name": "service_terminal_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Penutupan layanan, dasar download cutoff"
+        },
+        {
+          "name": "download_until",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Terminal+7hari, owner reissue terpisah"
+        },
+        {
+          "name": "initial_payment_policy_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Mode FIXED/PERCENT/NONE, parameter nominal/basis poin dan dasar net pada waktu pembentukan; jangan membaca ulang konfigurasi terbaru untuk billing lama"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(appointment_id), UNIQUE(assessment_case_id), CHECK tepat satu owner terisi. Lookup appointment asesmen menggunakan case; tidak membuat billing account appointment included. Total/paid/remaining derived, bukan kolom editable. required_initial_amount derived = min(100000,effective_base_due) pada awal booking/rangkaian, 0 pada lanjutan setelah DP awal verified; initial_minimum_due tetap snapshot. Reschedule memakai billing/uang asal tanpa DP baru."
+      ],
+      "model": "BillingAccount",
+      "enums": {
+        "collection_status": "CollectionStatus"
+      },
+      "checks": [
+        "(appointment_id IS NULL) <> (assessment_case_id IS NULL)",
+        "(collection_status = 'OPEN' AND collection_closed_at IS NULL) OR (collection_status <> 'OPEN' AND collection_closed_at IS NOT NULL)",
+        "collection_status IN ('OPEN', 'CLOSED_PAID', 'CLOSED_UNSERVED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "uq_billing_accounts_appointment_id"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "assessment_case_id"
+          ],
+          "name": "uq_billing_accounts_assessment_case_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "patient_id"
+          ],
+          "name": "ix_billing_accounts_patient_id"
+        }
+      ]
+    },
+    {
+      "name": "document_sequences",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "document_kind",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "INVOICE/RECEIPT"
+        },
+        {
+          "name": "local_date",
+          "type": "DATE",
+          "requirement": "W",
+          "rule": "Tanggal nomor WIB"
+        },
+        {
+          "name": "next_value",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "Counter monotonik"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(document_kind,local_date). SELECT FOR UPDATE saat mengambil nomor, increment dalam transaction penerbitan. Gagal rollback boleh menyisakan nomor yang tidak terpakai; tidak boleh menggunakan kembali nomor dokumen terbit."
+      ],
+      "model": "DocumentSequence",
+      "enums": {
+        "document_kind": "DocumentKind"
+      },
+      "checks": [
+        "next_value > 0",
+        "document_kind IN ('INVOICE', 'RECEIPT')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "document_kind",
+            "local_date"
+          ],
+          "name": "uq_document_sequences_document_kind_local_date"
+        }
+      ]
+    },
+    {
+      "name": "invoices",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts"
+        },
+        {
+          "name": "invoice_number",
+          "type": "VARCHAR(60)",
+          "requirement": "W",
+          "rule": "Nomor unik sequence server"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "BASE/ADDENDUM/ADJUSTMENT"
+        },
+        {
+          "name": "parent_invoice_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK invoices; null hanya BASE"
+        },
+        {
+          "name": "net_amount",
+          "type": "BIGINT signed",
+          "requirement": "W",
+          "rule": "Jumlah PLUS dikurangi MINUS"
+        },
+        {
+          "name": "issued_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Waktu terbit"
+        },
+        {
+          "name": "issuer_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "identity_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Praktik/pasien/booking/template saat terbit"
+        },
+        {
+          "name": "base_guard",
+          "type": "CHAR(36) generated",
+          "requirement": "N",
+          "rule": "billing_account_id jika BASE, selainnya NULL"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(invoice_number), UNIQUE(base_guard), INDEX(billing_account_id,issued_at). Invoice+lines disisipkan atomik, lalu immutable."
+      ],
+      "model": "Invoice",
+      "enums": {
+        "kind": "InvoiceKind"
+      },
+      "checks": [
+        "(kind = 'BASE' AND parent_invoice_id IS NULL AND net_amount > 0) OR (kind <> 'BASE' AND parent_invoice_id IS NOT NULL)",
+        "parent_invoice_id IS NULL OR parent_invoice_id <> id",
+        "kind IN ('BASE', 'ADDENDUM', 'ADJUSTMENT')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "invoice_number"
+          ],
+          "name": "uq_invoices_invoice_number"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "base_guard"
+          ],
+          "name": "uq_invoices_base_guard"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "billing_account_id",
+            "issued_at"
+          ],
+          "name": "ix_invoices_billing_account_id_issued_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "parent_invoice_id"
+          ],
+          "name": "ix_invoices_parent_invoice_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "issuer_id"
+          ],
+          "name": "ix_invoices_issuer_id"
+        }
+      ]
+    },
+    {
+      "name": "billing_line_items",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "invoice_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK invoices"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK appointments, sumber biaya sesi"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "BASE_SERVICE/GLOBAL_PROMO/PERSONAL_DISCOUNT/ADDITIONAL_TIME/FORMAL_REPORT/CUSTOM_CHARGE/CORRECTION"
+        },
+        {
+          "name": "direction",
+          "type": "VARCHAR(5)",
+          "requirement": "W, PLUS",
+          "rule": "PLUS/MINUS"
+        },
+        {
+          "name": "label",
+          "type": "VARCHAR(255)",
+          "requirement": "W",
+          "rule": "Deskripsi"
+        },
+        {
+          "name": "quantity",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "CHECK >0"
+        },
+        {
+          "name": "unit_amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "CHECK >0"
+        },
+        {
+          "name": "amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "quantity*unit_amount, CHECK >0"
+        },
+        {
+          "name": "reference_line_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK billing_line_items; wajib GLOBAL_PROMO/CORRECTION/PERSONAL_DISCOUNT, target yang dikurangi"
+        },
+        {
+          "name": "base_service_guard",
+          "type": "CHAR(36) generated",
+          "requirement": "N",
+          "rule": "invoice_id jika kind=BASE_SERVICE, selainnya NULL"
+        },
+        {
+          "name": "metadata",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Snapshot harga final/promo/rate/billed blocks"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib adjustment/custom/discount"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(base_service_guard), INDEX(invoice_id,kind). BASE_SERVICE hanya pada invoice BASE. Harga normal PLUS/promo MINUS; dasar net positif. DP flat min(100000,net BASE) hanya awal plan/case; lanjutan0 sesudah awal verified. Tidak ada line pelepasan sisa untuk meloloskan cancel. Reversal mengoreksi salah input, bukan menghilangkan uang nyata."
+      ],
+      "model": "BillingLineItem",
+      "enums": {
+        "kind": "BillingLineKind",
+        "direction": "AmountDirection"
+      },
+      "checks": [
+        "quantity > 0",
+        "unit_amount > 0",
+        "amount = quantity * unit_amount",
+        "kind NOT IN ('GLOBAL_PROMO','PERSONAL_DISCOUNT','CORRECTION') OR reference_line_id IS NOT NULL",
+        "kind NOT IN ('GLOBAL_PROMO','PERSONAL_DISCOUNT') OR direction = 'MINUS'",
+        "kind <> 'CUSTOM_CHARGE' OR direction = 'PLUS'",
+        "reference_line_id IS NULL OR reference_line_id <> id",
+        "kind IN ('BASE_SERVICE', 'GLOBAL_PROMO', 'PERSONAL_DISCOUNT', 'ADDITIONAL_TIME', 'FORMAL_REPORT', 'CUSTOM_CHARGE', 'CORRECTION')",
+        "direction IN ('PLUS', 'MINUS')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "base_service_guard"
+          ],
+          "name": "uq_billing_line_items_base_service_guard"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "invoice_id",
+            "kind"
+          ],
+          "name": "ix_billing_line_items_invoice_id_kind"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "ix_billing_line_items_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "reference_line_id"
+          ],
+          "name": "ix_billing_line_items_reference_line_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_billing_line_items_created_by"
+        }
+      ]
+    },
+    {
+      "name": "additional_time_entries",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK appointments kategori COUNSELING"
+        },
+        {
+          "name": "attempt_number",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Usaha layanan"
+        },
+        {
+          "name": "revision",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Naik monotonik"
+        },
+        {
+          "name": "total_additional_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Total, bukan delta"
+        },
+        {
+          "name": "billed_blocks",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "ceil(total/15)"
+        },
+        {
+          "name": "base_rate_snapshot",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Dasar tarif sesuai F08; tidak dari form"
+        },
+        {
+          "name": "rate_basis",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "NORMAL_PRICE/FINAL_PRICE dari versi paket booking; tetap pada seluruh revisi usaha sesi"
+        },
+        {
+          "name": "rate_basis_points",
+          "type": "SMALLINT UNSIGNED",
+          "requirement": "W, 2500",
+          "rule": "25%"
+        },
+        {
+          "name": "calculated_total",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Hasil total Rupiah"
+        },
+        {
+          "name": "invoice_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK invoices, hanya bila selisih nominal nonzero"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Alasan/update total"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(appointment_id,attempt_number,revision). Revisi append; hanya selisih terhadap revisi terakhir ditagih, koreksi turun harus merujuk kesalahan."
+      ],
+      "model": "AdditionalTimeEntry",
+      "enums": {
+        "rate_basis": "AdditionalTimePriceBasis"
+      },
+      "checks": [
+        "attempt_number > 0",
+        "revision > 0",
+        "base_rate_snapshot > 0",
+        "rate_basis_points = 2500",
+        "billed_blocks = CEILING(total_additional_minutes / 15)",
+        "calculated_total = CEILING(base_rate_snapshot * rate_basis_points * billed_blocks / 10000)",
+        "rate_basis IN ('NORMAL_PRICE', 'FINAL_PRICE')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "appointment_id",
+            "attempt_number",
+            "revision"
+          ],
+          "name": "uq_additional_time_entries_appointment_id_attempt_a6fd7046"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "invoice_id"
+          ],
+          "name": "ix_additional_time_entries_invoice_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_additional_time_entries_created_by"
+        }
+      ]
+    },
+    {
+      "name": "payment_transactions",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK appointments konteks pembayaran"
+        },
+        {
+          "name": "entry_type",
+          "type": "VARCHAR(20)",
+          "requirement": "W, RECEIPT",
+          "rule": "RECEIPT/REVERSAL"
+        },
+        {
+          "name": "purpose",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "DP/SETTLEMENT/ADD_ON/CORRECTION"
+        },
+        {
+          "name": "claimed_amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "N",
+          "rule": "Klaim pasien asli, bukan uang terverifikasi"
+        },
+        {
+          "name": "amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "N",
+          "rule": "Aktual positif wajib saat VERIFIED; null selama bukti belum diperiksa"
+        },
+        {
+          "name": "method",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "TRANSFER/QR/CASH"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(40)",
+          "requirement": "W",
+          "rule": "Enum payment"
+        },
+        {
+          "name": "reference",
+          "type": "VARCHAR(150)",
+          "requirement": "N",
+          "rule": "Ref bank/QR; bukan selalu unik lintas bank"
+        },
+        {
+          "name": "sender_name",
+          "type": "VARCHAR(150)",
+          "requirement": "N",
+          "rule": "Transfer bila ada; tidak wajib CASH"
+        },
+        {
+          "name": "received_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Wajib sebelum VERIFIED; tanggal uang sebenarnya"
+        },
+        {
+          "name": "verified_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Wajib jika VERIFIED"
+        },
+        {
+          "name": "verified_by",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users; tidak auto-job SLA"
+        },
+        {
+          "name": "submitted_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "reversal_of_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK payment_transactions, hanya REVERSAL"
+        },
+        {
+          "name": "correction_group_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "UUID korelasi, bukan FK"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib reject/reversal/correction"
+        },
+        {
+          "name": "payment_agreement_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK payment_agreements; penerimaan rangkaian pada billing anchor"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(reversal_of_id), INDEX(billing_account_id,received_at), INDEX(status,created_at). PENDING boleh status berubah via event; VERIFIED immutable termasuk amount/received_at. Koreksi: VERIFIED asal + VERIFIED REVERSAL minus + RECEIPT replacement positif, bukan mengubah asal lalu mengurangi lagi. Bila nilai benar0 (uang sebenarnya tidak diterima), buat reversal saja tanpa replacement/receipt0; ini koreksi fakta, bukan refund."
+      ],
+      "model": "PaymentTransaction",
+      "enums": {
+        "entry_type": "PaymentEntryType",
+        "purpose": "PaymentPurpose",
+        "method": "PaymentMethod",
+        "status": "PaymentStatus"
+      },
+      "checks": [
+        "amount IS NULL OR amount > 0",
+        "claimed_amount IS NULL OR claimed_amount > 0",
+        "status <> 'VERIFIED' OR (amount IS NOT NULL AND received_at IS NOT NULL AND verified_at IS NOT NULL AND verified_by IS NOT NULL)",
+        "(entry_type = 'RECEIPT' AND reversal_of_id IS NULL) OR (entry_type = 'REVERSAL' AND reversal_of_id IS NOT NULL AND reason IS NOT NULL AND status = 'VERIFIED')",
+        "reversal_of_id IS NULL OR reversal_of_id <> id",
+        "entry_type IN ('RECEIPT', 'REVERSAL')",
+        "purpose IN ('DP', 'SETTLEMENT', 'ADD_ON', 'CORRECTION')",
+        "method IN ('TRANSFER', 'QR', 'CASH', 'EDC', 'OTHER')",
+        "status IN ('PENDING_VERIFICATION', 'PENDING_RECONCILIATION', 'VERIFIED', 'REJECTED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "reversal_of_id"
+          ],
+          "name": "uq_payment_transactions_reversal_of_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "billing_account_id",
+            "received_at"
+          ],
+          "name": "ix_payment_transactions_billing_account_id_received_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "status",
+            "created_at"
+          ],
+          "name": "ix_payment_transactions_status_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "ix_payment_transactions_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "verified_by"
+          ],
+          "name": "ix_payment_transactions_verified_by"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "submitted_by"
+          ],
+          "name": "ix_payment_transactions_submitted_by"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "payment_agreement_id"
+          ],
+          "name": "ix_payment_transactions_payment_agreement_id"
+        }
+      ]
+    },
+    {
+      "name": "payment_events",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "payment_transaction_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK payment_transactions"
+        },
+        {
+          "name": "actor_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users, null job SLA"
+        },
+        {
+          "name": "event_type",
+          "type": "VARCHAR(60)",
+          "requirement": "W",
+          "rule": "SUBMITTED/VERIFIED/REJECTED/CORRECTED/SLA_MARKED"
+        },
+        {
+          "name": "from_status",
+          "type": "VARCHAR(40)",
+          "requirement": "N",
+          "rule": "Sebelumnya"
+        },
+        {
+          "name": "to_status",
+          "type": "VARCHAR(40)",
+          "requirement": "W",
+          "rule": "Sesudah"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib reject/correction"
+        }
+      ],
+      "indexes": [
+        "INDEX(payment_transaction_id,created_at)."
+      ],
+      "model": "PaymentEvent",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "payment_transaction_id",
+            "created_at"
+          ],
+          "name": "ix_payment_events_payment_transaction_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "actor_id"
+          ],
+          "name": "ix_payment_events_actor_id"
+        }
+      ]
+    },
+    {
+      "name": "private_files",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "storage_key",
+          "type": "VARCHAR(255)",
+          "requirement": "W",
+          "rule": "Private disk path acak"
+        },
+        {
+          "name": "mime_type",
+          "type": "VARCHAR(100)",
+          "requirement": "W",
+          "rule": "MIME sebenarnya"
+        },
+        {
+          "name": "size_bytes",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Batas upload server"
+        },
+        {
+          "name": "uploaded_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "uploaded_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Anchor retensi"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "+1tahun, file export boleh lebih singkat"
+        },
+        {
+          "name": "purged_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Tombstone"
+        },
+        {
+          "name": "purpose",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "PAYMENT_PROOF/EXPENSE/EXPORT"
+        },
+        {
+          "name": "checksum_sha256",
+          "type": "CHAR(64)",
+          "requirement": "W",
+          "rule": "SHA-256 isi file untuk pemeriksaan kandidat duplikasi; bukan UNIQUE karena transfer berbeda dapat mempunyai lampiran identik"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(storage_key), INDEX(expires_at,purged_at)."
+      ],
+      "model": "PrivateFile",
+      "enums": {
+        "purpose": "PrivateFilePurpose"
+      },
+      "checks": [
+        "size_bytes > 0",
+        "expires_at > uploaded_at",
+        "purpose IN ('PAYMENT_PROOF', 'EXPENSE', 'EXPORT')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "storage_key"
+          ],
+          "name": "uq_private_files_storage_key"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "expires_at",
+            "purged_at"
+          ],
+          "name": "ix_private_files_expires_at_purged_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "uploaded_by"
+          ],
+          "name": "ix_private_files_uploaded_by"
+        }
+      ]
+    },
+    {
+      "name": "payment_proofs",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "payment_transaction_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK payment_transactions"
+        },
+        {
+          "name": "file_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK private_files"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Nomor koreksi"
+        },
+        {
+          "name": "received_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Server menerima lengkap"
+        },
+        {
+          "name": "decision",
+          "type": "VARCHAR(20)",
+          "requirement": "W, PENDING",
+          "rule": "PENDING/APPROVED/REJECTED/SUPERSEDED"
+        },
+        {
+          "name": "decision_reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib ditolak"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(payment_transaction_id,version), UNIQUE(file_id)."
+      ],
+      "model": "PaymentProof",
+      "enums": {
+        "decision": "ProofDecision"
+      },
+      "checks": [
+        "version > 0",
+        "decision <> 'REJECTED' OR decision_reason IS NOT NULL",
+        "decision IN ('PENDING', 'APPROVED', 'REJECTED', 'SUPERSEDED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "payment_transaction_id",
+            "version"
+          ],
+          "name": "uq_payment_proofs_payment_transaction_id_version"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "file_id"
+          ],
+          "name": "uq_payment_proofs_file_id"
+        }
+      ]
+    },
+    {
+      "name": "receipts",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "payment_transaction_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK payment_transactions VERIFIED RECEIPT"
+        },
+        {
+          "name": "receipt_number",
+          "type": "VARCHAR(60)",
+          "requirement": "W",
+          "rule": "Nomor unik"
+        },
+        {
+          "name": "issued_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Waktu terbit"
+        },
+        {
+          "name": "snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Jumlah diterima, total/balance saat terbit, identitas/template"
+        },
+        {
+          "name": "correction_of_receipt_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK receipts untuk pengganti berjejak"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(receipt_number), UNIQUE(payment_transaction_id). Admin memakai proyeksi invoice tanpa saldo; receipt lengkap hanya pasien/owner."
+      ],
+      "model": "Receipt",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "receipt_number"
+          ],
+          "name": "uq_receipts_receipt_number"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "payment_transaction_id"
+          ],
+          "name": "uq_receipts_payment_transaction_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "correction_of_receipt_id"
+          ],
+          "name": "ix_receipts_correction_of_receipt_id"
+        }
+      ]
+    },
+    {
+      "name": "report_deliveries",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts"
+        },
+        {
+          "name": "assessment_case_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK assessment_cases"
+        },
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK appointments Konseling"
+        },
+        {
+          "name": "included",
+          "type": "BOOLEAN",
+          "requirement": "W",
+          "rule": "True asesmen, false laporan Konseling add-on"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, REQUESTED",
+          "rule": "REQUESTED/READY/DELIVERED"
+        },
+        {
+          "name": "delivery_method",
+          "type": "VARCHAR(20)",
+          "requirement": "W, OFFLINE",
+          "rule": "Scope default OFFLINE"
+        },
+        {
+          "name": "issued_by",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users, praktisi"
+        },
+        {
+          "name": "delivered_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu serah"
+        },
+        {
+          "name": "administrative_note",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Tidak memuat hasil tes"
+        }
+      ],
+      "indexes": [
+        "INDEX(billing_account_id,status); validasi tepat satu konteks case/appointment dan patient cocok."
+      ],
+      "model": "ReportDelivery",
+      "enums": {
+        "status": "ReportDeliveryStatus",
+        "delivery_method": "ReportDeliveryMethod"
+      },
+      "checks": [
+        "(assessment_case_id IS NULL) <> (appointment_id IS NULL)",
+        "status <> 'DELIVERED' OR delivered_at IS NOT NULL",
+        "status IN ('REQUESTED', 'READY', 'DELIVERED')",
+        "delivery_method IN ('OFFLINE')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "billing_account_id",
+            "status"
+          ],
+          "name": "ix_report_deliveries_billing_account_id_status"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "assessment_case_id"
+          ],
+          "name": "ix_report_deliveries_assessment_case_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "ix_report_deliveries_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "issued_by"
+          ],
+          "name": "ix_report_deliveries_issued_by"
+        }
+      ]
+    },
+    {
+      "name": "reviews",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts"
+        },
+        {
+          "name": "author_user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "rating",
+          "type": "TINYINT UNSIGNED",
+          "requirement": "W",
+          "rule": "CHECK1–5"
+        },
+        {
+          "name": "comment",
+          "type": "VARCHAR(2000)",
+          "requirement": "N",
+          "rule": "Sanitasi"
+        },
+        {
+          "name": "is_anonymous",
+          "type": "BOOLEAN",
+          "requirement": "W, false",
+          "rule": "Proyeksi publik tanpa IDs"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(30)",
+          "requirement": "W, PENDING_MODERATION",
+          "rule": "PENDING_MODERATION/APPROVED/REJECTED"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 1",
+          "rule": "Edit masuk moderasi ulang"
+        },
+        {
+          "name": "moderated_by",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users"
+        },
+        {
+          "name": "moderated_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Moderasi"
+        },
+        {
+          "name": "moderation_reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib reject"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(billing_account_id), INDEX(status,created_at). Versi sebelum/sesudah edit disimpan audit teredaksi."
+      ],
+      "model": "Review",
+      "enums": {
+        "status": "ReviewStatus"
+      },
+      "checks": [
+        "rating BETWEEN 1 AND 5",
+        "version > 0",
+        "status <> 'REJECTED' OR moderation_reason IS NOT NULL",
+        "status IN ('PENDING_MODERATION', 'APPROVED', 'REJECTED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "billing_account_id"
+          ],
+          "name": "uq_reviews_billing_account_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "status",
+            "created_at"
+          ],
+          "name": "ix_reviews_status_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "author_user_id"
+          ],
+          "name": "ix_reviews_author_user_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "moderated_by"
+          ],
+          "name": "ix_reviews_moderated_by"
+        }
+      ]
+    },
+    {
+      "name": "expenses",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "expense_date",
+          "type": "DATE",
+          "requirement": "W",
+          "rule": "WIB aktual"
+        },
+        {
+          "name": "category",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "RENT/ELECTRICITY/INTERNET/SUPPLIES/OPERATIONS/STAFF/OTHER"
+        },
+        {
+          "name": "description",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Deskripsi"
+        },
+        {
+          "name": "amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Positif"
+        },
+        {
+          "name": "entry_type",
+          "type": "VARCHAR(20)",
+          "requirement": "W, EXPENSE",
+          "rule": "EXPENSE/REVERSAL"
+        },
+        {
+          "name": "reversal_of_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK expenses"
+        },
+        {
+          "name": "correction_group_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "UUID korelasi"
+        },
+        {
+          "name": "attachment_file_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK private_files"
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "requirement": "N",
+          "rule": "Catatan owner"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users role PSYCHOLOGIST"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib koreksi"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(reversal_of_id), INDEX(expense_date,category). Status POSTED konseptual: setiap insert sah posted; tidak menyimpan status yang tak punya alur draft."
+      ],
+      "model": "Expense",
+      "enums": {
+        "category": "ExpenseCategory",
+        "entry_type": "ExpenseEntryType"
+      },
+      "checks": [
+        "amount > 0",
+        "(entry_type = 'EXPENSE' AND reversal_of_id IS NULL) OR (entry_type = 'REVERSAL' AND reversal_of_id IS NOT NULL AND reason IS NOT NULL)",
+        "reversal_of_id IS NULL OR reversal_of_id <> id",
+        "category IN ('RENT', 'ELECTRICITY', 'INTERNET', 'SUPPLIES', 'OPERATIONS', 'STAFF', 'OTHER')",
+        "entry_type IN ('EXPENSE', 'REVERSAL')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "reversal_of_id"
+          ],
+          "name": "uq_expenses_reversal_of_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "expense_date",
+            "category"
+          ],
+          "name": "ix_expenses_expense_date_category"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "attachment_file_id"
+          ],
+          "name": "ix_expenses_attachment_file_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_expenses_created_by"
+        }
+      ]
+    },
+    {
+      "name": "notification_outbox",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "event_key",
+          "type": "VARCHAR(150)",
+          "requirement": "W",
+          "rule": "Dedupe event"
+        },
+        {
+          "name": "event_type",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Template event"
+        },
+        {
+          "name": "resource_type",
+          "type": "VARCHAR(60)",
+          "requirement": "W",
+          "rule": "Whitelist appointment/billing/calendar"
+        },
+        {
+          "name": "resource_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "Polymorphic, bukan FK; service memvalidasi"
+        },
+        {
+          "name": "resource_version",
+          "type": "INT UNSIGNED",
+          "requirement": "N",
+          "rule": "Versi jadwal"
+        },
+        {
+          "name": "payload",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Administratif minimal"
+        },
+        {
+          "name": "dispatched_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Belum jika null"
+        },
+        {
+          "name": "available_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Jadwal dispatch, null berarti siap sekarang"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(event_key), INDEX(dispatched_at,created_at)."
+      ],
+      "model": "NotificationOutbox",
+      "enums": {},
+      "checks": [
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "event_key"
+          ],
+          "name": "uq_notification_outbox_event_key"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "dispatched_at",
+            "created_at"
+          ],
+          "name": "ix_notification_outbox_dispatched_at_created_at"
+        }
+      ]
+    },
+    {
+      "name": "notifications",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "outbox_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK notification_outbox"
+        },
+        {
+          "name": "recipient_user_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users; wajib IN_APP/EMAIL, boleh null khusus WHATSAPP kontak tanpa akun"
+        },
+        {
+          "name": "recipient_phone_snapshot",
+          "type": "VARCHAR(25)",
+          "requirement": "N",
+          "rule": "Nomor tujuan wajib WHATSAPP, disnapshot; bukan fallback dari user sembarang"
+        },
+        {
+          "name": "tele_service_link_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK tele_service_links; wajib untuk template link Google Meet"
+        },
+        {
+          "name": "channel",
+          "type": "VARCHAR(20)",
+          "requirement": "W",
+          "rule": "IN_APP/WHATSAPP/EMAIL"
+        },
+        {
+          "name": "template_key",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Template berizin"
+        },
+        {
+          "name": "deduplication_key",
+          "type": "VARCHAR(180)",
+          "requirement": "W",
+          "rule": "Event+penerima+kanal+versi"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, QUEUED",
+          "rule": "Enum notification"
+        },
+        {
+          "name": "attempt_count",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 0",
+          "rule": "Jumlah coba"
+        },
+        {
+          "name": "next_retry_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Backoff"
+        },
+        {
+          "name": "sent_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Acknowledgment"
+        },
+        {
+          "name": "read_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "In-app"
+        },
+        {
+          "name": "last_error",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Tanpa token/credential"
+        },
+        {
+          "name": "provider_reference",
+          "type": "VARCHAR(150)",
+          "requirement": "N",
+          "rule": "Identitas eksternal"
+        },
+        {
+          "name": "delivery_payload",
+          "type": "TEXT",
+          "requirement": "N",
+          "rule": "Payload phone/text/id terenkripsi APP_KEY, beku sejak percobaan pertama"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(deduplication_key), INDEX(status,next_retry_at), INDEX(recipient_user_id,created_at)."
+      ],
+      "model": "Notification",
+      "enums": {
+        "channel": "NotificationChannel",
+        "status": "NotificationStatus"
+      },
+      "checks": [
+        "(channel = 'WHATSAPP' AND recipient_phone_snapshot IS NOT NULL) OR (channel IN ('IN_APP','EMAIL') AND recipient_user_id IS NOT NULL)",
+        "status <> 'SENT' OR sent_at IS NOT NULL",
+        "channel IN ('IN_APP', 'WHATSAPP', 'EMAIL')",
+        "status IN ('QUEUED', 'SENDING', 'RETRY', 'SENT', 'FAILED', 'CANCELLED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "deduplication_key"
+          ],
+          "name": "uq_notifications_deduplication_key"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "status",
+            "next_retry_at"
+          ],
+          "name": "ix_notifications_status_next_retry_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "recipient_user_id",
+            "created_at"
+          ],
+          "name": "ix_notifications_recipient_user_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "outbox_id"
+          ],
+          "name": "ix_notifications_outbox_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "tele_service_link_id"
+          ],
+          "name": "ix_notifications_tele_service_link_id"
+        }
+      ]
+    },
+    {
+      "name": "tele_service_links",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK appointments, delivery_mode versi paket harus TELE_SERVICE"
+        },
+        {
+          "name": "attempt_number",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Usaha appointment saat link disimpan; server"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Revisi monotonik per appointment+attempt"
+        },
+        {
+          "name": "meeting_url",
+          "type": "TEXT",
+          "requirement": "W",
+          "rule": "Nilai terenkripsi at rest; validasi HTTPS host meet.google.com sebelum enkripsi"
+        },
+        {
+          "name": "recipient_phone",
+          "type": "VARCHAR(25)",
+          "requirement": "W",
+          "rule": "Nomor internasional pasien/penanggung jawab yang dikonfirmasi"
+        },
+        {
+          "name": "recipient_user_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users bila penerima punya akses akun; tidak memaksa walk-in membuat akun"
+        },
+        {
+          "name": "recipient_confirmed_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Penerimaan tujuan dari booking atau konfirmasi nyata saat nomor diperbaiki; server"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users role ADMIN/PSYCHOLOGIST"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Pembuatan/perubahan/konfirmasi ulang; tanpa isi klinis"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(appointment_id,attempt_number,version), INDEX(recipient_user_id,created_at); FK index common berlaku. Lock appointment sebelum menyimpan revisi + audit terfilter + outbox. Angka expected_link_version dari client bukan nomor versi final. Kesamaan URL/nomor pada versi aktif tidak membuat revisi/kiriman baru dari save biasa; pengiriman ulang sengaja melalui action resend idempotent beralasan."
+      ],
+      "model": "TeleServiceLink",
+      "enums": {},
+      "checks": [
+        "attempt_number > 0",
+        "version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "appointment_id",
+            "attempt_number",
+            "version"
+          ],
+          "name": "uq_tele_service_links_appointment_id_attempt_number_version"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "recipient_user_id",
+            "created_at"
+          ],
+          "name": "ix_tele_service_links_recipient_user_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_tele_service_links_created_by"
+        }
+      ]
+    },
+    {
+      "name": "audit_logs",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "actor_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK users, null sistem"
+        },
+        {
+          "name": "action",
+          "type": "VARCHAR(100)",
+          "requirement": "W",
+          "rule": "Whitelist aksi"
+        },
+        {
+          "name": "resource_type",
+          "type": "VARCHAR(60)",
+          "requirement": "W",
+          "rule": "Whitelist tabel domain"
+        },
+        {
+          "name": "resource_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "Polymorphic validasi service"
+        },
+        {
+          "name": "old_value",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Terfilter"
+        },
+        {
+          "name": "new_value",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Terfilter"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Sesuai aksi"
+        },
+        {
+          "name": "request_id",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Trace"
+        },
+        {
+          "name": "ip_address",
+          "type": "VARCHAR(45)",
+          "requirement": "N",
+          "rule": "IPv4/v6"
+        }
+      ],
+      "indexes": [
+        "INDEX(resource_type,resource_id,created_at), INDEX(actor_id,created_at)."
+      ],
+      "model": "AuditLog",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "resource_type",
+            "resource_id",
+            "created_at"
+          ],
+          "name": "ix_audit_logs_resource_type_resource_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "actor_id",
+            "created_at"
+          ],
+          "name": "ix_audit_logs_actor_id_created_at"
+        }
+      ]
+    },
+    {
+      "name": "cms_contents",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "section_key",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Landing/profil/consent dll"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Versi"
+        },
+        {
+          "name": "payload",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Schema section"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, DRAFT",
+          "rule": "DRAFT/PUBLISHED/ARCHIVED"
+        },
+        {
+          "name": "published_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Waktu publish"
+        },
+        {
+          "name": "published_guard",
+          "type": "VARCHAR(80) generated",
+          "requirement": "N",
+          "rule": "section_key jika status=PUBLISHED, selainnya NULL"
+        },
+        {
+          "name": "updated_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(section_key,version), UNIQUE(published_guard), INDEX(section_key,status). Publish mengarsipkan versi lama dan menerbitkan versi baru atomik; unique generated memastikan satu versi published per section. row_version common berbeda dari version konten CMS."
+      ],
+      "model": "CmsContent",
+      "enums": {
+        "status": "CmsStatus"
+      },
+      "checks": [
+        "version > 0",
+        "status <> 'PUBLISHED' OR published_at IS NOT NULL",
+        "status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "section_key",
+            "version"
+          ],
+          "name": "uq_cms_contents_section_key_version"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "published_guard"
+          ],
+          "name": "uq_cms_contents_published_guard"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "section_key",
+            "status"
+          ],
+          "name": "ix_cms_contents_section_key_status"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "updated_by"
+          ],
+          "name": "ix_cms_contents_updated_by"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "id",
+            "section_key",
+            "version"
+          ],
+          "name": "uq_cms_identity_version"
+        }
+      ]
+    },
+    {
+      "name": "tutorial_contents",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "content_key",
+          "type": "VARCHAR(80)",
+          "requirement": "W",
+          "rule": "Kunci materi"
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(40)",
+          "requirement": "W",
+          "rule": "GUEST/PATIENT/ADMIN/PSYCHOLOGIST"
+        },
+        {
+          "name": "version",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Versi"
+        },
+        {
+          "name": "title",
+          "type": "VARCHAR(180)",
+          "requirement": "W",
+          "rule": "Judul"
+        },
+        {
+          "name": "steps",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Langkah dan selector opsional"
+        },
+        {
+          "name": "video_url",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "URL berizin"
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "requirement": "W, true",
+          "rule": "Publikasi"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(content_key,role,version)."
+      ],
+      "model": "TutorialContent",
+      "enums": {
+        "role": "TutorialAudience"
+      },
+      "checks": [
+        "version > 0",
+        "role IN ('GUEST', 'PATIENT', 'ADMIN', 'PSYCHOLOGIST')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "content_key",
+            "role",
+            "version"
+          ],
+          "name": "uq_tutorial_contents_content_key_role_version"
+        }
+      ]
+    },
+    {
+      "name": "tutorial_progress",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "tutorial_content_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK tutorial_contents"
+        },
+        {
+          "name": "last_step",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 0",
+          "rule": "Batas jumlah steps"
+        },
+        {
+          "name": "completed_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Complete"
+        },
+        {
+          "name": "skipped_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Skip"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(user_id,tutorial_content_id)."
+      ],
+      "model": "TutorialProgress",
+      "enums": {},
+      "checks": [
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "user_id",
+            "tutorial_content_id"
+          ],
+          "name": "uq_tutorial_progress_user_id_tutorial_content_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "tutorial_content_id"
+          ],
+          "name": "ix_tutorial_progress_tutorial_content_id"
+        }
+      ]
+    },
+    {
+      "name": "export_jobs",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "requested_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "kind",
+          "type": "VARCHAR(30)",
+          "requirement": "W",
+          "rule": "SCHEDULE/FINANCE"
+        },
+        {
+          "name": "filters",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Whitelist filter"
+        },
+        {
+          "name": "as_of",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Snapshot data"
+        },
+        {
+          "name": "dataset_snapshot",
+          "type": "JSON",
+          "requirement": "W",
+          "rule": "Dataset sesuai role/filter dibekukan pada request export dalam consistent read; worker memformat snapshot ini, bukan mengambil data hidup ulang"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, QUEUED",
+          "rule": "QUEUED/READY/FAILED/EXPIRED"
+        },
+        {
+          "name": "file_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK private_files"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME(6)",
+          "requirement": "N",
+          "rule": "Hak unduh"
+        },
+        {
+          "name": "error",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Tanpa data sensitif"
+        }
+      ],
+      "indexes": [
+        "INDEX(requested_by,created_at). filters/as_of/dataset_snapshot/requested_by tidak diedit setelah request dibuat; hanya status/file/error yang dapat diupdate sesuai guard. Snapshot bukan sumber transaksi baru."
+      ],
+      "model": "ExportJob",
+      "enums": {
+        "kind": "ExportKind",
+        "status": "ExportStatus"
+      },
+      "checks": [
+        "kind IN ('SCHEDULE', 'FINANCE')",
+        "status IN ('QUEUED', 'READY', 'FAILED', 'EXPIRED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "INDEX",
+          "columns": [
+            "requested_by",
+            "created_at"
+          ],
+          "name": "ix_export_jobs_requested_by_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "file_id"
+          ],
+          "name": "ix_export_jobs_file_id"
+        }
+      ]
+    },
+    {
+      "name": "idempotency_requests",
+      "immutable": false,
+      "columns": [
+        {
+          "name": "actor_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "scope",
+          "type": "VARCHAR(120)",
+          "requirement": "W",
+          "rule": "Endpoint+target"
+        },
+        {
+          "name": "request_key",
+          "type": "VARCHAR(100)",
+          "requirement": "W",
+          "rule": "Header Idempotency-Key"
+        },
+        {
+          "name": "payload_hash",
+          "type": "CHAR(64)",
+          "requirement": "W",
+          "rule": "Canonical request hash"
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(20)",
+          "requirement": "W, PROCESSING",
+          "rule": "PROCESSING/COMPLETED"
+        },
+        {
+          "name": "response_status",
+          "type": "SMALLINT UNSIGNED",
+          "requirement": "N",
+          "rule": "HTTP status"
+        },
+        {
+          "name": "response_snapshot",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Response role-specific, bukan semua field"
+        },
+        {
+          "name": "expires_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Dedupe minimal selama retry window kebijakan operasi"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(actor_id,scope,request_key). Key expired tidak menggantikan unique bisnis pada invoice/session/reference reversal."
+      ],
+      "model": "IdempotencyRequest",
+      "enums": {
+        "status": "IdempotencyStatus"
+      },
+      "checks": [
+        "status IN ('PROCESSING', 'COMPLETED')",
+        "row_version > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "actor_id",
+            "scope",
+            "request_key"
+          ],
+          "name": "uq_idempotency_requests_actor_id_scope_request_key"
+        }
+      ]
+    },
+    {
+      "name": "payment_agreements",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "treatment_plan_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK treatment_plans"
+        },
+        {
+          "name": "first_billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts"
+        },
+        {
+          "name": "package_version_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK package_versions"
+        },
+        {
+          "name": "session_count",
+          "type": "INT UNSIGNED",
+          "requirement": "W, 4",
+          "rule": "Kesepakatan empat sesi"
+        },
+        {
+          "name": "session_subtotal",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Tarif per sesi sebelum diskon"
+        },
+        {
+          "name": "session_discount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W, 0",
+          "rule": "Potongan per sesi"
+        },
+        {
+          "name": "session_amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Net per sesi; tidak membuat invoice sesi belum dipesan"
+        },
+        {
+          "name": "duration_minutes",
+          "type": "INT UNSIGNED",
+          "requirement": "W",
+          "rule": "Durasi kesepakatan"
+        },
+        {
+          "name": "agreed_at",
+          "type": "DATETIME(6)",
+          "requirement": "W",
+          "rule": "Waktu kesepakatan"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "terms_snapshot",
+          "type": "JSON",
+          "requirement": "N",
+          "rule": "Snapshot persyaratan administratif"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(treatment_plan_id), UNIQUE(first_billing_account_id)."
+      ],
+      "model": "PaymentAgreement",
+      "enums": {},
+      "checks": [
+        "session_count = 4",
+        "session_subtotal > 0",
+        "session_discount < session_subtotal",
+        "session_amount = session_subtotal - session_discount",
+        "duration_minutes > 0"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "treatment_plan_id"
+          ],
+          "name": "uq_payment_agreements_treatment_plan_id"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "first_billing_account_id"
+          ],
+          "name": "uq_payment_agreements_first_billing_account_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "package_version_id"
+          ],
+          "name": "ix_payment_agreements_package_version_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_payment_agreements_created_by"
+        }
+      ]
+    },
+    {
+      "name": "payment_allocations",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "payment_transaction_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK payment_transactions"
+        },
+        {
+          "name": "billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts"
+        },
+        {
+          "name": "entry_type",
+          "type": "VARCHAR(20)",
+          "requirement": "W, ALLOCATION",
+          "rule": "ALLOCATION/REVERSAL"
+        },
+        {
+          "name": "amount",
+          "type": "BIGINT UNSIGNED",
+          "requirement": "W",
+          "rule": "Positif; alokasi bukan kas kedua"
+        },
+        {
+          "name": "reversal_of_id",
+          "type": "CHAR(36)",
+          "requirement": "N",
+          "rule": "FK payment_allocations"
+        },
+        {
+          "name": "allocation_key",
+          "type": "VARCHAR(150)",
+          "requirement": "W",
+          "rule": "Idempotency alokasi"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "N",
+          "rule": "Wajib reversal"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(allocation_key), UNIQUE(reversal_of_id), INDEX(billing_account_id,created_at), INDEX(payment_transaction_id,created_at)."
+      ],
+      "model": "PaymentAllocation",
+      "enums": {
+        "entry_type": "AllocationEntryType"
+      },
+      "checks": [
+        "amount > 0",
+        "(entry_type = 'ALLOCATION' AND reversal_of_id IS NULL) OR (entry_type = 'REVERSAL' AND reversal_of_id IS NOT NULL AND reason IS NOT NULL)",
+        "reversal_of_id IS NULL OR reversal_of_id <> id",
+        "entry_type IN ('ALLOCATION', 'REVERSAL')"
+      ],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "allocation_key"
+          ],
+          "name": "uq_payment_allocations_allocation_key"
+        },
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "reversal_of_id"
+          ],
+          "name": "uq_payment_allocations_reversal_of_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "billing_account_id",
+            "created_at"
+          ],
+          "name": "ix_payment_allocations_billing_account_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "payment_transaction_id",
+            "created_at"
+          ],
+          "name": "ix_payment_allocations_payment_transaction_id_created_at"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_payment_allocations_created_by"
+        }
+      ]
+    },
+    {
+      "name": "appointment_billing_links",
+      "immutable": true,
+      "columns": [
+        {
+          "name": "appointment_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK appointments; khusus CUSTOM INCLUDED"
+        },
+        {
+          "name": "billing_account_id",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK billing_accounts; tagihan asal"
+        },
+        {
+          "name": "created_by",
+          "type": "CHAR(36)",
+          "requirement": "W",
+          "rule": "FK users"
+        },
+        {
+          "name": "reason",
+          "type": "VARCHAR(500)",
+          "requirement": "W",
+          "rule": "Alasan keterkaitan tanpa biaya dasar kedua"
+        }
+      ],
+      "indexes": [
+        "UNIQUE(appointment_id)."
+      ],
+      "model": "AppointmentBillingLink",
+      "enums": {},
+      "checks": [],
+      "indexDefinitions": [
+        {
+          "kind": "UNIQUE",
+          "columns": [
+            "appointment_id"
+          ],
+          "name": "uq_appointment_billing_links_appointment_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "billing_account_id"
+          ],
+          "name": "ix_appointment_billing_links_billing_account_id"
+        },
+        {
+          "kind": "INDEX",
+          "columns": [
+            "created_by"
+          ],
+          "name": "ix_appointment_billing_links_created_by"
+        }
+      ]
+    }
+  ],
+  "foreignKeys": [
+    {
+      "table": "auth_identities",
+      "column": "user_id",
+      "target": "users",
+      "name": "fk_auth_identities_user_id"
+    },
+    {
+      "table": "owner_settings",
+      "column": "owner_user_id",
+      "target": "users",
+      "name": "fk_owner_settings_owner_user_id"
+    },
+    {
+      "table": "patient_accesses",
+      "column": "account_user_id",
+      "target": "users",
+      "name": "fk_patient_accesses_account_user_id"
+    },
+    {
+      "table": "patient_accesses",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_patient_accesses_patient_id"
+    },
+    {
+      "table": "patient_accesses",
+      "column": "verified_by",
+      "target": "users",
+      "name": "fk_patient_accesses_verified_by"
+    },
+    {
+      "table": "consultation_packages",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_consultation_packages_created_by"
+    },
+    {
+      "table": "package_versions",
+      "column": "package_id",
+      "target": "consultation_packages",
+      "name": "fk_package_versions_package_id"
+    },
+    {
+      "table": "package_versions",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_package_versions_created_by"
+    },
+    {
+      "table": "calendar_versions",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_calendar_versions_created_by"
+    },
+    {
+      "table": "weekly_schedule_limits",
+      "column": "calendar_version_id",
+      "target": "calendar_versions",
+      "name": "fk_weekly_schedule_limits_calendar_version_id"
+    },
+    {
+      "table": "weekly_schedules",
+      "column": "calendar_version_id",
+      "target": "calendar_versions",
+      "name": "fk_weekly_schedules_calendar_version_id"
+    },
+    {
+      "table": "schedule_overrides",
+      "column": "calendar_version_id",
+      "target": "calendar_versions",
+      "name": "fk_schedule_overrides_calendar_version_id"
+    },
+    {
+      "table": "schedule_override_intervals",
+      "column": "override_id",
+      "target": "schedule_overrides",
+      "name": "fk_schedule_override_intervals_override_id"
+    },
+    {
+      "table": "schedule_resources",
+      "column": "psychologist_id",
+      "target": "users",
+      "name": "fk_schedule_resources_psychologist_id"
+    },
+    {
+      "table": "operational_changes",
+      "column": "calendar_version_id",
+      "target": "calendar_versions",
+      "name": "fk_operational_changes_calendar_version_id"
+    },
+    {
+      "table": "operational_changes",
+      "column": "actor_id",
+      "target": "users",
+      "name": "fk_operational_changes_actor_id"
+    },
+    {
+      "table": "assessment_cases",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_assessment_cases_patient_id"
+    },
+    {
+      "table": "assessment_cases",
+      "column": "package_version_id",
+      "target": "package_versions",
+      "name": "fk_assessment_cases_package_version_id"
+    },
+    {
+      "table": "assessment_cases",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_assessment_cases_created_by"
+    },
+    {
+      "table": "treatment_plans",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_treatment_plans_patient_id"
+    },
+    {
+      "table": "treatment_plans",
+      "column": "package_id",
+      "target": "consultation_packages",
+      "name": "fk_treatment_plans_package_id"
+    },
+    {
+      "table": "treatment_plans",
+      "column": "psychologist_id",
+      "target": "users",
+      "name": "fk_treatment_plans_psychologist_id"
+    },
+    {
+      "table": "appointments",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_appointments_patient_id"
+    },
+    {
+      "table": "appointments",
+      "column": "booked_by_user_id",
+      "target": "users",
+      "name": "fk_appointments_booked_by_user_id"
+    },
+    {
+      "table": "appointments",
+      "column": "psychologist_id",
+      "target": "users",
+      "name": "fk_appointments_psychologist_id"
+    },
+    {
+      "table": "appointments",
+      "column": "package_version_id",
+      "target": "package_versions",
+      "name": "fk_appointments_package_version_id"
+    },
+    {
+      "table": "appointments",
+      "column": "assessment_case_id",
+      "target": "assessment_cases",
+      "name": "fk_appointments_assessment_case_id"
+    },
+    {
+      "table": "appointments",
+      "column": "treatment_plan_id",
+      "target": "treatment_plans",
+      "name": "fk_appointments_treatment_plan_id"
+    },
+    {
+      "table": "appointments",
+      "column": "responsible_user_id",
+      "target": "users",
+      "name": "fk_appointments_responsible_user_id"
+    },
+    {
+      "table": "appointments",
+      "column": "calendar_version_id",
+      "target": "calendar_versions",
+      "name": "fk_appointments_calendar_version_id"
+    },
+    {
+      "table": "appointments",
+      "column": "checked_in_by",
+      "target": "users",
+      "name": "fk_appointments_checked_in_by"
+    },
+    {
+      "table": "appointment_events",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_appointment_events_appointment_id"
+    },
+    {
+      "table": "appointment_events",
+      "column": "actor_id",
+      "target": "users",
+      "name": "fk_appointment_events_actor_id"
+    },
+    {
+      "table": "operational_change_impacts",
+      "column": "operational_change_id",
+      "target": "operational_changes",
+      "name": "fk_operational_change_impacts_operational_change_id"
+    },
+    {
+      "table": "operational_change_impacts",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_operational_change_impacts_appointment_id"
+    },
+    {
+      "table": "reschedule_requests",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_reschedule_requests_appointment_id"
+    },
+    {
+      "table": "reschedule_requests",
+      "column": "requested_by",
+      "target": "users",
+      "name": "fk_reschedule_requests_requested_by"
+    },
+    {
+      "table": "reschedule_requests",
+      "column": "approved_by",
+      "target": "users",
+      "name": "fk_reschedule_requests_approved_by"
+    },
+    {
+      "table": "reschedule_events",
+      "column": "request_id",
+      "target": "reschedule_requests",
+      "name": "fk_reschedule_events_request_id"
+    },
+    {
+      "table": "reschedule_events",
+      "column": "actor_id",
+      "target": "users",
+      "name": "fk_reschedule_events_actor_id"
+    },
+    {
+      "table": "pretest_templates",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_pretest_templates_created_by"
+    },
+    {
+      "table": "pretest_submissions",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_pretest_submissions_patient_id"
+    },
+    {
+      "table": "pretest_submissions",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_pretest_submissions_appointment_id"
+    },
+    {
+      "table": "pretest_submissions",
+      "column": "template_id",
+      "target": "pretest_templates",
+      "name": "fk_pretest_submissions_template_id"
+    },
+    {
+      "table": "pretest_submissions",
+      "column": "author_user_id",
+      "target": "users",
+      "name": "fk_pretest_submissions_author_user_id"
+    },
+    {
+      "table": "pretest_submissions",
+      "column": "supersedes_id",
+      "target": "pretest_submissions",
+      "name": "fk_pretest_submissions_supersedes_id"
+    },
+    {
+      "table": "consents",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_consents_patient_id"
+    },
+    {
+      "table": "consents",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_consents_appointment_id"
+    },
+    {
+      "table": "consents",
+      "column": "actor_user_id",
+      "target": "users",
+      "name": "fk_consents_actor_user_id"
+    },
+    {
+      "table": "consents",
+      "column": "recorded_by_user_id",
+      "target": "users",
+      "name": "fk_consents_recorded_by_user_id"
+    },
+    {
+      "table": "consents",
+      "column": "cms_content_id",
+      "target": "cms_contents",
+      "name": "fk_consents_cms_content_id"
+    },
+    {
+      "table": "billing_accounts",
+      "column": "patient_id",
+      "target": "patient_profiles",
+      "name": "fk_billing_accounts_patient_id"
+    },
+    {
+      "table": "billing_accounts",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_billing_accounts_appointment_id"
+    },
+    {
+      "table": "billing_accounts",
+      "column": "assessment_case_id",
+      "target": "assessment_cases",
+      "name": "fk_billing_accounts_assessment_case_id"
+    },
+    {
+      "table": "invoices",
+      "column": "billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_invoices_billing_account_id"
+    },
+    {
+      "table": "invoices",
+      "column": "parent_invoice_id",
+      "target": "invoices",
+      "name": "fk_invoices_parent_invoice_id"
+    },
+    {
+      "table": "invoices",
+      "column": "issuer_id",
+      "target": "users",
+      "name": "fk_invoices_issuer_id"
+    },
+    {
+      "table": "billing_line_items",
+      "column": "invoice_id",
+      "target": "invoices",
+      "name": "fk_billing_line_items_invoice_id"
+    },
+    {
+      "table": "billing_line_items",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_billing_line_items_appointment_id"
+    },
+    {
+      "table": "billing_line_items",
+      "column": "reference_line_id",
+      "target": "billing_line_items",
+      "name": "fk_billing_line_items_reference_line_id"
+    },
+    {
+      "table": "billing_line_items",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_billing_line_items_created_by"
+    },
+    {
+      "table": "additional_time_entries",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_additional_time_entries_appointment_id"
+    },
+    {
+      "table": "additional_time_entries",
+      "column": "invoice_id",
+      "target": "invoices",
+      "name": "fk_additional_time_entries_invoice_id"
+    },
+    {
+      "table": "additional_time_entries",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_additional_time_entries_created_by"
+    },
+    {
+      "table": "payment_transactions",
+      "column": "billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_payment_transactions_billing_account_id"
+    },
+    {
+      "table": "payment_transactions",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_payment_transactions_appointment_id"
+    },
+    {
+      "table": "payment_transactions",
+      "column": "verified_by",
+      "target": "users",
+      "name": "fk_payment_transactions_verified_by"
+    },
+    {
+      "table": "payment_transactions",
+      "column": "submitted_by",
+      "target": "users",
+      "name": "fk_payment_transactions_submitted_by"
+    },
+    {
+      "table": "payment_transactions",
+      "column": "reversal_of_id",
+      "target": "payment_transactions",
+      "name": "fk_payment_transactions_reversal_of_id"
+    },
+    {
+      "table": "payment_transactions",
+      "column": "payment_agreement_id",
+      "target": "payment_agreements",
+      "name": "fk_payment_transactions_payment_agreement_id"
+    },
+    {
+      "table": "payment_events",
+      "column": "payment_transaction_id",
+      "target": "payment_transactions",
+      "name": "fk_payment_events_payment_transaction_id"
+    },
+    {
+      "table": "payment_events",
+      "column": "actor_id",
+      "target": "users",
+      "name": "fk_payment_events_actor_id"
+    },
+    {
+      "table": "private_files",
+      "column": "uploaded_by",
+      "target": "users",
+      "name": "fk_private_files_uploaded_by"
+    },
+    {
+      "table": "payment_proofs",
+      "column": "payment_transaction_id",
+      "target": "payment_transactions",
+      "name": "fk_payment_proofs_payment_transaction_id"
+    },
+    {
+      "table": "payment_proofs",
+      "column": "file_id",
+      "target": "private_files",
+      "name": "fk_payment_proofs_file_id"
+    },
+    {
+      "table": "receipts",
+      "column": "payment_transaction_id",
+      "target": "payment_transactions",
+      "name": "fk_receipts_payment_transaction_id"
+    },
+    {
+      "table": "receipts",
+      "column": "correction_of_receipt_id",
+      "target": "receipts",
+      "name": "fk_receipts_correction_of_receipt_id"
+    },
+    {
+      "table": "report_deliveries",
+      "column": "billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_report_deliveries_billing_account_id"
+    },
+    {
+      "table": "report_deliveries",
+      "column": "assessment_case_id",
+      "target": "assessment_cases",
+      "name": "fk_report_deliveries_assessment_case_id"
+    },
+    {
+      "table": "report_deliveries",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_report_deliveries_appointment_id"
+    },
+    {
+      "table": "report_deliveries",
+      "column": "issued_by",
+      "target": "users",
+      "name": "fk_report_deliveries_issued_by"
+    },
+    {
+      "table": "reviews",
+      "column": "billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_reviews_billing_account_id"
+    },
+    {
+      "table": "reviews",
+      "column": "author_user_id",
+      "target": "users",
+      "name": "fk_reviews_author_user_id"
+    },
+    {
+      "table": "reviews",
+      "column": "moderated_by",
+      "target": "users",
+      "name": "fk_reviews_moderated_by"
+    },
+    {
+      "table": "expenses",
+      "column": "reversal_of_id",
+      "target": "expenses",
+      "name": "fk_expenses_reversal_of_id"
+    },
+    {
+      "table": "expenses",
+      "column": "attachment_file_id",
+      "target": "private_files",
+      "name": "fk_expenses_attachment_file_id"
+    },
+    {
+      "table": "expenses",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_expenses_created_by"
+    },
+    {
+      "table": "notifications",
+      "column": "outbox_id",
+      "target": "notification_outbox",
+      "name": "fk_notifications_outbox_id"
+    },
+    {
+      "table": "notifications",
+      "column": "recipient_user_id",
+      "target": "users",
+      "name": "fk_notifications_recipient_user_id"
+    },
+    {
+      "table": "notifications",
+      "column": "tele_service_link_id",
+      "target": "tele_service_links",
+      "name": "fk_notifications_tele_service_link_id"
+    },
+    {
+      "table": "tele_service_links",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_tele_service_links_appointment_id"
+    },
+    {
+      "table": "tele_service_links",
+      "column": "recipient_user_id",
+      "target": "users",
+      "name": "fk_tele_service_links_recipient_user_id"
+    },
+    {
+      "table": "tele_service_links",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_tele_service_links_created_by"
+    },
+    {
+      "table": "audit_logs",
+      "column": "actor_id",
+      "target": "users",
+      "name": "fk_audit_logs_actor_id"
+    },
+    {
+      "table": "cms_contents",
+      "column": "updated_by",
+      "target": "users",
+      "name": "fk_cms_contents_updated_by"
+    },
+    {
+      "table": "tutorial_progress",
+      "column": "user_id",
+      "target": "users",
+      "name": "fk_tutorial_progress_user_id"
+    },
+    {
+      "table": "tutorial_progress",
+      "column": "tutorial_content_id",
+      "target": "tutorial_contents",
+      "name": "fk_tutorial_progress_tutorial_content_id"
+    },
+    {
+      "table": "export_jobs",
+      "column": "requested_by",
+      "target": "users",
+      "name": "fk_export_jobs_requested_by"
+    },
+    {
+      "table": "export_jobs",
+      "column": "file_id",
+      "target": "private_files",
+      "name": "fk_export_jobs_file_id"
+    },
+    {
+      "table": "idempotency_requests",
+      "column": "actor_id",
+      "target": "users",
+      "name": "fk_idempotency_requests_actor_id"
+    },
+    {
+      "table": "payment_agreements",
+      "column": "treatment_plan_id",
+      "target": "treatment_plans",
+      "name": "fk_payment_agreements_treatment_plan_id"
+    },
+    {
+      "table": "payment_agreements",
+      "column": "first_billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_payment_agreements_first_billing_account_id"
+    },
+    {
+      "table": "payment_agreements",
+      "column": "package_version_id",
+      "target": "package_versions",
+      "name": "fk_payment_agreements_package_version_id"
+    },
+    {
+      "table": "payment_agreements",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_payment_agreements_created_by"
+    },
+    {
+      "table": "payment_allocations",
+      "column": "payment_transaction_id",
+      "target": "payment_transactions",
+      "name": "fk_payment_allocations_payment_transaction_id"
+    },
+    {
+      "table": "payment_allocations",
+      "column": "billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_payment_allocations_billing_account_id"
+    },
+    {
+      "table": "payment_allocations",
+      "column": "reversal_of_id",
+      "target": "payment_allocations",
+      "name": "fk_payment_allocations_reversal_of_id"
+    },
+    {
+      "table": "payment_allocations",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_payment_allocations_created_by"
+    },
+    {
+      "table": "appointment_billing_links",
+      "column": "appointment_id",
+      "target": "appointments",
+      "name": "fk_appointment_billing_links_appointment_id"
+    },
+    {
+      "table": "appointment_billing_links",
+      "column": "billing_account_id",
+      "target": "billing_accounts",
+      "name": "fk_appointment_billing_links_billing_account_id"
+    },
+    {
+      "table": "appointment_billing_links",
+      "column": "created_by",
+      "target": "users",
+      "name": "fk_appointment_billing_links_created_by"
+    }
+  ],
+  "checks": [
+    {
+      "table": "auth_identities",
+      "name": "ck_auth_identities_01",
+      "expression": "provider = 'GOOGLE'"
+    },
+    {
+      "table": "auth_identities",
+      "name": "ck_auth_identities_02",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_01",
+      "expression": "singleton_key = 1"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_02",
+      "expression": "timezone = 'Asia/Jakarta'"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_03",
+      "expression": "online_lead_working_minutes > 0"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_04",
+      "expression": "reminder_lead_minutes > 0"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_05",
+      "expression": "payment_hold_hours > 0"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_06",
+      "expression": "initial_payment_basis_points BETWEEN 1 AND 10000"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_07",
+      "expression": "initial_payment_fixed_amount > 0"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_08",
+      "expression": "initial_payment_mode IN ('FIXED', 'PERCENT')"
+    },
+    {
+      "table": "owner_settings",
+      "name": "ck_owner_settings_09",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "patient_profiles",
+      "name": "ck_patient_profiles_01",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "patient_accesses",
+      "name": "ck_patient_accesses_01",
+      "expression": "relationship IN ('SELF', 'PARENT', 'RESPONSIBLE', 'OTHER')"
+    },
+    {
+      "table": "patient_accesses",
+      "name": "ck_patient_accesses_02",
+      "expression": "status IN ('ACTIVE', 'REVOKED')"
+    },
+    {
+      "table": "patient_accesses",
+      "name": "ck_patient_accesses_03",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "consultation_packages",
+      "name": "ck_consultation_packages_01",
+      "expression": "category IN ('COUNSELING', 'ASSESSMENT', 'PSYCHOTHERAPY')"
+    },
+    {
+      "table": "consultation_packages",
+      "name": "ck_consultation_packages_02",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_01",
+      "expression": "version > 0"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_02",
+      "expression": "normal_price > 0"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_03",
+      "expression": "promo_price IS NULL OR (promo_price > 0 AND promo_price < normal_price)"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_04",
+      "expression": "promo_starts_at IS NULL OR promo_ends_at IS NULL OR promo_ends_at > promo_starts_at"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_05",
+      "expression": "duration_minutes IS NULL OR duration_minutes > 0"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_06",
+      "expression": "is_bookable = 0 OR duration_minutes IS NOT NULL"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_07",
+      "expression": "duration_min_minutes IS NULL OR duration_max_minutes IS NULL OR duration_max_minutes >= duration_min_minutes"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_08",
+      "expression": "minimum_sessions > 0"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_09",
+      "expression": "delivery_mode IN ('OFFLINE', 'TELE_SERVICE')"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_10",
+      "expression": "additional_time_price_basis IS NULL OR additional_time_price_basis IN ('NORMAL_PRICE', 'FINAL_PRICE')"
+    },
+    {
+      "table": "package_versions",
+      "name": "ck_package_versions_11",
+      "expression": "billing_mode IN ('PER_APPOINTMENT', 'PER_PACKAGE', 'PER_SESSION')"
+    },
+    {
+      "table": "calendar_versions",
+      "name": "ck_calendar_versions_01",
+      "expression": "version > 0"
+    },
+    {
+      "table": "weekly_schedule_limits",
+      "name": "ck_weekly_schedule_limits_01",
+      "expression": "day_of_week BETWEEN 1 AND 7"
+    },
+    {
+      "table": "weekly_schedule_limits",
+      "name": "ck_weekly_schedule_limits_02",
+      "expression": "daily_limit > 0"
+    },
+    {
+      "table": "weekly_schedules",
+      "name": "ck_weekly_schedules_01",
+      "expression": "day_of_week BETWEEN 1 AND 7"
+    },
+    {
+      "table": "weekly_schedules",
+      "name": "ck_weekly_schedules_02",
+      "expression": "end_time > start_time"
+    },
+    {
+      "table": "schedule_overrides",
+      "name": "ck_schedule_overrides_01",
+      "expression": "(mode = 'OPEN' AND daily_limit IS NOT NULL AND daily_limit > 0) OR (mode = 'CLOSED' AND daily_limit = 0)"
+    },
+    {
+      "table": "schedule_overrides",
+      "name": "ck_schedule_overrides_02",
+      "expression": "mode IN ('OPEN', 'CLOSED')"
+    },
+    {
+      "table": "schedule_override_intervals",
+      "name": "ck_schedule_override_intervals_01",
+      "expression": "end_time > start_time"
+    },
+    {
+      "table": "schedule_resources",
+      "name": "ck_schedule_resources_01",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "assessment_cases",
+      "name": "ck_assessment_cases_01",
+      "expression": "status IN ('OPEN', 'IN_PROGRESS', 'READY_FOR_REPORT', 'CLOSED')"
+    },
+    {
+      "table": "assessment_cases",
+      "name": "ck_assessment_cases_02",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "treatment_plans",
+      "name": "ck_treatment_plans_01",
+      "expression": "planned_sessions = 4"
+    },
+    {
+      "table": "treatment_plans",
+      "name": "ck_treatment_plans_02",
+      "expression": "status IN ('ACTIVE', 'AWAITING_SETTLEMENT', 'COMPLETED', 'DISCONTINUED')"
+    },
+    {
+      "table": "treatment_plans",
+      "name": "ck_treatment_plans_03",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_01",
+      "expression": "end_at > start_at"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_02",
+      "expression": "attempt_number > 0"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_03",
+      "expression": "lead_working_minutes_snapshot > 0"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_04",
+      "expression": "reminder_lead_minutes_snapshot > 0"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_05",
+      "expression": "(assessment_case_id IS NULL OR treatment_plan_id IS NULL)"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_06",
+      "expression": "(assessment_case_id IS NULL AND assessment_role IS NULL AND assessment_sequence IS NULL) OR (assessment_case_id IS NOT NULL AND assessment_role IS NOT NULL AND assessment_sequence IS NOT NULL AND assessment_sequence > 0)"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_07",
+      "expression": "(treatment_plan_id IS NULL AND session_number IS NULL AND plan_unit_released_at IS NULL) OR (treatment_plan_id IS NOT NULL AND session_number IS NOT NULL AND session_number BETWEEN 1 AND 4)"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_08",
+      "expression": "(appointment_kind = 'STANDARD_SERVICE' AND package_version_id IS NOT NULL AND custom_label IS NULL AND custom_fee_amount IS NULL) OR (appointment_kind = 'CUSTOM' AND package_version_id IS NULL AND custom_label IS NOT NULL AND CHAR_LENGTH(TRIM(custom_label)) > 0 AND assessment_case_id IS NULL AND treatment_plan_id IS NULL AND owner_authorization_note IS NOT NULL)"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_09",
+      "expression": "(appointment_kind = 'CUSTOM' AND payment_requirement = 'REQUIRED' AND custom_fee_amount IS NOT NULL AND custom_fee_amount > 0) OR (appointment_kind = 'CUSTOM' AND payment_requirement <> 'REQUIRED' AND custom_fee_amount IS NULL) OR appointment_kind = 'STANDARD_SERVICE'"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_10",
+      "expression": "booking_source <> 'PATIENT_ONLINE' OR (profiling_mode = 'DIGITAL' AND appointment_kind = 'STANDARD_SERVICE')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_11",
+      "expression": "profiling_mode <> 'NONE' OR appointment_kind = 'CUSTOM'"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_12",
+      "expression": "payment_requirement <> 'NOT_REQUIRED' OR appointment_kind = 'CUSTOM'"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_13",
+      "expression": "payment_requirement <> 'NOT_REQUIRED' OR status NOT IN ('WAITING_PAYMENT','WAITING_VERIFICATION','CONFIRMED_AUTO_SLA')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_14",
+      "expression": "booking_source <> 'OWNER_EXTERNAL' OR owner_authorization_note IS NOT NULL"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_15",
+      "expression": "status IN ('WAITING_PAYMENT', 'WAITING_VERIFICATION', 'CONFIRMED', 'CONFIRMED_AUTO_SLA', 'CHECKED_IN', 'IN_CONSULTATION', 'COMPLETED', 'NO_SHOW', 'CANCELLED', 'EXPIRED')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_16",
+      "expression": "appointment_kind IN ('STANDARD_SERVICE', 'CUSTOM')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_17",
+      "expression": "payment_requirement IN ('REQUIRED', 'INCLUDED', 'NOT_REQUIRED')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_18",
+      "expression": "booking_source IN ('PATIENT_ONLINE', 'ADMIN_WALK_IN', 'ADMIN_ASSISTED', 'OWNER_EXTERNAL')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_19",
+      "expression": "profiling_mode IN ('DIGITAL', 'PAPER', 'NONE')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_20",
+      "expression": "assessment_role IS NULL OR assessment_role IN ('TESTING', 'EVALUATION', 'FOLLOW_UP')"
+    },
+    {
+      "table": "appointments",
+      "name": "ck_appointments_21",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "operational_change_impacts",
+      "name": "ck_operational_change_impacts_01",
+      "expression": "resolution IN ('PENDING', 'RESCHEDULED', 'CANCELLED', 'OWNER_RESOLVED')"
+    },
+    {
+      "table": "operational_change_impacts",
+      "name": "ck_operational_change_impacts_02",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_01",
+      "expression": "appointment_version > 0"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_02",
+      "expression": "appointment_attempt_number > 0"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_03",
+      "expression": "quota_effect IN (0,1)"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_04",
+      "expression": "quota_effect = 0 OR (origin = 'PATIENT' AND status = 'APPLIED')"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_05",
+      "expression": "requested_end_at IS NULL OR requested_start_at IS NULL OR requested_end_at > requested_start_at"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_06",
+      "expression": "origin IN ('PATIENT', 'CLINIC', 'OWNER')"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_07",
+      "expression": "status IN ('REQUESTED', 'APPROVED', 'SLOT_SELECTION_REQUIRED', 'APPLIED', 'REJECTED', 'EXPIRED', 'CANCELLED')"
+    },
+    {
+      "table": "reschedule_requests",
+      "name": "ck_reschedule_requests_08",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "pretest_templates",
+      "name": "ck_pretest_templates_01",
+      "expression": "version > 0"
+    },
+    {
+      "table": "pretest_submissions",
+      "name": "ck_pretest_submissions_01",
+      "expression": "(status = 'DRAFT' AND submitted_at IS NULL) OR (status = 'SUBMITTED' AND submitted_at IS NOT NULL)"
+    },
+    {
+      "table": "pretest_submissions",
+      "name": "ck_pretest_submissions_02",
+      "expression": "supersedes_id IS NULL OR supersedes_id <> id"
+    },
+    {
+      "table": "pretest_submissions",
+      "name": "ck_pretest_submissions_03",
+      "expression": "status IN ('DRAFT', 'SUBMITTED')"
+    },
+    {
+      "table": "pretest_submissions",
+      "name": "ck_pretest_submissions_04",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "consents",
+      "name": "ck_consents_01",
+      "expression": "document_version > 0"
+    },
+    {
+      "table": "consents",
+      "name": "ck_consents_02",
+      "expression": "withdrawn_at IS NULL OR withdrawn_at >= accepted_at"
+    },
+    {
+      "table": "consents",
+      "name": "ck_consents_03",
+      "expression": "acceptance_source IN ('SELF', 'ASSISTED_OFFLINE')"
+    },
+    {
+      "table": "consents",
+      "name": "ck_consents_04",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "billing_accounts",
+      "name": "ck_billing_accounts_01",
+      "expression": "(appointment_id IS NULL) <> (assessment_case_id IS NULL)"
+    },
+    {
+      "table": "billing_accounts",
+      "name": "ck_billing_accounts_02",
+      "expression": "(collection_status = 'OPEN' AND collection_closed_at IS NULL) OR (collection_status <> 'OPEN' AND collection_closed_at IS NOT NULL)"
+    },
+    {
+      "table": "billing_accounts",
+      "name": "ck_billing_accounts_03",
+      "expression": "collection_status IN ('OPEN', 'CLOSED_PAID', 'CLOSED_UNSERVED')"
+    },
+    {
+      "table": "billing_accounts",
+      "name": "ck_billing_accounts_04",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "document_sequences",
+      "name": "ck_document_sequences_01",
+      "expression": "next_value > 0"
+    },
+    {
+      "table": "document_sequences",
+      "name": "ck_document_sequences_02",
+      "expression": "document_kind IN ('INVOICE', 'RECEIPT')"
+    },
+    {
+      "table": "document_sequences",
+      "name": "ck_document_sequences_03",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "invoices",
+      "name": "ck_invoices_01",
+      "expression": "(kind = 'BASE' AND parent_invoice_id IS NULL AND net_amount > 0) OR (kind <> 'BASE' AND parent_invoice_id IS NOT NULL)"
+    },
+    {
+      "table": "invoices",
+      "name": "ck_invoices_02",
+      "expression": "parent_invoice_id IS NULL OR parent_invoice_id <> id"
+    },
+    {
+      "table": "invoices",
+      "name": "ck_invoices_03",
+      "expression": "kind IN ('BASE', 'ADDENDUM', 'ADJUSTMENT')"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_01",
+      "expression": "quantity > 0"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_02",
+      "expression": "unit_amount > 0"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_03",
+      "expression": "amount = quantity * unit_amount"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_04",
+      "expression": "kind NOT IN ('GLOBAL_PROMO','PERSONAL_DISCOUNT','CORRECTION') OR reference_line_id IS NOT NULL"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_05",
+      "expression": "kind NOT IN ('GLOBAL_PROMO','PERSONAL_DISCOUNT') OR direction = 'MINUS'"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_06",
+      "expression": "kind <> 'CUSTOM_CHARGE' OR direction = 'PLUS'"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_07",
+      "expression": "reference_line_id IS NULL OR reference_line_id <> id"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_08",
+      "expression": "kind IN ('BASE_SERVICE', 'GLOBAL_PROMO', 'PERSONAL_DISCOUNT', 'ADDITIONAL_TIME', 'FORMAL_REPORT', 'CUSTOM_CHARGE', 'CORRECTION')"
+    },
+    {
+      "table": "billing_line_items",
+      "name": "ck_billing_line_items_09",
+      "expression": "direction IN ('PLUS', 'MINUS')"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_01",
+      "expression": "attempt_number > 0"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_02",
+      "expression": "revision > 0"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_03",
+      "expression": "base_rate_snapshot > 0"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_04",
+      "expression": "rate_basis_points = 2500"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_05",
+      "expression": "billed_blocks = CEILING(total_additional_minutes / 15)"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_06",
+      "expression": "calculated_total = CEILING(base_rate_snapshot * rate_basis_points * billed_blocks / 10000)"
+    },
+    {
+      "table": "additional_time_entries",
+      "name": "ck_additional_time_entries_07",
+      "expression": "rate_basis IN ('NORMAL_PRICE', 'FINAL_PRICE')"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_01",
+      "expression": "amount IS NULL OR amount > 0"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_02",
+      "expression": "claimed_amount IS NULL OR claimed_amount > 0"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_03",
+      "expression": "status <> 'VERIFIED' OR (amount IS NOT NULL AND received_at IS NOT NULL AND verified_at IS NOT NULL AND verified_by IS NOT NULL)"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_04",
+      "expression": "(entry_type = 'RECEIPT' AND reversal_of_id IS NULL) OR (entry_type = 'REVERSAL' AND reversal_of_id IS NOT NULL AND reason IS NOT NULL AND status = 'VERIFIED')"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_05",
+      "expression": "reversal_of_id IS NULL OR reversal_of_id <> id"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_06",
+      "expression": "entry_type IN ('RECEIPT', 'REVERSAL')"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_07",
+      "expression": "purpose IN ('DP', 'SETTLEMENT', 'ADD_ON', 'CORRECTION')"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_08",
+      "expression": "method IN ('TRANSFER', 'QR', 'CASH', 'EDC', 'OTHER')"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_09",
+      "expression": "status IN ('PENDING_VERIFICATION', 'PENDING_RECONCILIATION', 'VERIFIED', 'REJECTED')"
+    },
+    {
+      "table": "payment_transactions",
+      "name": "ck_payment_transactions_10",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "private_files",
+      "name": "ck_private_files_01",
+      "expression": "size_bytes > 0"
+    },
+    {
+      "table": "private_files",
+      "name": "ck_private_files_02",
+      "expression": "expires_at > uploaded_at"
+    },
+    {
+      "table": "private_files",
+      "name": "ck_private_files_03",
+      "expression": "purpose IN ('PAYMENT_PROOF', 'EXPENSE', 'EXPORT')"
+    },
+    {
+      "table": "private_files",
+      "name": "ck_private_files_04",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "payment_proofs",
+      "name": "ck_payment_proofs_01",
+      "expression": "version > 0"
+    },
+    {
+      "table": "payment_proofs",
+      "name": "ck_payment_proofs_02",
+      "expression": "decision <> 'REJECTED' OR decision_reason IS NOT NULL"
+    },
+    {
+      "table": "payment_proofs",
+      "name": "ck_payment_proofs_03",
+      "expression": "decision IN ('PENDING', 'APPROVED', 'REJECTED', 'SUPERSEDED')"
+    },
+    {
+      "table": "payment_proofs",
+      "name": "ck_payment_proofs_04",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "report_deliveries",
+      "name": "ck_report_deliveries_01",
+      "expression": "(assessment_case_id IS NULL) <> (appointment_id IS NULL)"
+    },
+    {
+      "table": "report_deliveries",
+      "name": "ck_report_deliveries_02",
+      "expression": "status <> 'DELIVERED' OR delivered_at IS NOT NULL"
+    },
+    {
+      "table": "report_deliveries",
+      "name": "ck_report_deliveries_03",
+      "expression": "status IN ('REQUESTED', 'READY', 'DELIVERED')"
+    },
+    {
+      "table": "report_deliveries",
+      "name": "ck_report_deliveries_04",
+      "expression": "delivery_method IN ('OFFLINE')"
+    },
+    {
+      "table": "report_deliveries",
+      "name": "ck_report_deliveries_05",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "reviews",
+      "name": "ck_reviews_01",
+      "expression": "rating BETWEEN 1 AND 5"
+    },
+    {
+      "table": "reviews",
+      "name": "ck_reviews_02",
+      "expression": "version > 0"
+    },
+    {
+      "table": "reviews",
+      "name": "ck_reviews_03",
+      "expression": "status <> 'REJECTED' OR moderation_reason IS NOT NULL"
+    },
+    {
+      "table": "reviews",
+      "name": "ck_reviews_04",
+      "expression": "status IN ('PENDING_MODERATION', 'APPROVED', 'REJECTED')"
+    },
+    {
+      "table": "reviews",
+      "name": "ck_reviews_05",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "expenses",
+      "name": "ck_expenses_01",
+      "expression": "amount > 0"
+    },
+    {
+      "table": "expenses",
+      "name": "ck_expenses_02",
+      "expression": "(entry_type = 'EXPENSE' AND reversal_of_id IS NULL) OR (entry_type = 'REVERSAL' AND reversal_of_id IS NOT NULL AND reason IS NOT NULL)"
+    },
+    {
+      "table": "expenses",
+      "name": "ck_expenses_03",
+      "expression": "reversal_of_id IS NULL OR reversal_of_id <> id"
+    },
+    {
+      "table": "expenses",
+      "name": "ck_expenses_04",
+      "expression": "category IN ('RENT', 'ELECTRICITY', 'INTERNET', 'SUPPLIES', 'OPERATIONS', 'STAFF', 'OTHER')"
+    },
+    {
+      "table": "expenses",
+      "name": "ck_expenses_05",
+      "expression": "entry_type IN ('EXPENSE', 'REVERSAL')"
+    },
+    {
+      "table": "notification_outbox",
+      "name": "ck_notification_outbox_01",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "notifications",
+      "name": "ck_notifications_01",
+      "expression": "(channel = 'WHATSAPP' AND recipient_phone_snapshot IS NOT NULL) OR (channel IN ('IN_APP','EMAIL') AND recipient_user_id IS NOT NULL)"
+    },
+    {
+      "table": "notifications",
+      "name": "ck_notifications_02",
+      "expression": "status <> 'SENT' OR sent_at IS NOT NULL"
+    },
+    {
+      "table": "notifications",
+      "name": "ck_notifications_03",
+      "expression": "channel IN ('IN_APP', 'WHATSAPP', 'EMAIL')"
+    },
+    {
+      "table": "notifications",
+      "name": "ck_notifications_04",
+      "expression": "status IN ('QUEUED', 'SENDING', 'RETRY', 'SENT', 'FAILED', 'CANCELLED')"
+    },
+    {
+      "table": "notifications",
+      "name": "ck_notifications_05",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "tele_service_links",
+      "name": "ck_tele_service_links_01",
+      "expression": "attempt_number > 0"
+    },
+    {
+      "table": "tele_service_links",
+      "name": "ck_tele_service_links_02",
+      "expression": "version > 0"
+    },
+    {
+      "table": "cms_contents",
+      "name": "ck_cms_contents_01",
+      "expression": "version > 0"
+    },
+    {
+      "table": "cms_contents",
+      "name": "ck_cms_contents_02",
+      "expression": "status <> 'PUBLISHED' OR published_at IS NOT NULL"
+    },
+    {
+      "table": "cms_contents",
+      "name": "ck_cms_contents_03",
+      "expression": "status IN ('DRAFT', 'PUBLISHED', 'ARCHIVED')"
+    },
+    {
+      "table": "cms_contents",
+      "name": "ck_cms_contents_04",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "tutorial_contents",
+      "name": "ck_tutorial_contents_01",
+      "expression": "version > 0"
+    },
+    {
+      "table": "tutorial_contents",
+      "name": "ck_tutorial_contents_02",
+      "expression": "role IN ('GUEST', 'PATIENT', 'ADMIN', 'PSYCHOLOGIST')"
+    },
+    {
+      "table": "tutorial_contents",
+      "name": "ck_tutorial_contents_03",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "tutorial_progress",
+      "name": "ck_tutorial_progress_01",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "export_jobs",
+      "name": "ck_export_jobs_01",
+      "expression": "kind IN ('SCHEDULE', 'FINANCE')"
+    },
+    {
+      "table": "export_jobs",
+      "name": "ck_export_jobs_02",
+      "expression": "status IN ('QUEUED', 'READY', 'FAILED', 'EXPIRED')"
+    },
+    {
+      "table": "export_jobs",
+      "name": "ck_export_jobs_03",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "idempotency_requests",
+      "name": "ck_idempotency_requests_01",
+      "expression": "status IN ('PROCESSING', 'COMPLETED')"
+    },
+    {
+      "table": "idempotency_requests",
+      "name": "ck_idempotency_requests_02",
+      "expression": "row_version > 0"
+    },
+    {
+      "table": "payment_agreements",
+      "name": "ck_payment_agreements_01",
+      "expression": "session_count = 4"
+    },
+    {
+      "table": "payment_agreements",
+      "name": "ck_payment_agreements_02",
+      "expression": "session_subtotal > 0"
+    },
+    {
+      "table": "payment_agreements",
+      "name": "ck_payment_agreements_03",
+      "expression": "session_discount < session_subtotal"
+    },
+    {
+      "table": "payment_agreements",
+      "name": "ck_payment_agreements_04",
+      "expression": "session_amount = session_subtotal - session_discount"
+    },
+    {
+      "table": "payment_agreements",
+      "name": "ck_payment_agreements_05",
+      "expression": "duration_minutes > 0"
+    },
+    {
+      "table": "payment_allocations",
+      "name": "ck_payment_allocations_01",
+      "expression": "amount > 0"
+    },
+    {
+      "table": "payment_allocations",
+      "name": "ck_payment_allocations_02",
+      "expression": "(entry_type = 'ALLOCATION' AND reversal_of_id IS NULL) OR (entry_type = 'REVERSAL' AND reversal_of_id IS NOT NULL AND reason IS NOT NULL)"
+    },
+    {
+      "table": "payment_allocations",
+      "name": "ck_payment_allocations_03",
+      "expression": "reversal_of_id IS NULL OR reversal_of_id <> id"
+    },
+    {
+      "table": "payment_allocations",
+      "name": "ck_payment_allocations_04",
+      "expression": "entry_type IN ('ALLOCATION', 'REVERSAL')"
+    }
+  ],
+  "enumDefinitions": {
+    "InitialPaymentMode": [
+      "FIXED",
+      "PERCENT"
+    ],
+    "PatientRelationship": [
+      "SELF",
+      "PARENT",
+      "RESPONSIBLE",
+      "OTHER"
+    ],
+    "PatientAccessStatus": [
+      "ACTIVE",
+      "REVOKED"
+    ],
+    "ServiceCategory": [
+      "COUNSELING",
+      "ASSESSMENT",
+      "PSYCHOTHERAPY"
+    ],
+    "DeliveryMode": [
+      "OFFLINE",
+      "TELE_SERVICE"
+    ],
+    "AdditionalTimePriceBasis": [
+      "NORMAL_PRICE",
+      "FINAL_PRICE"
+    ],
+    "BillingMode": [
+      "PER_APPOINTMENT",
+      "PER_PACKAGE",
+      "PER_SESSION"
+    ],
+    "ScheduleOverrideMode": [
+      "OPEN",
+      "CLOSED"
+    ],
+    "AssessmentCaseStatus": [
+      "OPEN",
+      "IN_PROGRESS",
+      "READY_FOR_REPORT",
+      "CLOSED"
+    ],
+    "TreatmentPlanStatus": [
+      "ACTIVE",
+      "AWAITING_SETTLEMENT",
+      "COMPLETED",
+      "DISCONTINUED"
+    ],
+    "AppointmentStatus": [
+      "WAITING_PAYMENT",
+      "WAITING_VERIFICATION",
+      "CONFIRMED",
+      "CONFIRMED_AUTO_SLA",
+      "CHECKED_IN",
+      "IN_CONSULTATION",
+      "COMPLETED",
+      "NO_SHOW",
+      "CANCELLED",
+      "EXPIRED"
+    ],
+    "AppointmentKind": [
+      "STANDARD_SERVICE",
+      "CUSTOM"
+    ],
+    "PaymentRequirement": [
+      "REQUIRED",
+      "INCLUDED",
+      "NOT_REQUIRED"
+    ],
+    "BookingSource": [
+      "PATIENT_ONLINE",
+      "ADMIN_WALK_IN",
+      "ADMIN_ASSISTED",
+      "OWNER_EXTERNAL"
+    ],
+    "ProfilingMode": [
+      "DIGITAL",
+      "PAPER",
+      "NONE"
+    ],
+    "AssessmentRole": [
+      "TESTING",
+      "EVALUATION",
+      "FOLLOW_UP"
+    ],
+    "OperationalImpactResolution": [
+      "PENDING",
+      "RESCHEDULED",
+      "CANCELLED",
+      "OWNER_RESOLVED"
+    ],
+    "RescheduleOrigin": [
+      "PATIENT",
+      "CLINIC",
+      "OWNER"
+    ],
+    "RescheduleStatus": [
+      "REQUESTED",
+      "APPROVED",
+      "SLOT_SELECTION_REQUIRED",
+      "APPLIED",
+      "REJECTED",
+      "EXPIRED",
+      "CANCELLED"
+    ],
+    "PretestStatus": [
+      "DRAFT",
+      "SUBMITTED"
+    ],
+    "ConsentSource": [
+      "SELF",
+      "ASSISTED_OFFLINE"
+    ],
+    "CollectionStatus": [
+      "OPEN",
+      "CLOSED_PAID",
+      "CLOSED_UNSERVED"
+    ],
+    "DocumentKind": [
+      "INVOICE",
+      "RECEIPT"
+    ],
+    "InvoiceKind": [
+      "BASE",
+      "ADDENDUM",
+      "ADJUSTMENT"
+    ],
+    "BillingLineKind": [
+      "BASE_SERVICE",
+      "GLOBAL_PROMO",
+      "PERSONAL_DISCOUNT",
+      "ADDITIONAL_TIME",
+      "FORMAL_REPORT",
+      "CUSTOM_CHARGE",
+      "CORRECTION"
+    ],
+    "AmountDirection": [
+      "PLUS",
+      "MINUS"
+    ],
+    "PaymentEntryType": [
+      "RECEIPT",
+      "REVERSAL"
+    ],
+    "PaymentPurpose": [
+      "DP",
+      "SETTLEMENT",
+      "ADD_ON",
+      "CORRECTION"
+    ],
+    "PaymentMethod": [
+      "TRANSFER",
+      "QR",
+      "CASH",
+      "EDC",
+      "OTHER"
+    ],
+    "PaymentStatus": [
+      "PENDING_VERIFICATION",
+      "PENDING_RECONCILIATION",
+      "VERIFIED",
+      "REJECTED"
+    ],
+    "PrivateFilePurpose": [
+      "PAYMENT_PROOF",
+      "EXPENSE",
+      "EXPORT"
+    ],
+    "ProofDecision": [
+      "PENDING",
+      "APPROVED",
+      "REJECTED",
+      "SUPERSEDED"
+    ],
+    "ReportDeliveryStatus": [
+      "REQUESTED",
+      "READY",
+      "DELIVERED"
+    ],
+    "ReportDeliveryMethod": [
+      "OFFLINE"
+    ],
+    "ReviewStatus": [
+      "PENDING_MODERATION",
+      "APPROVED",
+      "REJECTED"
+    ],
+    "ExpenseCategory": [
+      "RENT",
+      "ELECTRICITY",
+      "INTERNET",
+      "SUPPLIES",
+      "OPERATIONS",
+      "STAFF",
+      "OTHER"
+    ],
+    "ExpenseEntryType": [
+      "EXPENSE",
+      "REVERSAL"
+    ],
+    "NotificationChannel": [
+      "IN_APP",
+      "WHATSAPP",
+      "EMAIL"
+    ],
+    "NotificationStatus": [
+      "QUEUED",
+      "SENDING",
+      "RETRY",
+      "SENT",
+      "FAILED",
+      "CANCELLED"
+    ],
+    "CmsStatus": [
+      "DRAFT",
+      "PUBLISHED",
+      "ARCHIVED"
+    ],
+    "TutorialAudience": [
+      "GUEST",
+      "PATIENT",
+      "ADMIN",
+      "PSYCHOLOGIST"
+    ],
+    "ExportKind": [
+      "SCHEDULE",
+      "FINANCE"
+    ],
+    "ExportStatus": [
+      "QUEUED",
+      "READY",
+      "FAILED",
+      "EXPIRED"
+    ],
+    "IdempotencyStatus": [
+      "PROCESSING",
+      "COMPLETED"
+    ],
+    "AllocationEntryType": [
+      "ALLOCATION",
+      "REVERSAL"
+    ]
+  },
+  "technicalTables": [
+    "password_reset_tokens",
+    "sessions",
+    "cache",
+    "cache_locks",
+    "jobs",
+    "job_batches",
+    "failed_jobs",
+    "migrations"
+  ],
+  "schemaVersion": "2026-10-24"
+}

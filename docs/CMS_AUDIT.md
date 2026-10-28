@@ -1,3 +1,5 @@
+> Catatan historis/source pada waktu penulisan. Aturan target terbaru: [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md); status implementasi: [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md). Pernyataan aturan/tes lama di bawah tidak otomatis berlaku pada tahap sekarang.
+
 # Audit dan Panduan CMS
 
  > Status integrasi22Oktober2026: dokumen ini mengaudit preview Eko, bukan seluruh target Desman yang telah diimplementasikan. Hak Admin target mengikuti [keputusan final](KEPUTUSAN_FINAL_2026_10_22.md) dan [F02](features/F02_PUBLIC_PROFILE_CMS.md); perbedaan source masih TODO.

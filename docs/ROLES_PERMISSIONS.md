@@ -15,7 +15,7 @@ Tanggal: 19 Oktober 2026. Role bisnis Superadmin dipetakan ke PSYCHOLOGIST, hany
 | Biaya kustom/extra Konseling/laporan | Tidak | Lihat tagihan sendiri | Ya sesuai guard | Ya |
 | Link Google Meet dan nomor WA Telelayanan | Tidak | Baca link milik/akses sah, konfirmasi nomor booking | Kelola/kirim ulang beralasan | Kelola |
 | Jam klinik, slot, kuota | Baca jam publik | Baca slot | Ya + dampak | Ya |
-| Booking bantuan/walk-in H+1 | Tidak | Booking online H+1 | Ya, tanpa approval object | Ya, H+1 |
+| Booking bantuan/walk-in | Tidak | Online setelah 3 jam kerja penuh, boleh same-day | Offline hari ini/sekarang pada slot sah | Operasional sesuai kalender |
 | Check-in/mulai/selesai/no-show administratif | Tidak | Lihat status | Ya sesuai F10 | Ya |
 | Pre-test answers/hasil tes/catatan klinis | Tidak | Jawaban sendiri | Status lengkap saja | Ya |
 | Profiling offline di kertas | Tidak melalui aplikasi | Isi lalu serahkan langsung ke Superadmin | Pendataan administratif saja; tidak input/baca/upload jawaban | Terima dan tangani langsung |

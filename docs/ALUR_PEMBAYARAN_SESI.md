@@ -1,12 +1,12 @@
 # Pembayaran Bertahap dan Pelunasan Sesi Terakhir
 
-Keputusan developer 22 Oktober 2026: pasien boleh mencicil atau membayar penuh di awal, tetapi harus lunas paling lambat pada hari pertemuan terakhir. Penerapan saat ini adalah FE preview lokal, bukan domain Laravel/database yang sudah berjalan.
+Aturan target mengikuti [keputusan aktif24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md). FE preview masih memakai struktur lokal; schema/model server kini tersedia, controller/alokasi transaksi belum diaktifkan.
 
 ## Aturan Utama
 
-- DP Rp100.000 sekali pada awal booking/rangkaian, dibatasi biaya net bila lebih kecil, dan mengurangi total biaya. Tidak ada DP kedua saat sesi lanjutan atau reschedule.
+- Minimum awal dihitung dari initial_payment_policy_snapshot: FIXED=min(fixed_amount,dasar_net), PERCENT=min(dasar_net,ceil(dasar_net*basis_points/10000)); lanjutan0 setelah DP asal terverifikasi. Default PERCENT 5000 basis poin sesuai ide pemilik; contoh FIXED 100000 hanya skenario konfigurasi opsional.
 - Konseling tunggal wajib lunas paling lambat hari konsultasi tersebut. Psikoterapi wajib lunas paling lambat hari sesi keempat. Hari mengikuti WIB, bukan jam perangkat pasien.
-- Pasien boleh membayar sisa sekaligus sebelum sesi pertama, atau mencicil menurut kesepakatan dengan psikolog. Tidak ada persentase, jadwal cicilan wajib, denda, auto-cancel, atau pemotongan uang otomatis baru.
+- Pasien boleh membayar sisa sekaligus sebelum sesi pertama, atau mencicil menurut kesepakatan dengan psikolog. Tidak ada jadwal cicilan wajib, denda, auto-cancel, atau pemotongan uang otomatis baru.
 - Hanya Admin memeriksa bukti dan mencatat uang aktual. Pilihan pembayaran/unggah bukti pasien tidak membuktikan uang diterima.
 - Sesi selesai dan keuangan lunas adalah dua fakta berbeda. Pertemuan yang sudah terjadi tetap dicatat; bila belum lunas, tampil `Menunggu pelunasan`, bukan penutupan administratif selesai dan lunas.
 
@@ -14,7 +14,7 @@ Keputusan developer 22 Oktober 2026: pasien boleh mencicil atau membayar penuh d
 
 Psikoterapi baru mengambil snapshot tarif bersih per sesi dan jumlah empat sesi pada booking pertama. Contoh Rp500.000/sesi berarti kesepakatan empat sesi Rp2.000.000. Bukan wajib membayar Rp2.000.000 di awal, bukan tarif paket baru, dan bukan langsung membuat utang untuk sesi yang belum dijadwalkan. Tarif rangkaian ini tidak berubah akibat edit katalog setelah kesepakatan.
 
-Satu ledger penerimaan pada appointment pertama menjadi referensi pembayaran rangkaian. Admin boleh membuka aksi dari sesi mana pun; penyimpanan selalu menuju ledger yang sama. Uang dialokasikan berurutan ke sesi 1, 2, 3, 4. Appointment/invoice sesi berikutnya tetap dibuat bertahap setelah sesi sebelumnya selesai, H+1 dan slot valid.
+Satu ledger penerimaan pada appointment pertama menjadi referensi pembayaran rangkaian. Admin boleh membuka aksi dari sesi mana pun; penyimpanan selalu menuju ledger yang sama. Uang dialokasikan berurutan ke sesi 1, 2, 3, 4. Appointment/invoice sesi berikutnya tetap dibuat bertahap setelah sesi sebelumnya selesai, sesuai batas kalender F05 dan slot valid.
 
 | Kejadian | Kas nyata | Hasil |
 |---|---|---|
@@ -39,7 +39,7 @@ Tanggal jatuh tempo mengikuti jadwal sesi terakhir yang berlaku. Jika sesi terak
 
 Pada hari sesi terakhir, sisa positif ditandai wajib pelunasan. Setelah seluruh pertemuan selesai tetapi belum lunas, status finansial tetap menunggu pelunasan dan pembelian psikoterapi berikutnya untuk paket yang sama ditolak sampai tagihan rangkaian lama beres. Pencatatan sesi selesai tidak mengarang penerimaan dan tidak memblokir pencatatan fakta klinis yang sudah terjadi.
 
-Pembatalan/discontinue tetap wajib melunasi seluruh invoice sah yang sudah terbentuk, bukan memaksa pembayaran sesi yang belum dipesan. Contoh hanya sesi 1 dijadwalkan: kewajiban Rp500.000, bukan Rp2.000.000. Prabayar yang belum teralokasi setelah berhenti tetap tercatat, tidak hangus, tidak dipindah ke booking lain, dan tidak otomatis direfund. Penanganan selisih di luar aplikasi sesuai keputusan sebelumnya.
+Pembatalan/discontinue sebelum layanan tidak menagih sisa bagian belum diberikan. Invoice500000/kas100000: adjustment pelepasan400000, CLOSED_UNSERVED; uang100000 tetap tanpa refund. Bila sebagian layanan telah diberikan, owner menetapkan bagian belum diberikan secara beralasan. Prabayar tetap tercatat; selisih diselesaikan di luar aplikasi, tidak dipindah otomatis ke plan lain.
 
 Sesudah empat sesi selesai dan tagihan lunas, layanan lanjutan memakai booking/rangkaian baru, tarif saat booking baru, dan DP awal sendiri. Tidak ada sesi ke-5 dalam rangkaian lama atau saldo lintas booking.
 
@@ -51,7 +51,7 @@ Sesudah empat sesi selesai dan tagihan lunas, layanan lanjutan memakai booking/r
 - Backend perlu entitas agreement dan relasi alokasi receipt ke invoice, lock ledger/rangkaian/invoice, idempotency persisten, policy Admin-only dan DTO redacted. Alokasi tidak membuat receipt kedua atau menyalin nominal ke ledger appointment lanjutan. Server menetapkan nilai/sesi/aktor/waktu dan menolak tautan lintas pasien/paket/rangkaian.
 - Close administratif harus memeriksa empat pertemuan nyata selesai dan seluruh tagihan sah lunas secara atomik. Status klinis selesai jangan dibatalkan karena koreksi uang. Lewat jatuh tempo hanya indikator/tagihan manual, bukan job pembatalan.
 - Backend tetap memasukkan biaya/adjustment sah yang disepakati pada kontrak domain ke total final. FE ini belum mengimplementasikan seluruh additional-time/addendum Desman dan bukan pengganti ledger server.
-- Tidak membuka mock/LocalStorage ke produksi; endpoint bisnis, SQL migration dan invoice database belum dibuat oleh pekerjaan FE ini.
+- Tidak membuka mock/LocalStorage ke produksi; endpoint bisnis/invoice action belum dibuat; SQL migration/model telah ditambahkan pada tahap fondasi24 Oktober.
 
 ## Verifikasi
 

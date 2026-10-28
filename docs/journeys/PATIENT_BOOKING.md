@@ -3,9 +3,9 @@
 Login ACTIVE, profil pasien yang diakses, paket bookable dengan durasi positif.
 ## Langkah
 1. Lihat kategori/paket/harga/promo setelah login.
-2. Pilih tanggal H+1 dan interval setelah enam jam kerja yang cukup untuk durasi.
+2. Pilih sesuai batas kalender F05 dan interval setelah tiga jam kerja penuh yang cukup untuk durasi.
 3. Isi profiling versi baru dan consent; draft tidak menahan slot.
-4. Preview server harga final, DP minimum dan deadline min24jam/awal sesi.
+4. Preview server harga final, DP minimum dan deadline min24jam/(awal sesi−2jam).
 5. Submit; server membuat reservasi/tagihan atomik. Retry key sama tidak menggandakan booking. Pada Psikoterapi pertama, rangkaian administratif empat unit otomatis terbentuk bersama appointment/tagihan sesi1 saja; pasien tidak menunggu owner membuat rangkaian. Sesi berikutnya diatur Admin sesuai arahan praktisi/kesepakatan pasien. Jika rangkaian sudah ada, UI mengarahkan ke Admin, bukan mengulang pendaftaran rangkaian.
 6. Bayar di luar aplikasi, unggah bukti lengkap <=deadline. Slot dilindungi, uang belum terverifikasi.
 7. Jika bukti ditolak, baca alasan dan perbaiki sebelum correction deadline. SLA tidak reset.

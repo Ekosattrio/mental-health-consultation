@@ -21,7 +21,9 @@ class LoginRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if (is_string($this->input('email'))) {
-            $this->merge(['email' => Str::lower(trim($this->input('email')))]);
+            $value=Str::lower(trim($this->input('email')));
+            if(in_array($value,['admin','superadmin','pasien'],true)){$value.='@jiwasehat.test';}
+            $this->merge(['email' => $value]);
         }
     }
 

@@ -11,7 +11,7 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 1. Server memberi tutorial sesuai role dan capabilities.
 2. Tour muncul pada penggunaan awal, boleh skip/replay.
 3. Progres disimpan dengan version; perubahan mayor materi menawarkan ulang.
-4. Materi booking menjelaskan deadline aktual, H+1/enam jam, DP dan bukti; materi Admin tidak menampilkan saldo; tutorial tidak menjalankan transaksi nyata otomatis.
+4. Materi booking menjelaskan deadline aktual, sesuai batas kalender F05/tiga jam kerja penuh, DP dan bukti; materi Admin tidak menampilkan saldo; tutorial tidak menjalankan transaksi nyata otomatis.
 ## Status dan transisi
 | Pemicu / aktor | Kondisi awal | Hasil dan efek |
 |---|---|---|
@@ -22,8 +22,17 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Target selector hilang melewati langkah dengan pesan aman. Video gagal punya teks alternatif. API gagal tidak menghalangi fungsi utama. Role berganti harus memuat ulang materi; tidak memperlihatkan layar finance ke Admin.
 ## Function dan route web
-getTutorials, saveTourProgress, replayTour. GET /tutorials; PUT /tutorial-progress/{key}.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/tutorials | ClinicalAdministrationController@tutorialContent |
+| POST | /tutorial-progress/{tutorial} | ClinicalAdministrationController@tutorial |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
@@ -33,3 +42,6 @@ Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatal
 - Server menolak menyimpan progres atas user_id orang lain.
 ## Hubungan fitur
 Semua fitur UX; F01 permissions dan F15 audit.
+
+## Implementasi26 Oktober2026
+Tour berupa dialog langkah teks pada penggunaan pertama, dengan Lanjut, Selesai, Lewati dan replay melalui menu panduan. Tidak melakukan transaksi klinis/keuangan otomatis. Video adalah tautan HTTPS dengan langkah teks sebagai alternatif. Progres memakai expected_version:0 jika belum ada, atau row_version terakhir; replay memakai restart=true. Revisi materi membuat content/version baru dan menonaktifkan versi lama tanpa menghapus progresnya. Role PSYCHOLOGIST dan content_key berawalan clinical hanya dikelola owner; Admin mengelola materi administratif. Materi Guest yang diaktifkan muncul di beranda, progres bacanya hanya lokal anonim.

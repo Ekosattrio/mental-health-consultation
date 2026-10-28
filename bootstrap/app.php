@@ -16,7 +16,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->web(append: [HandleInertiaRequests::class]);
+        $middleware->web(append: [\App\Http\Middleware\NormalizePracticeDates::class, HandleInertiaRequests::class]);
         $middleware->alias([
             'active' => EnsureActiveUser::class,
             'role' => EnsureUserRole::class,
@@ -26,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(fn () => route('dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function(\App\Exceptions\StaleDomainRecord $error, Request $request){
+            return $request->expectsJson()?response()->json(['message'=>'Data berubah. Muat ulang sebelum menyimpan.','errors'=>['action'=>['Data berubah. Muat ulang sebelum menyimpan.']]],409):back()->withErrors(['action'=>'Data berubah. Muat ulang sebelum menyimpan.']);
+        });
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );

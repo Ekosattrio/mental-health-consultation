@@ -9,13 +9,13 @@ Histori prototype, bukan aturan aktif. Gunakan [keputusan final](../KEPUTUSAN_FI
 - Selesai pada prototype: persistensi profil navbar, label Admin Operasional, menu Profil Praktik desktop/mobile, tooltip wrap/flip/clamp, pilihan jam admin tanpa fallback otomatis, serta hold expired yang tidak lagi menghalangi reservasi baru. Histori/bukti hold lama tetap tersedia untuk rekonsiliasi.
 - Reschedule sekarang membawa expected version dan menolak form usang dalam lock sebelum commit. Timeline lengkap tampil pada detail/receipt pasien. Backend tetap wajib versi server, conditional update/409, dan transaksi; ini bukan jaminan antarperangkat.
 - CMS disambungkan ke footer/kontak/Instagram, carousel, gambar landing, banner/tip/pengumuman pasien, rekening DP, QRIS kasir dan logo kop. CMS/profil praktik menulis storage sebelum sukses. Rekening disnapshot pada hold, bukan berubah mengikuti edit CMS berikutnya.
-- Batas editor CMS yang masih terbuka: FAQ CRUD, privacy/consent berversi, SEO/metadata, branding/copyright menyeluruh, upload aset permanen dan audit revisi server. Rincian: [CMS_AUDIT](CMS_AUDIT.md).
+- Batas editor CMS yang masih terbuka: FAQ CRUD, privacy/consent berversi, SEO/metadata, branding/copyright menyeluruh, upload aset permanen dan audit revisi server. Rincian: [CMS_AUDIT](../CMS_AUDIT.md).
 - Kontak, gambar, rekening, kredensial, dan isi klinis demo harus diverifikasi pengelola; aplikasi tidak memverifikasi izin atau penyedia bantuan. Jam/badge informasi tidak menutup slot kalender.
 - Verifikasi: TypeScript exit 0 dan 36/36 tes terfokus. Belum QA browser/mobile/print/interaksi, backend/SSO nyata, keamanan data produksi, atau notifikasi otomatis. Tidak menjalankan Git/dev/build.
 
 ## Audit Awal Panduan Fitur per Role - Historis, 22 Oktober 2026
 
-Tabel berikut menyimpan temuan sebelum perbaikan, bukan daftar bug yang masih terbuka. Penyelesaian prototype ada pada status terbaru di atas. Panduan lengkap: [PANDUAN_FITUR_PER_ROLE](PANDUAN_FITUR_PER_ROLE.md).
+Tabel berikut menyimpan temuan sebelum perbaikan, bukan daftar bug yang masih terbuka. Penyelesaian prototype ada pada status terbaru di atas. Panduan lengkap: [PANDUAN_FITUR_PER_ROLE](../PANDUAN_FITUR_PER_ROLE.md).
 
 | Temuan | Bukti dan dampak | Pekerjaan tersisa |
 |---|---|---|

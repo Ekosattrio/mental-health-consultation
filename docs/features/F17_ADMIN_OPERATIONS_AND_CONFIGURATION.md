@@ -1,6 +1,6 @@
 # F17 — Ruang kerja dan input kustom Admin
 
-> Semua booking/reschedule/sesi lanjutan minimal H+1 WIB untuk seluruh role, termasuk Admin/owner; tidak ada DP baru pada lanjutan/reschedule setelah DP awal terverifikasi. [Keputusan final](../KEPUTUSAN_FINAL_2026_10_22.md).
+> Online boleh same-day setelah tiga jam kerja penuh; offline Admin boleh hari ini/sekarang. DP tidak diulang pada reschedule/lanjutan. Ikuti [keputusan aktif](../KEPUTUSAN_AKTIF_2026-10-24.md).
 
 ## Latar belakang dan tujuan
 Memberi fleksibilitas operasional untuk kondisi nyata sambil mempertahankan relasi, histori dan guard tabrakan.
@@ -28,8 +28,20 @@ Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABA
 ## Alur gagal dan pemulihan
 Custom amount/quantity minus ditolak; gunakan PERSONAL_DISCOUNT. Diskon total melebihi kewajiban/menyebabkan selisih uang memerlukan rekonsiliasi, tidak menghapus penerimaan. Appointment COMPLETED boleh mendapat invoice addendum, tetapi tidak boleh diedit jadwalnya sebagai booking masa depan. Ruang/kuota tidak membolehkan satu praktisi melayani dua sesi overlap.
 ## Function dan route web
-operationalWorkspace, previewCustomCharge, issueCharge, applyPersonalDiscount, preview/applyCalendar. POST /admin/billing-accounts/{id}/charges, /discounts; endpoint fitur khusus tetap dipakai, bukan endpoint override yang boleh mengubah seluruh kolom.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| GET / HEAD | /admin/dashboard | DashboardController@show |
+| GET / HEAD | /dashboard | DashboardController@redirect |
+| GET / HEAD | /pasien/dashboard | DashboardController@show |
+| GET / HEAD | /superadmin/dashboard | DashboardController@show |
+| GET / HEAD | /work/data | Closure |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.
@@ -40,3 +52,8 @@ Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatal
 - Tidak ada endpoint generic update status/role/ledger dari JSON bebas.
 ## Hubungan fitur
 F03–F06, F08–F11, F15, F18.
+
+## Fleksibilitas manual terstruktur
+Admin mengubah kalender dengan publish version+impact+requestCLINIC+outbox atomik. Warning tanpa jalur penyelesaian tidak cukup; jangan memaksa memindah ke jam baru yang belum dipublish. Appointment terdampak requires_reschedule sampai diselesaikan; histori tidak hilang.
+Pendaftaran offline tanpa email/login memakai PatientProfile dan kontak nyata; jangan membuat email dari nama pasien. Akun login opsional dan akses PatientAccess harus diverifikasi sebelum klaim. Layanan tambahan owner memakai CUSTOM REQUIRED/INCLUDED/NOT_REQUIRED F06, tetap slot nyata dan alasan. Identitas akun dan profil tidak disatukan hanya berdasarkan nama/nomor yang mirip.
+OwnerSetting menyimpan konfigurasi DP/lead/reminder/grace; perubahan untuk kejadian baru, bukan menulis ulang snapshot. Admin/Superadmin mengelola harga/promo/basis overtime pada PackageVersion, bukan update harga transaksi lama.

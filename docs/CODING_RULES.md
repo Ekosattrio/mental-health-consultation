@@ -1,6 +1,6 @@
 # Aturan implementasi
 
-Frontend React/TypeScript di resources/js; backend Laravel/PHP di app, routes dan database. Fondasi aktif memakai Inertia3 setelah persetujuan20Oktober2026. Ikuti [WEB_CONTRACT](WEB_CONTRACT.md), [BUSINESS_RULES](BUSINESS_RULES.md), [ROLES_PERMISSIONS](ROLES_PERMISSIONS.md) dan [DATABASE_ARCHITECTURE](DATABASE_ARCHITECTURE.md).
+Frontend React/TypeScript di resources/js; backend Laravel/PHP di app, routes dan database. Fondasi aktif memakai Inertia3 setelah persetujuan20 Oktober 2026. Ikuti [WEB_CONTRACT](WEB_CONTRACT.md), [BUSINESS_RULES](BUSINESS_RULES.md), [ROLES_PERMISSIONS](ROLES_PERMISSIONS.md) dan [DATABASE_ARCHITECTURE](DATABASE_ARCHITECTURE.md).
 
 - pages/ adalah entry Inertia; layouts/ kerangka web, components/ tampilan yang dapat dipakai ulang. App.tsx/AppContext/api mock hanya preview lokal. Tidak mengimpor state mock sebagai sumber kebenaran halaman utama.
 - Pakai Link/router untuk navigasi web dan useForm untuk form Inertia. Action sukses redirect setelah commit; validasi/conflict yang dapat diperbaiki kembali sebagai errors, bukan JSON mentah pada kunjungan Inertia. JSON pendukung memakai client/route eksplisit.

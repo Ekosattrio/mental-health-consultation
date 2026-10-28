@@ -8,15 +8,15 @@ assessment_case: patient_id, package_version_id, scope_snapshot, status OPEN/IN_
 Nama kolom, tipe, nullability, FK dan index mengikuti [kamus database](../DATABASE_ARCHITECTURE.md). actor_id dan waktu keputusan diambil server, bukan dipercaya dari form.
 ## Alur normal
 1. Booking pertama membuat satu case, satu billing account dan satu BASE_SERVICE.
-2. Admin menjadwalkan testing. Asesmen Lengkap mengokupansi240menit default; tidak diam-diam dibelah karena kalender tidak cukup.
+2. Admin menjadwalkan testing. Asesmen Lengkap mengokupansi240 menit default; tidak diam-diam dibelah karena kalender tidak cukup.
 3. Admin memasukkan evaluasi/follow-up yang ditentukan owner, setiap appointment punya durasi positif dan slot bebas. Included follow-up tidak menambah harga dasar kedua.
    Status awal follow-up dihitung dari billing account case: DP sudah memenuhi -> CONFIRMED langsung; bukti case masih sah menunggu -> WAITING_VERIFICATION/CONFIRMED_AUTO_SLA sesuai perlindungan. Jangan membuat WAITING_PAYMENT/hold baru yang kedaluwarsa meskipun paket sudah dibayar. Bukti/penerimaan case tidak diunggah ulang untuk tiap pertemuan. Jadwal lanjutan tidak memperpanjang hold/SLA asal; jika case belum memenuhi syarat, Admin menyelesaikan pemeriksaan pembayaran case dahulu. Case CLOSED tidak menerima appointment baru kecuali reopen sah.
 4. Asesmen Dasar Rp350.000 mencakup tes dan evaluasi pada waktu berbeda.
 5. Owner menyatakan seluruh cakupan selesai; hasil boleh diserahkan offline, Admin mencatat penyerahan administratif tanpa mengunggah isinya.
 6. Case CLOSED ketika seluruh langkah wajib terselesaikan atau ada keputusan owner tentang penghentian beralasan. Penutupan layanan terpisah dari status tagihan.
 7. Tes baru di luar scope setelah CLOSED membuat case baru; reopen hanya untuk koreksi/penyelesaian cakupan yang belum benar-benar selesai, dengan audit owner.
-8. Pembatalan seluruh case memerlukan pelunasan tagihan case yang sudah terbentuk. Tolak bila belum lunas; setelah lunas, hentikan seluruh sisa appointment case atomik, pertahankan completed/ledger dan alasan. Tidak ada pelepasan sisa atau refund. Expiry hold tidak membatalkan case berbayar otomatis.
-9. Reopen hanya koreksi salah penutupan yang merujuk event asal, beralasan dan diaudit; bukan membalik write-off atau membuka layanan gratis. Uang/BASE_SERVICE lama tetap, jadwal baru H+1 dengan validasi slot. Kebutuhan tes baru setelah case ditutup dengan benar memakai pembelian/case baru.
+8. Pembatalan case sebelum testing dimulai melepaskan sisa bagian belum diberikan melalui adjustment berjejak/CLOSED_UNSERVED; kas yang diterima tetap. Jika testing sudah sebagian berlangsung, owner menentukan cakupan belum diberikan sebelum penutupan. Hentikan sisa appointment case atomik, completed/ledger tetap; tidak ada refund.
+9. Reopen hanya koreksi salah penutupan yang merujuk event asal, beralasan dan diaudit; bukan membalik write-off atau membuka layanan gratis. Uang/BASE_SERVICE lama tetap, jadwal baru sesuai batas kalender F05 dengan validasi slot. Kebutuhan tes baru setelah case ditutup dengan benar memakai pembelian/case baru.
 ## Urutan pertemuan dalam case
 Scope case menetapkan pertemuan wajib dan dependency-nya. Evaluasi hasil tes secara default bergantung pada TESTING; owner dapat merinci kebutuhan sesuai paket. Jadwal evaluasi tidak boleh mendahului akhir testing prasyarat dan layanan evaluasi hanya dimulai setelah testing wajib COMPLETED, bukan sekadar sudah punya tanggal. Follow-up lain mengikuti dependency yang dinyatakan scope, tidak diasumsikan semua pertemuan identik.
 Saat reschedule suatu testing membuat urutan pertemuan yang sudah dijadwalkan menjadi tidak sah, tolak apply dengan409 DEPENDENT_APPOINTMENT_CONFLICT dan tampilkan daftar dampak ke petugas. Admin menyelesaikan jadwal terkait sesuai rencana praktisi dahulu; jangan otomatis menimpa evaluasi, menghapus biaya atau menandai pasien tidak hadir karena urutan yang dibuat sistem sendiri. Hak request tepat waktu tetap disimpan selama penyelesaian.
@@ -31,8 +31,18 @@ Saat reschedule suatu testing membuat urutan pertemuan yang sudah dijadwalkan me
 ## Alur gagal dan pemulihan
 Tidak boleh memasangkan appointment ke dua case atau beda pasien/paket. Appointment tambahan di luar cakupan memerlukan biaya kustom jelas atau case baru; tidak otomatis semua kunjungan berikutnya gratis. Additional time formula Konseling ditolak untuk asesmen. Laporan termasuk tidak boleh ditagih ulang Rp200.000.
 ## Function dan route web
-createAssessmentCase via booking, scheduleCaseAppointment, recordReportDelivery, closeCase, reopenCase. POST /admin/assessment-cases/{id}/appointments; PATCH /admin/assessment-cases/{id}/report-delivery; POST /superadmin/assessment-cases/{id}/close, /reopen.
-Target path relatif root domain memakai route web/session Laravel. Kontrak props/form/JSON pendukung dan daftar route yang sudah dibuat ada di [WEB_CONTRACT](../WEB_CONTRACT.md). Kode409/422 di uraian fitur adalah kondisi domain/JSON; form Inertia memetakannya ke redirect/errors sesuai kontrak.
+
+Implementasi26 Oktober2026; rincian payload dan hak akses pada [kontrak aktual](../WEB_CONTRACT.md).
+
+| Method | Route | Handler |
+|---|---|---|
+| POST | /admin/appointments/{appointment}/next | BookingController@next |
+| POST | /admin/assessment-cases/{case}/report | ClinicalAdministrationController@report |
+| POST | /superadmin/assessment-cases/{case}/{action} | ClinicalAdministrationController@caseAction |
+
+Data baca juga tersedia melalui props workspace dan GET /work/data sesuai role. Proses terjadwal memakai practice:tick, practice:purge-files dan queue; tidak membutuhkan endpoint publik tambahan.
+
+
 ## Data, audit dan notifikasi
 Simpan entitas terkait dalam transaction untuk perubahan lintas record. Audit action, actor, target, alasan, waktu, request_id dan perubahan yang diizinkan; jangan menyalin password, token atau seluruh jawaban klinis ke log.
 Notifikasi dikirim setelah commit melalui outbox; kegagalan kirim tidak membatalkan hasil yang sudah tersimpan. Detail penerima/kanal mengikuti F13; tidak setiap edit profil memerlukan pesan eksternal.

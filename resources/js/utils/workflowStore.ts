@@ -1,4 +1,4 @@
-import { Appointment, User } from '../types';
+import { Appointment, User, ConsultationPackage } from '../types';
 import { INITIAL_APPOINTMENTS } from '../data/mockData';
 import { createRecordId } from './bookingPolicy';
 
@@ -8,6 +8,7 @@ export const WORKFLOW_UPDATED_EVENT = 'jiwasehat:workflow-updated';
 export const STORAGE_ERROR_EVENT = 'jiwasehat:storage-error';
 
 export interface BookingHold {
+  packageSnapshot?: ConsultationPackage;
   id: string;
   patientId: string;
   psychologistId: string;

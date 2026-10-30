@@ -96,7 +96,8 @@ final class DomainWorkflowTest extends TestCase
             }
         }
         DB::beginTransaction();
-        $this->clock('2026-10-26T05:00:00+07:00');
+        // Reservasi fixture dibuat H-1 pukul 09:00; tenggat bukti tetap H pukul 09:00.
+        $this->clock('2026-10-25T09:00:00+07:00');
         $this->owner = app(PracticeInstaller::class)->install('Owner Uji', 'owner@example.test', 'OwnerTest2026');
         $this->admin = User::forceCreate(['name' => 'Admin Uji', 'email' => 'admin@example.test', 'role' => 'ADMIN', 'password_hash' => 'AdminTest2026'])->refresh();
         $this->patient = User::create(['name' => 'Pasien Uji', 'email' => 'patient@example.test', 'password_hash' => 'PatientTest2026'])->refresh();
@@ -162,10 +163,233 @@ final class DomainWorkflowTest extends TestCase
 
     private function cash(Appointment $appointment, int $amount): PaymentTransaction
     {
+        if (CarbonImmutable::now()->lessThan(CarbonImmutable::parse('2026-10-26T05:00:00+07:00'))) $this->clock('2026-10-26T05:00:00+07:00');
         return DB::transaction(fn () => app(FinancialActions::class)->record($this->admin, app(Operations::class)->lock($appointment->id), ['amount' => $amount, 'method' => 'CASH', 'purpose' => 'DP', 'received_at' => now()->toIso8601String(), 'reason' => 'Uang aktual telah diterima', 'duplicate_review_acknowledged' => true]));
     }
 
-    public function test_calendar_consumes_working_intervals_and_online_is_same_day(): void
+    public function test_eko_routes_all_roles_to_original_frontend_and_masks_admin_cash(): void
+    {
+        $appointment = $this->booking(start: '2026-10-27T11:00:00+07:00');
+        $this->cash($appointment, 100000);
+        foreach ([$this->patient, $this->admin, $this->owner] as $user) {
+            $this->login($user);
+            $path = $user->role->value === 'PATIENT' ? '/pasien/dashboard' : ($user->role->value === 'ADMIN' ? '/admin/dashboard' : '/superadmin/dashboard');
+            $this->get($path)->assertOk()->assertInertia(fn ($page) => $page->component('Eko/Workspace')->has('workspace.presentation')->has('workspace.appointments', 1));
+        }
+        $admin = app(WorkspaceData::class)->for($this->admin);
+        $this->assertArrayNotHasKey('verified_received', $admin['bills'][0]);
+        $this->assertArrayNotHasKey('amount', $admin['bills'][0]['payments'][0]);
+        $this->assertArrayNotHasKey('answers', $admin['pretests'][0]);
+        $this->assertSame(100000, $admin['bills'][0]['initial_minimum_due']);
+    }
+
+    public function test_eko_fixed_dp_and_h_plus_one_are_enforced_for_every_role(): void
+    {
+        $this->clock('2026-10-26T05:00:00+07:00');
+        $version = PackageVersion::whereIn('package_id', ConsultationPackage::where('service_code', 'COUNSELING_OFFLINE')->select('id'))->firstOrFail();
+        foreach ([$this->patient, $this->admin, $this->owner] as $user) {
+            $this->login($user);
+            $this->postJson('/appointments/preview', ['patient_id' => $this->profile->id, 'package_version_id' => $version->id, 'start_at' => '2026-10-26T14:00:00+07:00'])->assertUnprocessable();
+            $this->getJson('/availability?date=2026-10-26&duration_minutes=60')->assertOk()->assertJsonPath('data', []);
+            $this->postJson('/appointments/preview', ['patient_id' => $this->profile->id, 'package_version_id' => $version->id, 'start_at' => '2026-10-27T11:00:00+07:00'])->assertOk()->assertJsonPath('data.minimum', 100000);
+        }
+        $appointment = $this->booking(start: '2026-10-27T11:00:00+07:00');
+        $bill = app(Billing::class)->account($appointment);
+        $this->assertSame('FIXED', $bill->initial_payment_policy_snapshot['mode']);
+        $this->cash($appointment, 100000);
+        $this->assertSame('CONFIRMED', $appointment->refresh()->status->value);
+        $this->assertSame(800000, app(Billing::class)->balance($bill)['remaining_amount']);
+    }
+
+    public function test_eko_account_and_patient_profile_save_atomically_with_version_checks(): void
+    {
+        $this->login($this->patient);
+        $input = ['name' => 'Nama Baru', 'phone' => '+628111111111', 'email' => $this->patient->email, 'expected_version' => $this->patient->row_version, 'patient_profile' => ['id' => $this->profile->id, 'expected_version' => 999, 'emergency_contact' => ['name' => 'Keluarga', 'phone' => '+628222222222']]];
+        $this->postAction('/account', $input)->assertUnprocessable();
+        $this->assertSame('Pasien Uji', $this->patient->refresh()->name);
+        $this->assertSame('Pasien Uji', $this->profile->refresh()->full_name);
+        $input['patient_profile']['expected_version'] = $this->profile->row_version;
+        $this->postAction('/account', $input)->assertOk();
+        $this->assertSame('Nama Baru', $this->patient->refresh()->name);
+        $this->assertSame('Nama Baru', $this->profile->refresh()->full_name);
+        $this->assertSame('Keluarga', $this->profile->emergency_contact['name']);
+    }
+
+    public function test_eko_identical_real_installments_are_distinct_but_a_retried_request_is_not(): void
+    {
+        $appointment = $this->booking();
+        $this->login($this->admin);
+        $input = ['amount' => 100000, 'method' => 'CASH', 'purpose' => 'SETTLEMENT', 'received_at' => now()->toIso8601String(), 'reason' => 'Penerimaan aktual'];
+        $key = (string) Str::uuid();
+        $id = $this->postAction('/admin/appointments/'.$appointment->id.'/payments', $input, $key)->assertOk()->json('data.id');
+        $this->postAction('/admin/appointments/'.$appointment->id.'/payments', $input, $key)->assertOk()->assertJsonPath('data.id', $id);
+        $this->postAction('/admin/appointments/'.$appointment->id.'/payments', $input)->assertOk();
+        $this->assertSame(2, PaymentTransaction::where('status', 'VERIFIED')->count());
+        $this->assertSame(200000, app(Billing::class)->balance(app(Billing::class)->account($appointment))['verified_received']);
+    }
+
+    public function test_eko_pretest_profile_and_payment_proof_use_real_server_storage(): void
+    {
+        $this->login($this->patient);
+        $this->postAction('/patients/'.$this->profile->id, ['full_name' => 'Pasien Uji', 'phone' => '+628111111111', 'birth_date' => '1990-01-01', 'gender' => 'Laki-laki', 'city' => 'Jakarta', 'occupation' => 'Karyawan', 'emergency_contact' => ['name' => 'Keluarga', 'phone' => '+628222222222'], 'expected_version' => $this->profile->row_version])->assertOk();
+        $this->assertSame('Keluarga', $this->profile->refresh()->emergency_contact['name']);
+        $this->postAction('/pretests', ['patient_id' => $this->profile->id, 'template_id' => PretestTemplate::firstOrFail()->id, 'answers' => ['complaint' => 'Keluhan', 'eko_profile' => json_encode(['primaryConcerns' => ['tidak valid' => new \stdClass]])], 'submit' => true])->assertUnprocessable();
+        $this->postAction('/pretests', ['patient_id' => $this->profile->id, 'template_id' => PretestTemplate::firstOrFail()->id, 'answers' => ['complaint' => 'Keluhan untuk pertemuan baru', 'eko_profile' => json_encode(['primaryConcerns' => ['Sulit tidur'], 'currentStressLevel' => 4])], 'submit' => true])->assertOk();
+        $appointment = $this->booking(start: '2026-10-27T11:00:00+07:00');
+        Storage::fake('local');
+        $upload = UploadedFile::fake()->createWithContent('bukti.pdf', "%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF");
+        $file = $this->withHeader('Idempotency-Key', (string) Str::uuid())->post('/files', ['file' => $upload, 'purpose' => 'PAYMENT_PROOF'], ['Accept' => 'application/json'])->assertOk()->json('data.id');
+        $payment = $this->postAction('/appointments/'.$appointment->id.'/payment-submissions', ['claimed_amount' => 100000, 'file_id' => $file, 'method' => 'TRANSFER', 'sender_name' => 'Pasien Uji'])->assertOk()->json('data.id');
+        $this->get('/files/'.$file.'/download?inline=1')->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        $this->assertSame('WAITING_VERIFICATION', $appointment->refresh()->status->value);
+        $this->login($this->admin);
+        $record = PaymentTransaction::findOrFail($payment);
+        $this->postAction('/payments/'.$payment.'/verify', ['expected_version' => $record->row_version, 'actual_amount' => 100000, 'received_at' => now()->toIso8601String()])->assertOk();
+        $this->assertSame('CONFIRMED', $appointment->refresh()->status->value);
+        $this->assertSame(1, Receipt::where('payment_transaction_id', $payment)->count());
+    }
+
+    public function test_eko_reschedule_keeps_payment_and_rejects_stale_and_same_day_forms(): void
+    {
+        $this->clock('2026-10-26T05:00:00+07:00');
+        $appointment = $this->booking(start: '2026-10-27T11:00:00+07:00');
+        $this->cash($appointment, 100000);
+        $this->login($this->patient);
+        $version = $appointment->refresh()->row_version;
+        $this->postAction('/appointments/'.$appointment->id.'/reschedule-requests', ['expected_version' => $version, 'reason' => 'Ganti jadwal', 'start_at' => '2026-10-26T14:00:00+07:00'])->assertUnprocessable();
+        $id = $this->postAction('/appointments/'.$appointment->id.'/reschedule-requests', ['expected_version' => $version, 'reason' => 'Ganti jadwal', 'start_at' => '2026-10-28T11:00:00+07:00'])->assertOk()->json('data.id');
+        $this->assertSame('2026-10-27', $appointment->refresh()->start_at->setTimezone('Asia/Jakarta')->toDateString());
+        $this->login($this->admin);
+        $request = RescheduleRequest::findOrFail($id);
+        $this->postAction('/reschedule-requests/'.$id.'/approve', ['expected_version' => $request->row_version, 'reason' => 'Jadwal disetujui'])->assertOk();
+        $this->postAction('/reschedule-requests/'.$id.'/apply', ['expected_version' => $request->refresh()->row_version, 'reason' => 'Jadwal diterapkan'])->assertOk();
+        $this->assertSame('2026-10-28', $appointment->refresh()->start_at->setTimezone('Asia/Jakarta')->toDateString());
+        $this->assertSame(1, PaymentTransaction::count());
+        $this->assertSame(100000, app(Billing::class)->account($appointment)->initial_minimum_due);
+        $this->login($this->patient);
+        $this->postAction('/appointments/'.$appointment->id.'/reschedule-requests', ['expected_version' => $version, 'reason' => 'Form lama pasien', 'start_at' => '2026-10-29T11:00:00+07:00'])->assertUnprocessable();
+    }
+
+    public function test_eko_no_show_requires_manual_owner_and_cancellation_requires_settlement(): void
+    {
+        $appointment = $this->booking(start: '2026-10-27T11:00:00+07:00');
+        $this->cash($appointment, 100000);
+        $this->clock('2026-10-27T11:30:00+07:00');
+        $this->login($this->admin);
+        foreach (['complete', 'cancel', 'no-show'] as $action) $this->postAction('/admin/appointments/'.$appointment->id.'/'.$action, ['expected_version' => $appointment->refresh()->row_version, 'reason' => 'Tidak boleh oleh admin'])->assertForbidden();
+        $this->login($this->owner);
+        $this->postAction('/admin/appointments/'.$appointment->id.'/cancel', ['expected_version' => $appointment->refresh()->row_version, 'reason' => 'Berhenti layanan'])->assertUnprocessable();
+        $this->postAction('/admin/appointments/'.$appointment->id.'/no-show', ['expected_version' => $appointment->refresh()->row_version, 'reason' => 'Sudah dikonfirmasi, pasien tidak hadir'])->assertOk();
+        $this->clock('2026-11-03T10:00:00+07:00');
+        app(Clockwork::class)->tick();
+        $this->assertSame('NO_SHOW', $appointment->refresh()->status->value);
+        $this->cash($appointment, 800000);
+        $this->postAction('/admin/appointments/'.$appointment->id.'/cancel', ['expected_version' => $appointment->refresh()->row_version, 'reason' => 'Lunas, layanan dihentikan manual'])->assertOk();
+        $this->assertSame('CANCELLED', $appointment->refresh()->status->value);
+        $this->assertSame(900000, app(Billing::class)->balance(app(Billing::class)->account($appointment))['total_due']);
+    }
+
+    public function test_eko_package_and_cms_fields_round_trip_without_changing_old_versions(): void
+    {
+        $this->clock('2026-10-26T05:01:00+07:00');
+        $this->login($this->owner);
+        $package = ConsultationPackage::where('service_code', 'COUNSELING_OFFLINE')->firstOrFail();
+        $old = PackageVersion::where('package_id', $package->id)->firstOrFail();
+        $id = $this->postAction('/admin/packages', ['package_id' => $package->id, 'expected_version' => $package->row_version, 'name' => 'Konseling Tatap Muka', 'description' => 'Deskripsi layanan', 'duration_minutes' => 60, 'normal_price' => 900000, 'promo_price' => 800000, 'delivery_mode' => 'OFFLINE', 'additional_time_price_basis' => 'FINAL_PRICE', 'benefits' => ['Sesi privat'], 'is_bookable' => true, 'presentation' => ['badge' => 'Promo', 'notes' => 'Tambahan waktu sesuai kesepakatan.', 'discount_type' => 'FIXED', 'discount_value' => 100000], 'reason' => 'Ubah melalui FE Eko'])->assertOk()->json('data.id');
+        $this->assertSame('Tambahan waktu sesuai kesepakatan.', PackageVersion::findOrFail($id)->presentation['notes']);
+        $this->assertSame(900000, $old->refresh()->normal_price);
+        $this->postAction('/admin/cms', ['section_key' => 'patient', 'payload' => ['welcomeBannerTitle' => 'Ruang Pasien', 'announcementText' => 'Jadwal minimal H+1'], 'publish' => true, 'expected_published_id' => null])->assertOk();
+        $this->postAction('/admin/cms', ['section_key' => 'psychologist', 'payload' => ['letterheadClinicName' => 'Praktik Uji', 'remunerationPolicy' => 'DP Rp100.000 sekali di awal'], 'publish' => true, 'expected_published_id' => null])->assertOk();
+        $this->assertSame('Ruang Pasien', app(WorkspaceData::class)->for($this->patient)['presentation']['cms']['patient']['welcomeBannerTitle']);
+    }
+
+    public function test_eko_four_therapy_sessions_use_one_dp_and_new_order_after_completion(): void
+    {
+        $appointment = $this->booking('PSYCHOTHERAPY_SESSION', '2026-10-27T11:00:00+07:00');
+        $this->cash($appointment, 100000);
+        $operations = app(Operations::class);
+        foreach (range(1, 4) as $number) {
+            $this->clock('2026-10-'.(26 + $number).'T11:30:00+07:00');
+            DB::transaction(function () use ($operations, $appointment) {
+                $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'check-in', 'Identitas diperiksa');
+                $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'start', 'Sesi berlangsung');
+                $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'complete', 'Sesi selesai');
+            });
+            if ($number < 4) {
+                $this->login($this->owner);
+                $nextId = $this->postAction('/admin/appointments/'.$appointment->id.'/next', ['expected_version' => $appointment->refresh()->row_version, 'start_at' => '2026-10-'.(27 + $number).'T11:00:00+07:00', 'duration_minutes' => 60])->assertOk()->json('data.id');
+                $appointment = Appointment::findOrFail($nextId);
+                $this->assertSame(0, app(Billing::class)->account($appointment)->initial_minimum_due);
+            }
+        }
+        $plan = TreatmentPlan::findOrFail($appointment->treatment_plan_id);
+        $this->assertSame('AWAITING_SETTLEMENT', $plan->status->value);
+        $this->cash($appointment, 1900000);
+        $this->assertSame('COMPLETED', $plan->refresh()->status->value);
+        $this->assertSame(2, PaymentTransaction::count());
+        $this->login($this->owner);
+        $this->postAction('/admin/appointments/'.$appointment->id.'/next', ['expected_version' => $appointment->refresh()->row_version, 'start_at' => '2026-11-02T11:00:00+07:00', 'duration_minutes' => 60])->assertUnprocessable();
+        $new = $this->booking('PSYCHOTHERAPY_SESSION', '2026-11-02T11:00:00+07:00');
+        $this->assertNotSame($plan->id, $new->treatment_plan_id);
+        $this->assertSame(100000, app(Billing::class)->account($new)->initial_minimum_due);
+    }
+
+    public function test_closed_weekdays_and_holidays_save_via_http_and_block_patient_slots(): void
+    {
+        $this->login($this->owner);
+        $calendar = app(WorkspaceData::class)->for($this->owner)['calendar'];
+        foreach ($calendar['weekly'] as &$day) {
+            if (in_array($day['day_of_week'], [6, 7], true)) {
+                $day['daily_limit'] = 0;
+                $day['intervals'] = [];
+            }
+        }
+        unset($day);
+        $input = ['calendar_version_id' => $calendar['id'], 'weekly' => $calendar['weekly'], 'overrides' => [['local_date' => '2026-10-26', 'mode' => 'CLOSED', 'daily_limit' => 0, 'intervals' => [], 'reason' => 'Libur khusus praktik']], 'reason' => 'Atur libur mingguan dan tanggal khusus'];
+        $missing = $input;
+        unset($missing['weekly'][0]['intervals']);
+        $this->postAction('/admin/calendar/preview', $missing)->assertUnprocessable()->assertJsonValidationErrors('weekly.0.intervals');
+        $invalidOpen = $input;
+        $invalidOpen['overrides'][0]['mode'] = 'OPEN';
+        $invalidOpen['overrides'][0]['daily_limit'] = 3;
+        $this->postAction('/admin/calendar/preview', $invalidOpen)->assertUnprocessable();
+        $preview = $this->postAction('/admin/calendar/preview', $input)->assertOk()->json('data.preview_token');
+        $this->postAction('/admin/calendar/apply', [...$input, 'preview_token' => $preview])->assertOk();
+        $this->assertSame([], app(Calendar::class)->intervals('2026-10-26')['intervals']);
+        $this->assertSame([], app(Calendar::class)->intervals('2026-10-31')['intervals']);
+        $this->assertNotEmpty(app(Calendar::class)->intervals('2026-10-27')['intervals']);
+        $this->login($this->patient);
+        $this->getJson('/availability?date=2026-10-26&duration_minutes=60')->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/availability?date=2026-10-31&duration_minutes=60')->assertOk()->assertJsonCount(0, 'data');
+        $this->assertNotEmpty($this->getJson('/availability?date=2026-10-27&duration_minutes=60')->assertOk()->json('data'));
+        $this->login($this->owner);
+        $fresh = app(WorkspaceData::class)->for($this->owner)['calendar'];
+        foreach ($fresh['weekly'] as &$closed) {
+            $closed['daily_limit'] = 0;
+            $closed['intervals'] = [];
+        }
+        unset($closed);
+        $allClosed = ['calendar_version_id' => $fresh['id'], 'weekly' => $fresh['weekly'], 'overrides' => [], 'reason' => 'Libur semua hari praktik'];
+        $token = $this->postAction('/admin/calendar/preview', $allClosed)->assertOk()->json('data.preview_token');
+        $this->postAction('/admin/calendar/apply', [...$allClosed, 'preview_token' => $token])->assertOk();
+        Auth::logout();
+        $this->get('/')->assertOk()->assertInertia(fn ($page) => $page->where('public_landing.practice.clinic_hours', 'Praktik sedang libur'));
+    }
+
+    public function test_admin_cannot_manage_owner_catalog_cms_calendar_or_session_lifecycle(): void
+    {
+        $this->login($this->owner);
+        $draft = $this->postAction('/admin/cms', ['section_key' => 'landing', 'payload' => ['heroTitle' => 'DRAFT_OWNER_ONLY'], 'publish' => false, 'expected_published_id' => null])->assertOk()->json('data.id');
+        $this->login($this->admin);
+        $id = (string) Str::uuid();
+        foreach (['/admin/packages', '/admin/packages/'.$id.'/active', '/admin/calendar/preview', '/admin/calendar/apply', '/admin/cms', '/admin/cms/'.$draft.'/publish', '/admin/assets', '/admin/tutorials', '/admin/appointments/custom', '/admin/appointments/'.$id.'/check-in', '/admin/appointments/'.$id.'/complete', '/admin/appointments/'.$id.'/cancel', '/admin/billing-accounts/'.$id.'/discounts', '/admin/billing-accounts/'.$id.'/charges', '/admin/appointments/'.$id.'/additional-time', '/admin/assessment-cases/'.$id.'/report'] as $url) {
+            $this->postAction($url, [])->assertForbidden();
+        }
+        $this->get('/admin/cms/'.$draft.'/preview')->assertForbidden();
+        $this->getJson('/work/data')->assertOk()->assertJsonCount(0, 'data.cms')->assertDontSee('DRAFT_OWNER_ONLY');
+    }
+
+    public function test_calendar_consumes_working_intervals_with_a_lunch_break(): void
     {
         $calendar = app(Calendar::class);
         $this->assertSame('2026-10-26 11:00', $calendar->addWorkingMinutes($calendar->instant('2026-10-26 05:00'), 180)->setTimezone('Asia/Jakarta')->format('Y-m-d H:i'));
@@ -176,8 +400,8 @@ final class DomainWorkflowTest extends TestCase
             }
         }
         $input = ['calendar_version_id' => $data['id'], 'weekly' => $data['weekly'], 'overrides' => [], 'reason' => 'Atur jeda kerja'];
-        $preview = app(Administration::class)->calendar($this->admin, $input);
-        app(Administration::class)->calendar($this->admin, [...$input, 'preview_token' => $preview['preview_token']], true);
+        $preview = app(Administration::class)->calendar($this->owner, $input);
+        app(Administration::class)->calendar($this->owner, [...$input, 'preview_token' => $preview['preview_token']], true);
         $this->assertSame('14:30', $calendar->addWorkingMinutes($calendar->instant('2026-10-26 10:30'), 180)->setTimezone('Asia/Jakarta')->format('H:i'));
     }
 
@@ -187,7 +411,7 @@ final class DomainWorkflowTest extends TestCase
         $this->assertSame('WAITING_PAYMENT', $appointment->status->value);
         $this->assertSame('09:00', $appointment->hold_expires_at->setTimezone('Asia/Jakarta')->format('H:i'));
         $bill = app(Billing::class)->account($appointment);
-        $this->assertSame(450000, $bill->initial_minimum_due);
+        $this->assertSame(100000, $bill->initial_minimum_due);
         $this->assertSame(900000, app(Billing::class)->balance($bill)['remaining_amount']);
         $this->expectException(ValidationException::class);
         $this->booking();
@@ -196,10 +420,10 @@ final class DomainWorkflowTest extends TestCase
     public function test_actual_partial_payments_never_force_the_bill_paid_and_admin_has_no_balance_or_clinical_answers(): void
     {
         $appointment = $this->booking();
-        $this->cash($appointment, 150000);
+        $this->cash($appointment, 50000);
         $this->cash($appointment, 1);
         $bill = app(Billing::class)->account($appointment);
-        $this->assertSame(749999, app(Billing::class)->balance($bill)['remaining_amount']);
+        $this->assertSame(849999, app(Billing::class)->balance($bill)['remaining_amount']);
         $this->assertSame('WAITING_PAYMENT', $appointment->refresh()->status->value);
         $this->login($this->admin);
         $response = $this->getJson('/work/data')->assertOk();
@@ -217,10 +441,10 @@ final class DomainWorkflowTest extends TestCase
         $appointment = $this->booking();
         $this->cash($appointment, 450000);
         $appointment->refresh();
-        $request = app(Operations::class)->request($this->patient, $appointment, 'Pindah jam karena pekerjaan', '2026-10-26T13:00:00+07:00');
+        $request = app(Operations::class)->request($this->patient, $appointment, 'Pindah jam karena pekerjaan', '2026-10-27T13:00:00+07:00');
         app(Operations::class)->review($this->admin, $appointment, $request, 'approve', 'Jadwal disepakati');
         $request->refresh();
-        $locked = app(Operations::class)->lock($appointment->id, app(Calendar::class)->instant('2026-10-26T13:00:00+07:00'));
+        $locked = app(Operations::class)->lock($appointment->id, app(Calendar::class)->instant('2026-10-27T13:00:00+07:00'));
         app(Operations::class)->review($this->admin, $locked, $request, 'apply', 'Pindah ke slot kosong');
         $this->assertSame('CONFIRMED', $appointment->refresh()->status->value);
         $this->assertSame(2, $appointment->attempt_number);
@@ -230,24 +454,27 @@ final class DomainWorkflowTest extends TestCase
         $this->assertSame(450000, app(Reports::class)->finance($this->owner, '2026-10-26', '2026-10-26')['cash_received']);
     }
 
-    public function test_cancellation_releases_unserved_balance_without_refund_or_false_receipt(): void
+    public function test_cancellation_after_settlement_preserves_full_invoice_and_receipt(): void
     {
         $appointment = $this->booking();
-        $this->cash($appointment, 450000);
+        $this->cash($appointment, 900000);
         $locked = app(Operations::class)->lock($appointment->id);
-        app(Operations::class)->lifecycle($this->admin, $locked, 'cancel', 'Pasien membatalkan sebelum layanan');
+        app(Operations::class)->lifecycle($this->owner, $locked, 'cancel', 'Pasien membatalkan setelah pelunasan');
         $bill = app(Billing::class)->account($appointment);
-        $this->assertSame('CLOSED_UNSERVED', $bill->refresh()->collection_status->value);
+        $this->assertSame('CANCELLED', $appointment->refresh()->status->value);
+        $this->assertSame(900000, app(Billing::class)->balance($bill)['total_due']);
         $this->assertSame(0, app(Billing::class)->balance($bill)['remaining_amount']);
-        $this->assertSame(450000, (int) PaymentTransaction::where('status', 'VERIFIED')->sum('amount'));
+        $this->assertSame(900000, (int) PaymentTransaction::where('status', 'VERIFIED')->sum('amount'));
         $this->assertSame(1, Receipt::count());
     }
 
-    public function test_custom_free_appointment_has_no_money_and_offline_can_book_today(): void
+    public function test_custom_free_appointment_has_no_money_and_offline_also_requires_next_day(): void
     {
         $this->clock('2026-10-26T08:00:00+07:00');
-        $this->login($this->admin);
+        $this->login($this->owner);
         $input = ['patient_id' => $this->profile->id, 'start_at' => '2026-10-26T08:05:00+07:00', 'duration_minutes' => 30, 'custom_label' => 'Janji tambahan owner', 'payment_requirement' => 'NOT_REQUIRED', 'profiling_mode' => 'NONE', 'owner_authorization_note' => 'Disepakati owner di luar sistem'];
+        $this->postAction('/admin/appointments/custom', $input)->assertUnprocessable();
+        $input['start_at'] = '2026-10-27T08:05:00+07:00';
         $key = (string) Str::uuid();
         $first = $this->postAction('/admin/appointments/custom', $input, $key)->assertOk()->json('data.id');
         $second = $this->postAction('/admin/appointments/custom', $input, $key)->assertOk()->json('data.id');
@@ -289,10 +516,10 @@ final class DomainWorkflowTest extends TestCase
     {
         $this->clock($start);
         $operations = app(Operations::class);
-        $operations->lifecycle($this->admin, $operations->lock($appointment->id), 'check-in', 'Identitas diperiksa');
-        $operations->lifecycle($this->admin, $operations->lock($appointment->id), 'start', 'Mulai sesi');
+        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'check-in', 'Identitas diperiksa');
+        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'start', 'Mulai sesi');
         $this->clock($end);
-        $operations->lifecycle($this->admin, $operations->lock($appointment->id), 'complete', 'Sesi selesai');
+        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'complete', 'Sesi selesai');
     }
 
     public function test_therapy_prepayment_allocates_four_invoices_without_duplicate_cash(): void
@@ -305,7 +532,7 @@ final class DomainWorkflowTest extends TestCase
             $this->finish($appointment, "2026-10-{$day}T11:00:00+07:00", "2026-10-{$day}T12:00:00+07:00");
             if ($index < 3) {
                 $next = $day + 1;
-                $appointment = app(Operations::class)->next($this->admin, $appointment->refresh(), ['start_at' => "2026-10-{$next}T11:00:00+07:00", 'duration_minutes' => 60]);
+                $appointment = app(Operations::class)->next($this->owner, $appointment->refresh(), ['start_at' => "2026-10-{$next}T11:00:00+07:00", 'duration_minutes' => 60]);
             }
         }
         $this->assertSame(4, Invoice::count());
@@ -322,13 +549,13 @@ final class DomainWorkflowTest extends TestCase
         $this->assertSame(240, (int) $appointment->start_at->diffInMinutes($appointment->end_at));
         $this->cash($appointment, 750000);
         $this->finish($appointment, '2026-10-26T11:00:00+07:00', '2026-10-26T15:00:00+07:00');
-        $next = app(Operations::class)->next($this->admin, $appointment->refresh(), ['start_at' => '2026-10-27T11:00:00+07:00', 'duration_minutes' => 30, 'assessment_role' => 'EVALUATION']);
+        $next = app(Operations::class)->next($this->owner, $appointment->refresh(), ['start_at' => '2026-10-27T11:00:00+07:00', 'duration_minutes' => 30, 'assessment_role' => 'EVALUATION']);
         $this->assertSame($appointment->assessment_case_id, $next->assessment_case_id);
         $this->assertSame(1, BillingAccount::count());
         $this->assertSame(1, Invoice::count());
         $this->assertSame(1500000, app(Billing::class)->balance(app(Billing::class)->account($next))['total_due']);
         $this->expectException(ValidationException::class);
-        app(FinancialActions::class)->charge($this->admin, app(Billing::class)->account($next), ['amount' => 200000, 'kind' => 'FORMAL_REPORT', 'label' => 'Laporan', 'reason' => 'Laporan asesmen sudah termasuk']);
+        app(FinancialActions::class)->charge($this->owner, app(Billing::class)->account($next), ['amount' => 200000, 'kind' => 'FORMAL_REPORT', 'label' => 'Laporan', 'reason' => 'Laporan asesmen sudah termasuk']);
     }
 
     public function test_overtime_rounds_cumulative_minutes_not_each_edit(): void
@@ -337,13 +564,13 @@ final class DomainWorkflowTest extends TestCase
         $this->cash($appointment, 900000);
         $this->finish($appointment, '2026-10-26T11:00:00+07:00', '2026-10-26T12:40:00+07:00');
         foreach ([5, 10, 40] as $revision => $minutes) {
-            app(FinancialActions::class)->additionalTime($this->admin, $appointment->refresh(), ['total_additional_minutes' => $minutes, 'expected_revision' => $revision, 'reason' => 'Menit tambahan aktual dikonfirmasi']);
+            app(FinancialActions::class)->additionalTime($this->owner, $appointment->refresh(), ['total_additional_minutes' => $minutes, 'expected_revision' => $revision, 'reason' => 'Menit tambahan aktual dikonfirmasi']);
         }
         $bill = app(Billing::class)->account($appointment);
         $this->assertSame(1575000, app(Billing::class)->balance($bill)['total_due']);
         $this->assertSame(3, Invoice::count());
         $this->assertSame(675000, app(Billing::class)->balance($bill)['remaining_amount']);
-        app(FinancialActions::class)->additionalTime($this->admin, $appointment->refresh(), ['total_additional_minutes' => 0, 'expected_revision' => 3, 'reason' => 'Koreksi salah input waktu tambahan']);
+        app(FinancialActions::class)->additionalTime($this->owner, $appointment->refresh(), ['total_additional_minutes' => 0, 'expected_revision' => 3, 'reason' => 'Koreksi salah input waktu tambahan']);
         $this->assertSame(900000, app(Billing::class)->balance($bill)['total_due']);
         $this->assertSame(1, Receipt::count());
     }
@@ -386,13 +613,13 @@ final class DomainWorkflowTest extends TestCase
         $operations = app(Operations::class);
         $this->clock('2026-10-26T11:14:00+07:00');
         try {
-            $operations->lifecycle($this->admin, $operations->lock($appointment->id), 'no-show', 'Belum hadir');
+            $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'no-show', 'Belum hadir');
             $this->fail('Grace belum berakhir');
         } catch (ValidationException) {
             $this->assertSame('CONFIRMED', $appointment->refresh()->status->value);
         }
         $this->clock('2026-10-26T11:16:00+07:00');
-        $operations->lifecycle($this->admin, $operations->lock($appointment->id), 'no-show', 'Tidak hadir setelah pemeriksaan');
+        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'no-show', 'Tidak hadir setelah pemeriksaan');
         $request = $operations->request($this->patient, $appointment->refresh(), 'Ajukan pengganti setelah tidak hadir', '2026-10-27T11:00:00+07:00');
         $operations->review($this->admin, $appointment, $request, 'approve', 'Disepakati');
         $operations->review($this->admin, $operations->lock($appointment->id, app(Calendar::class)->instant('2026-10-27T11:00:00+07:00')), $request->refresh(), 'apply', 'Jadwal baru');
@@ -405,6 +632,7 @@ final class DomainWorkflowTest extends TestCase
     public function test_html_datetime_local_is_interpreted_as_jakarta_before_financial_validation(): void
     {
         $appointment = $this->booking();
+        $this->clock('2026-10-26T05:00:00+07:00');
         $this->login($this->admin);
         $response = $this->postAction('/admin/appointments/'.$appointment->id.'/payments', ['amount' => 450000, 'method' => 'CASH', 'purpose' => 'DP', 'received_at' => '2026-10-26T04:59', 'reason' => 'Penerimaan aktual WIB'])->assertOk();
         $payment = PaymentTransaction::findOrFail($response->json('data.id'));
@@ -438,9 +666,9 @@ final class DomainWorkflowTest extends TestCase
             }
         }
         $input = ['calendar_version_id' => $data['id'], 'weekly' => $data['weekly'], 'overrides' => [], 'reason' => 'Perubahan jam operasional'];
-        $preview = app(Administration::class)->calendar($this->admin, $input);
+        $preview = app(Administration::class)->calendar($this->owner, $input);
         $this->assertCount(1, $preview['affected']);
-        app(Administration::class)->calendar($this->admin, [...$input, 'preview_token' => $preview['preview_token']], true);
+        app(Administration::class)->calendar($this->owner, [...$input, 'preview_token' => $preview['preview_token']], true);
         $request = RescheduleRequest::where('appointment_id', $appointment->id)->firstOrFail();
         $this->assertSame('CLINIC', $request->origin->value);
         $this->assertTrue($appointment->refresh()->requires_reschedule);
@@ -454,7 +682,7 @@ final class DomainWorkflowTest extends TestCase
 
     public function test_public_page_hides_prices_and_drafts_and_publish_uses_existing_design(): void
     {
-        $this->login($this->admin);
+        $this->login($this->owner);
         $this->postAction('/admin/cms', ['section_key' => 'landing', 'payload' => ['heroTitle' => 'RAHASIA_DRAFT', 'heroSubtitle' => 'Teks draft'], 'publish' => false, 'expected_published_id' => null])->assertOk();
         Auth::logout();
         $this->get('/')->assertOk()->assertDontSee('RAHASIA_DRAFT')->assertDontSee('normal_price')->assertDontSee('900000');
@@ -494,7 +722,7 @@ final class DomainWorkflowTest extends TestCase
     public function test_cms_stale_publication_and_preview_permissions_and_image_upload(): void
     {
         Storage::fake('local');
-        $this->login($this->admin);
+        $this->login($this->owner);
         $first = $this->postAction('/admin/cms', ['section_key' => 'landing', 'payload' => ['heroTitle' => 'Versi satu'], 'publish' => true, 'expected_published_id' => null])->assertOk()->json('data.id');
         $this->postAction('/admin/cms', ['section_key' => 'landing', 'payload' => ['heroTitle' => 'Versi stale'], 'publish' => true, 'expected_published_id' => null])->assertUnprocessable();
         $this->assertSame($first, CmsContent::where('section_key', 'landing')->where('status', 'PUBLISHED')->value('id'));
@@ -517,7 +745,7 @@ final class DomainWorkflowTest extends TestCase
             $this->finish($appointment, "2026-10-{$day}T11:00:00+07:00", "2026-10-{$day}T12:00:00+07:00");
             if ($i < 3) {
                 $next = $day + 1;
-                $appointment = app(Operations::class)->next($this->admin, $appointment->refresh(), ['start_at' => "2026-10-{$next}T11:00:00+07:00", 'duration_minutes' => 60]);
+                $appointment = app(Operations::class)->next($this->owner, $appointment->refresh(), ['start_at' => "2026-10-{$next}T11:00:00+07:00", 'duration_minutes' => 60]);
             }
         }
         $new = $this->booking('PSYCHOTHERAPY_SESSION', '2026-10-31T11:00:00+07:00');
@@ -529,18 +757,19 @@ final class DomainWorkflowTest extends TestCase
         $this->assertSame(1, Receipt::count());
     }
 
-    public function test_no_show_rights_expire_without_collecting_unserved_remainder(): void
+    public function test_no_show_deadline_notifies_owner_without_cancelling_or_erasing_debt(): void
     {
         $appointment = $this->booking();
         $this->cash($appointment, 450000);
         $this->clock('2026-10-26T11:16:00+07:00');
-        app(Operations::class)->lifecycle($this->admin, app(Operations::class)->lock($appointment->id), 'no-show', 'Tidak hadir');
+        app(Operations::class)->lifecycle($this->owner, app(Operations::class)->lock($appointment->id), 'no-show', 'Tidak hadir');
         $this->clock('2026-10-31T00:01:00+07:00');
         app(Clockwork::class)->tick();
         $balance = app(Billing::class)->balance(app(Billing::class)->account($appointment));
-        $this->assertSame(0, $balance['remaining_amount']);
+        $this->assertSame(450000, $balance['remaining_amount']);
         $this->assertSame(450000, $balance['verified_received']);
-        $this->assertNotNull($appointment->refresh()->terminal_at);
+        $this->assertNull($appointment->refresh()->terminal_at);
+        $this->assertSame('NO_SHOW', $appointment->status->value);
     }
 
     public function test_export_uses_frozen_schedule_snapshot_and_private_download_policy(): void
@@ -590,6 +819,7 @@ final class DomainWorkflowTest extends TestCase
 
     public function test_expense_correction_to_zero_is_a_reversal_without_a_fake_new_expense(): void
     {
+        $this->clock('2026-10-26T05:00:00+07:00');
         $this->login($this->owner);
         $input = ['expense_date' => '2026-10-26', 'category' => 'OTHER', 'description' => 'Salah catat biaya', 'amount' => 100000, 'reason' => 'Pengeluaran awal dicatat'];
         $id = $this->postAction('/superadmin/expenses', $input)->assertOk()->json('data.id');
@@ -598,7 +828,7 @@ final class DomainWorkflowTest extends TestCase
         $this->assertSame(0, app(Reports::class)->finance($this->owner, '2026-10-26', '2026-10-26')['expenses']);
     }
 
-    public function test_twelve_working_hour_sla_confirms_schedule_without_fabricating_cash(): void
+    public function test_twelve_working_hour_sla_does_not_replace_manual_admin_verification(): void
     {
         $appointment = $this->booking('COUNSELING_OFFLINE', '2026-10-28T11:00:00+07:00');
         $this->clock('2026-10-26T08:00:00+07:00');
@@ -606,8 +836,8 @@ final class DomainWorkflowTest extends TestCase
         $payment = app(Billing::class)->submit($this->patient, $appointment, 450000, $file->id, 'TRANSFER', 'Pasien');
         $this->clock('2026-10-27T12:01:00+07:00');
         app(Clockwork::class)->tick();
-        $this->assertSame('CONFIRMED_AUTO_SLA', $appointment->refresh()->status->value);
-        $this->assertSame('PENDING_RECONCILIATION', $payment->refresh()->status->value);
+        $this->assertSame('WAITING_VERIFICATION', $appointment->refresh()->status->value);
+        $this->assertSame('PENDING_VERIFICATION', $payment->refresh()->status->value);
         $this->assertNull($payment->amount);
         $this->assertSame(0, Receipt::count());
     }
@@ -618,20 +848,21 @@ final class DomainWorkflowTest extends TestCase
         $this->cash($appointment, 750000);
         $operations = app(Operations::class);
         $this->clock('2026-10-26T11:16:00+07:00');
-        $operations->lifecycle($this->admin, $operations->lock($appointment->id), 'no-show', 'Tidak hadir setelah pemeriksaan');
+        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'no-show', 'Tidak hadir setelah pemeriksaan');
         $case = AssessmentCase::findOrFail($appointment->assessment_case_id);
         $this->login($this->owner);
         $this->postAction('/superadmin/assessment-cases/'.$case->id.'/close', ['expected_version' => $case->row_version, 'reason' => 'Mencoba penutupan terlalu awal'])->assertUnprocessable();
         $this->assertNotSame('CLOSED', $case->refresh()->status->value);
-        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'cancel', 'Layanan dibatalkan sebelum diberikan');
+        $this->cash($appointment, 750000);
+        $operations->lifecycle($this->owner, $operations->lock($appointment->id), 'cancel', 'Layanan dibatalkan setelah pelunasan');
         $this->postAction('/superadmin/assessment-cases/'.$case->id.'/reopen', ['expected_version' => $case->refresh()->row_version, 'reason' => 'Mencoba menghidupkan case dilepas'])->assertUnprocessable();
         $this->assertSame('CLOSED', $case->refresh()->status->value);
     }
 
     public function test_full_cms_fields_publish_to_guest_and_workspace_without_price_leak(): void
     {
-        $this->login($this->admin);
-        $payload = ['heroTitle' => 'Layanan kami', 'ctaTitle' => 'CTA_KUSTOM', 'ctaSubtitle' => 'Pilih waktu tersedia', 'footerText' => 'FOOTER_KUSTOM', 'faqs' => [['q' => 'FAQ_KUSTOM', 'a' => 'Jawaban administrasi']]];
+        $this->login($this->owner);
+        $payload = ['heroTitle' => 'Layanan kami', 'ctaTitle' => 'CTA_KUSTOM', 'ctaSubtitle' => 'Pilih waktu tersedia', 'footerText' => 'FOOTER_KUSTOM', 'clinicName' => 'Praktik Uji Kontak', 'clinicAddress' => 'Alamat praktik dari CMS', 'clinicPhone' => '021123456', 'clinicWhatsapp' => '+628123456789', 'clinicEmail' => 'praktik@example.test', 'clinicHours' => 'Senin sampai Jumat sesuai janji temu', 'instagramUrl' => 'https://www.instagram.com/praktikuji/', 'faqs' => [['q' => 'FAQ_KUSTOM', 'a' => 'Jawaban administrasi']]];
         $id = $this->postAction('/admin/cms', ['section_key' => 'landing', 'payload' => $payload, 'publish' => true, 'expected_published_id' => null])->assertOk()->json('data.id');
         $this->get('/admin/cms/'.$id.'/preview')->assertOk()->assertDontSee('normal_price');
         $this->postAction('/admin/cms', ['section_key' => 'landing', 'payload' => ['heroTitle' => 'Tarif Rp900000'], 'publish' => true, 'expected_published_id' => $id])->assertUnprocessable();
@@ -640,13 +871,15 @@ final class DomainWorkflowTest extends TestCase
         $this->getJson('/work/data')->assertOk()->assertJsonPath('data.workspace_information.payload.title', 'INFO_PASIEN');
         Auth::logout();
         $this->get('/')->assertOk()->assertSee('CTA_KUSTOM')->assertSee('FAQ_KUSTOM')->assertDontSee('normal_price');
+        $this->get('/')->assertOk()->assertInertia(fn ($page) => $page->where('public_landing.practice.clinic_address', 'Alamat praktik dari CMS')->where('public_landing.practice.clinic_phone', '021123456')->where('public_landing.practice.clinic_email', 'praktik@example.test')->where('public_landing.practice.clinic_hours', 'Senin sampai Jumat sesuai janji temu'));
     }
 
     public function test_tutorial_versions_progress_and_permissions_are_enforced(): void
     {
-        $this->login($this->admin);
+        $this->login($this->owner);
         $input = ['content_key' => 'panduan-baru', 'role' => 'PATIENT', 'title' => 'Panduan baru', 'steps' => ['Langkah satu', 'Langkah dua'], 'video_url' => null, 'is_active' => true, 'expected_latest_id' => null, 'reason' => 'Materi awal'];
         $id = $this->postAction('/admin/tutorials', $input)->assertOk()->json('data.id');
+        $this->login($this->admin);
         $this->postAction('/admin/tutorials', [...$input, 'role' => 'PSYCHOLOGIST'])->assertForbidden();
         $this->login($this->patient);
         $this->postAction('/tutorial-progress/'.$id, ['last_step' => 1, 'expected_version' => 0])->assertOk();
@@ -654,7 +887,7 @@ final class DomainWorkflowTest extends TestCase
         $this->postAction('/tutorial-progress/'.$id, ['last_step' => 2, 'completed' => true, 'expected_version' => 0])->assertUnprocessable();
         $this->postAction('/tutorial-progress/'.$id, ['last_step' => 2, 'completed' => true, 'expected_version' => $progress->row_version])->assertOk();
         $this->assertNotNull($progress->refresh()->completed_at);
-        $this->login($this->admin);
+        $this->login($this->owner);
         $new = $this->postAction('/admin/tutorials', [...$input, 'expected_latest_id' => $id, 'steps' => ['Materi diperbarui']])->assertOk()->json('data.id');
         $this->assertFalse(TutorialContent::findOrFail($id)->is_active);
         $this->login($this->patient);
@@ -824,6 +1057,37 @@ final class DomainWorkflowTest extends TestCase
         $this->withCookie($name,$cookie)->getJson('/work/data')->assertUnauthorized();
     }
 
+    public function test_public_and_workspace_catalog_queries_are_bounded_and_future_versions_stay_hidden(): void
+    {
+        $base = PackageVersion::firstOrFail();
+        for ($i = 0; $i < 20; $i++) {
+            $package = ConsultationPackage::create(['service_code' => 'PERF_'.$i, 'category' => 'COUNSELING', 'created_by' => $this->owner->id]);
+            $version = $base->replicate();
+            $version->package_id = $package->id;
+            $version->version = 1;
+            $version->name = 'Layanan performa '.$i;
+            $version->effective_at = now()->subMinute();
+            $version->save();
+            if ($i === 0) {
+                $future = $version->replicate();
+                $future->version = 2;
+                $future->name = 'FUTURE_SHOULD_NOT_SHOW';
+                $future->effective_at = now()->addDay();
+                $future->save();
+            }
+        }
+        $queries = [];
+        DB::listen(function ($query) use (&$queries): void {
+            if (str_contains($query->sql, 'package_versions')) $queries[] = $query->sql;
+        });
+        $this->get('/')->assertOk()->assertDontSee('FUTURE_SHOULD_NOT_SHOW')->assertDontSee('normal_price');
+        $this->assertLessThanOrEqual(2, count($queries), 'Query katalog publik tidak boleh bertambah per layanan.');
+        $queries = [];
+        $data = app(WorkspaceData::class)->for($this->patient);
+        $this->assertLessThanOrEqual(2, count($queries), 'Query katalog workspace tidak boleh bertambah per layanan.');
+        $this->assertSame('Layanan performa 0', collect($data['packages'])->firstWhere('service_code', 'PERF_0')['name']);
+    }
+
     public function test_parallel_processes_cannot_book_the_same_interval(): void
     {
         // Commit only this isolated test DB so two independent PHP processes can see fixtures.
@@ -832,7 +1096,7 @@ final class DomainWorkflowTest extends TestCase
         $workers = [];
         for ($i = 0; $i < 2; $i++) {
             $pipes = [];
-            $process = proc_open([PHP_BINARY, base_path('tests/Support/concurrent-booking-worker.php'), self::$database, $this->admin->id, $this->profile->id], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, base_path());
+            $process = proc_open([PHP_BINARY, base_path('tests/Support/concurrent-booking-worker.php'), self::$database, $this->owner->id, $this->profile->id], [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, base_path());
             $this->assertIsResource($process);
             fclose($pipes[0]);
             $workers[] = [$process, $pipes];

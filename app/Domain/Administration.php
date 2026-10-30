@@ -44,7 +44,7 @@ final class Administration
 
     public function package(User $actor, array $input): PackageVersion
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         $package = isset($input['package_id']) ? ConsultationPackage::whereKey($input['package_id'])->lockForUpdate()->firstOrFail() : ConsultationPackage::create(['service_code' => $input['service_code'], 'category' => $input['category'], 'created_by' => $actor->id]);
         $category = $package->category->value;
         foreach (['promo_starts_at', 'promo_ends_at'] as $timeField) {
@@ -57,7 +57,7 @@ final class Administration
         if (isset($input['promo_starts_at'],$input['promo_ends_at'])) {
             Access::check(CarbonImmutable::parse($input['promo_ends_at'])->greaterThan(CarbonImmutable::parse($input['promo_starts_at'])), 'Akhir promo harus setelah awal.');
         }
-        $version = PackageVersion::create([...array_intersect_key($input, array_flip(['name', 'description', 'variant', 'delivery_mode', 'duration_minutes', 'duration_min_minutes', 'duration_max_minutes', 'normal_price', 'promo_price', 'promo_starts_at', 'promo_ends_at', 'additional_time_price_basis', 'benefits', 'is_bookable'])),
+        $version = PackageVersion::create([...array_intersect_key($input, array_flip(['name', 'description', 'variant', 'delivery_mode', 'duration_minutes', 'duration_min_minutes', 'duration_max_minutes', 'normal_price', 'promo_price', 'promo_starts_at', 'promo_ends_at', 'additional_time_price_basis', 'benefits', 'is_bookable', 'presentation'])),
             'package_id' => $package->id, 'version' => (int) PackageVersion::where('package_id', $package->id)->max('version') + 1, 'effective_at' => now(), 'created_by' => $actor->id,
             'billing_mode' => match ($category) {
                 'ASSESSMENT' => 'PER_PACKAGE','PSYCHOTHERAPY' => 'PER_SESSION',default => 'PER_APPOINTMENT'
@@ -104,7 +104,7 @@ final class Administration
 
     public function calendar(User $actor, array $input, bool $apply = false): array
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         $normalized = $this->normalizedCalendar($input);
         $calendar = app(Calendar::class);
         $current = $calendar->version();
@@ -165,10 +165,16 @@ final class Administration
 
     public function cms(User $actor, array $input): CmsContent
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         $section = $input['section_key'];
         Access::check(in_array($section, ['landing', 'patient', 'psychologist', 'consent', 'privacy', 'clinical_identity'], true), 'Bagian CMS tidak sah.');
-        $textKeys = $section === 'landing' ? ['heroTitle', 'heroSubtitle', 'heroBadge', 'heroImageUrl', 'aboutImageUrl', 'logoUrl', 'ctaTitle', 'ctaSubtitle', 'footerText', 'sliderTitle', 'sliderSubtitle', 'clinicName', 'clinicAddress', 'clinicPhone', 'clinicWhatsapp', 'clinicEmail', 'instagramUrl'] : ['title', 'body'];
+        $textKeys = match ($section) {
+            'landing' => ['heroTitle', 'heroSubtitle', 'heroBadge', 'heroImageUrl', 'aboutImageUrl', 'logoUrl', 'ctaTitle', 'ctaSubtitle', 'footerText', 'sliderTitle', 'sliderSubtitle', 'clinicName', 'clinicAddress', 'clinicHours', 'clinicPhone', 'clinicWhatsapp', 'clinicEmail', 'instagramUrl', 'qrisImageUrl', 'clinicKopLogoUrl', 'bankName', 'bankAccountNumber', 'bankAccountHolder'],
+            'patient' => ['title', 'body', 'welcomeBannerTitle', 'welcomeBannerSubtitle', 'dailyMentalHealthTip', 'crisisHotlineTitle', 'crisisHotlineNumber', 'crisisWhatsapp', 'crisisNotice', 'announcementText'],
+            'psychologist' => ['title', 'body', 'guidelinesTitle', 'guidelinesContent', 'announcementTitle', 'announcementContent', 'remunerationPolicy', 'clinicalSupervisorContact', 'letterheadClinicName', 'letterheadDoctorName', 'letterheadSipNumber', 'letterheadStrNumber', 'letterheadAddress', 'letterheadPhone', 'letterheadEmail', 'letterheadWebsite', 'letterheadCity', 'letterheadSignerRole'],
+            default => ['title', 'body'],
+        };
+        if ($section === 'psychologist') Access::requireOwner($actor);
         Access::check(! array_diff(array_keys($input['payload']), [...$textKeys, ...($section === 'landing' ? ['sliderIntervalSeconds', 'sliderAutoPlay', 'faqs'] : [])]), 'Isian konten tidak didukung.');
         foreach ($input['payload'] as $key => $value) {
             if (in_array($key, $textKeys, true)) {
@@ -190,9 +196,9 @@ final class Administration
                 Access::check(is_bool($value), 'Pengaturan carousel tidak sah.');
             }
         }
-        foreach (['heroImageUrl', 'aboutImageUrl', 'logoUrl'] as $image) {
+        foreach (['heroImageUrl', 'aboutImageUrl', 'logoUrl', 'qrisImageUrl', 'clinicKopLogoUrl'] as $image) {
             if (! empty($input['payload'][$image])) {
-                Access::check((bool) preg_match('~^/media/[a-f0-9-]{36}\.(jpg|png|webp)$~D', $input['payload'][$image]), 'Gunakan gambar yang diunggah melalui CMS.');
+                Access::check((bool) preg_match('~^/media/[a-f0-9-]{36}\.(jpg|png|webp)$~D', $input['payload'][$image]) || (filter_var($input['payload'][$image], FILTER_VALIDATE_URL) && parse_url($input['payload'][$image], PHP_URL_SCHEME) === 'https'), 'Gunakan unggahan CMS atau URL gambar HTTPS.');
             }
         }
         if (! empty($input['payload']['instagramUrl'])) {
@@ -219,7 +225,11 @@ final class Administration
                 if (array_key_exists($key, $input['payload'])) {
                     $identity[$column] = $input['payload'][$key];
                 }
-            }$settings->update(['practice_identity' => $identity]);
+            }
+            if (array_key_exists('bankName', $input['payload']) || array_key_exists('bankAccountNumber', $input['payload'])) {
+                $identity['bank_account'] = trim(($input['payload']['bankName'] ?? '').' - '.($input['payload']['bankAccountNumber'] ?? '').' a.n. '.($input['payload']['bankAccountHolder'] ?? ''));
+            }
+            $settings->update(['practice_identity' => $identity]);
         }
         Transactions::audit($actor, 'cms.version', 'cms_contents', $content->id);
 

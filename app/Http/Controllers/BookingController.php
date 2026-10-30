@@ -32,7 +32,15 @@ final class BookingController extends DomainController
             Access::patient($request->user(), $appointment->patient_id);
         }
 
-        return response()->json(['data' => $calendar->slots($input['date'], $input['duration_minutes'], ! Access::staff($request->user()), $input['exclude_id'] ?? null)]);
+        $slots = $calendar->slots($input['date'], $input['duration_minutes'], ! Access::staff($request->user()), $input['exclude_id'] ?? null);
+        if ($request->boolean('summary')) {
+            $day = $calendar->intervals($input['date']);
+            $booked = Appointment::where('psychologist_id', $calendar->settings()->owner_user_id)->whereIn('status', Calendar::OCCUPYING)
+                ->where('start_at', '>=', $calendar->instant($input['date'].' 00:00'))->where('start_at', '<', $calendar->instant($input['date'].' 00:00')->addDay())
+                ->when(!empty($input['exclude_id']), fn ($q) => $q->where('id', '<>', $input['exclude_id']))->count();
+            return response()->json(['data' => ['slots' => $slots, 'limit' => $day['limit'], 'booked' => $booked, 'closed' => !$day['intervals']]]);
+        }
+        return response()->json(['data' => $slots]);
     }
 
     public function store(Request $request, Bookings $bookings): mixed
@@ -44,7 +52,7 @@ final class BookingController extends DomainController
 
     public function custom(Request $request, Bookings $bookings): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['patient_id' => 'required|uuid', 'start_at' => 'required|date', 'duration_minutes' => 'required|integer|min:1|max:480', 'custom_label' => 'required|string|max:180', 'custom_notes' => 'nullable|string|max:1000',
             'payment_requirement' => 'required|in:REQUIRED,INCLUDED,NOT_REQUIRED', 'custom_fee_amount' => 'required_if:payment_requirement,REQUIRED|nullable|integer|min:1|max:1000000000', 'billing_account_id' => 'required_if:payment_requirement,INCLUDED|nullable|uuid',
             'owner_authorization_note' => 'required|string|max:500', 'profiling_mode' => 'required|in:PAPER,NONE', 'external_agreed_at' => 'nullable|date|before_or_equal:now']);
@@ -54,7 +62,7 @@ final class BookingController extends DomainController
 
     public function lifecycle(Request $request, string $appointment, string $action, Operations $operations): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['expected_version' => 'required|integer|min:1', 'reason' => 'nullable|string|max:500', 'partial_release' => 'nullable|integer|min:0|max:1000000000', 'identity_checked' => 'required_if:action,check-in|boolean']);
         if ($action === 'check-in') {
             Access::check($request->boolean('identity_checked'), 'Pemeriksaan identitas wajib.');

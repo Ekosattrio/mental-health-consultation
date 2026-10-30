@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import { createPatientId } from '../../utils/identifiers';
+import {router,useForm} from '@inertiajs/react';
+import GoogleSignIn from '../GoogleSignIn';
 import {
   HeartHandshake,
   Stethoscope,
@@ -18,7 +20,8 @@ export const LoginModal: React.FC = () => {
     setIsLoginModalOpen,
     loginWithEmail,
     users,
-    showToast
+    showToast,
+    server
   } = useApp();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -38,6 +41,7 @@ export const LoginModal: React.FC = () => {
   if (!isLoginModalOpen) return null;
 
   const handleGoogleSso = () => {
+    if(server){router.visit('/auth/google/redirect');return;}
     setIsLoading(true);
     setTimeout(() => {
       showToast('Google SSO Terhubung', 'Autentikasi dengan akun Google berhasil diverifikasi.', 'success');
@@ -61,7 +65,7 @@ export const LoginModal: React.FC = () => {
     >
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 relative flex flex-col max-h-[90vh] overflow-hidden cursor-default animate-in zoom-in-95 duration-150 my-auto"
+        className="viewport-dialog bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 relative flex flex-col max-h-[90vh] overflow-hidden cursor-default animate-in zoom-in-95 duration-150 my-auto"
       >
         {/* Header Modal */}
         <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-slate-100 shrink-0">
@@ -92,8 +96,8 @@ export const LoginModal: React.FC = () => {
 
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto px-6 sm:px-8 py-5 custom-scrollbar">
-          {/* Quick SSO Button */}
-          <button
+          {/* Autentikasi asli menggunakan desain modal Eko. */}
+          {server ? <ServerLoginForm/> : <><button
             type="button"
             onClick={handleGoogleSso}
             disabled={isLoading}
@@ -152,10 +156,21 @@ export const LoginModal: React.FC = () => {
                 <span className="truncate">Pasien Baru (Form Wajib)</span>
               </button>
             </div>
-          </div>
+          </div></>}
         </div>
       </div>
     </div>,
     document.body
   );
 };
+
+function ServerLoginForm(){
+  const form=useForm({email:'',password:''});
+  return <div className="space-y-4"><GoogleSignIn/><form onSubmit={event=>{event.preventDefault();form.post('/login'+location.search,{onFinish:()=>form.reset('password')});}} className="space-y-3">
+    <label className="block text-xs font-bold text-slate-700">Email atau username<input name="email" autoComplete="username" required value={form.data.email} onChange={e=>form.setData('email',e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"/></label>
+    <label className="block text-xs font-bold text-slate-700">Kata sandi<input name="password" type="password" autoComplete="current-password" required value={form.data.password} onChange={e=>form.setData('password',e.target.value)} className="mt-1.5 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500"/></label>
+    {Object.values(form.errors).map((error,index)=><p key={index} role="alert" className="text-xs text-rose-700">{error}</p>)}
+    <button disabled={form.processing} className="w-full rounded-xl bg-teal-700 py-3 text-sm font-bold text-white disabled:opacity-50">{form.processing?'Memproses…':'Masuk'}</button>
+    <div className="flex justify-between gap-3 text-xs font-semibold text-teal-700"><button type="button" onClick={()=>router.visit('/register')}>Daftar pasien</button><button type="button" onClick={()=>router.visit('/forgot-password')}>Lupa kata sandi?</button></div>
+  </form></div>;
+}

@@ -9,6 +9,7 @@ import { getTreatmentPlanBalance, getSessionRate, isPlanInitialPaymentVerified, 
 import { getMinimumBookingDate } from '../../../utils/bookingPolicy';
 import { PaymentProgress } from '../../common/PaymentProgress';
 import { RescheduleOptions } from '../../../utils/reschedulePolicy';
+import {useServerAvailability} from '../../../integration/useServerAvailability';
 
 interface TreatmentPlansTabProps {
   appointments: Appointment[];
@@ -54,6 +55,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [discontinuingPlan, setDiscontinuingPlan] = useState<TreatmentPlanView | null>(null);
   const [discontinueReason, setDiscontinueReason] = useState('');
+  const serverNext=useServerAvailability(nextDate,selectedPlan?Math.max((Number(selectedPlan.lastAppointment.endTime.slice(0,2))*60+Number(selectedPlan.lastAppointment.endTime.slice(3)))-(Number(selectedPlan.lastAppointment.startTime.slice(0,2))*60+Number(selectedPlan.lastAppointment.startTime.slice(3))),30):60,selectedPlan?.lastAppointment.psychologistId??'',undefined,!!selectedPlan);
 
   const plans = useMemo<TreatmentPlanView[]>(() => {
     const grouped = new Map<string, Appointment[]>();
@@ -102,6 +104,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
 
   const nextSessionAvailability = useMemo(() => {
     if (!selectedPlan || !nextDate) return { slots: [], reason: '' };
+    if(serverNext)return serverNext;
     const toMinutes = (time: string) => {
       const [hour, minute] = time.split(':').map(Number);
       return hour * 60 + minute;
@@ -117,7 +120,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
       selectedPlan.lastAppointment.psychologistId,
       duration
     );
-  }, [appointments, nextDate, selectedPlan]);
+  }, [appointments, nextDate, selectedPlan,serverNext]);
 
   const availableNextSessionSlots = useMemo(
     () => nextSessionAvailability.slots.filter(slot => slot.isAvailable),
@@ -273,7 +276,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                         )}
                         <button
                           type="button"
-                          disabled={plan.status !== 'ACTIVE'}
+                          disabled={plan.status !== 'ACTIVE'||operatorRole!=='PSYCHOLOGIST'}
                           onClick={() => { setDiscontinuingPlan(plan); setDiscontinueReason(''); }}
                           className="w-10 h-10 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center cursor-pointer"
                           aria-label={`Hentikan paket ${plan.patientName}`}
@@ -282,7 +285,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                         </button>
                         <button
                           type="button"
-                          disabled={!canScheduleNext}
+                          disabled={!canScheduleNext||operatorRole!=='PSYCHOLOGIST'}
                           onClick={() => openScheduleModal(plan)}
                           className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center cursor-pointer"
                           aria-label={`Jadwalkan sesi berikutnya untuk ${plan.patientName}`}
@@ -432,7 +435,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                             <Tooltip content="Hentikan paket berjalan" position="left">
                               <button
                                 type="button"
-                                disabled={plan.status !== 'ACTIVE'}
+                                disabled={plan.status !== 'ACTIVE'||operatorRole!=='PSYCHOLOGIST'}
                                 onClick={() => { setDiscontinuingPlan(plan); setDiscontinueReason(''); }}
                                 className="w-8.5 h-8.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center cursor-pointer"
                                 aria-label="Hentikan paket berjalan"
@@ -443,7 +446,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
                             <Tooltip content={scheduleTooltip} position="left">
                               <button
                                 type="button"
-                                disabled={!canScheduleNext}
+                                disabled={!canScheduleNext||operatorRole!=='PSYCHOLOGIST'}
                                 onClick={() => openScheduleModal(plan)}
                                 className="w-8.5 h-8.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center cursor-pointer transition-all hover:scale-105 active:scale-95"
                                 aria-label="Jadwalkan sesi berikutnya"
@@ -481,7 +484,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
 
       {selectedPlan && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/45 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="viewport-dialog w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-slate-900">Jadwalkan Sesi Berikutnya</h3>
@@ -559,7 +562,7 @@ export const TreatmentPlansTab: React.FC<TreatmentPlansTabProps> = ({
 
       {discontinuingPlan && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="viewport-dialog w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-900">Hentikan Paket Berjalan</h3>

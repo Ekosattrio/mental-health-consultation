@@ -19,7 +19,8 @@ export const calculateInitialDp = (totalAmount: number): number => {
 };
 
 export const getRecordedCashIn = (appointment: Appointment | CashInReportRow): number => {
-  if ('cashInAmount' in appointment) return Math.max(appointment.cashInAmount, 0);
+  if ('cashInAmount' in appointment) return appointment.cashInAmount;
+  if(appointment.serverInfo)return appointment.serverInfo.cashReceived;
   if (appointment.paymentAgreement && appointment.id !== appointment.paymentAgreement.accountAppointmentId) return 0;
   if (appointment.initialPaymentRecord) {
     if (!appointment.initialPaymentRecord.verifiedAt) return 0;
@@ -70,6 +71,7 @@ export const resolvePaymentAccount = (appointment: Appointment, appointments: Ap
 };
 
 export const getTreatmentPlanBalance = (billingAppointment: Appointment, appointments: Appointment[] = [billingAppointment]) => {
+  if(billingAppointment.serverInfo)return {totalAmount:billingAppointment.serverInfo.totalDue,paidAmount:billingAppointment.serverInfo.allocated,remainingAmount:billingAppointment.serverInfo.remaining};
   const totalAmount = Math.max(billingAppointment.totalAmount || 0, 0);
   const agreement = billingAppointment.paymentAgreement;
   const cash = getRecordedCashIn(agreement ? resolvePaymentAccount(billingAppointment, appointments) : billingAppointment);
@@ -101,6 +103,10 @@ export const getSessionRate = (appointment: Appointment): number =>
     : appointment.totalAmount;
 
 export const getPlanBillingBalance = (appointments: Appointment[]) => {
+  if(appointments.some(a=>a.serverInfo)){
+    const bills=new Map(appointments.filter(a=>a.serverInfo?.billingId).map(a=>[a.serverInfo!.billingId,a.serverInfo!]));
+    return [...bills.values()].reduce((sum,b)=>({totalAmount:sum.totalAmount+b.totalDue,paidAmount:sum.paidAmount+b.allocated,remainingAmount:sum.remainingAmount+b.remaining}),{totalAmount:0,paidAmount:0,remainingAmount:0});
+  }
   const billing = new Map(appointments.map(item => {
     const account = resolveBillingAppointment(item, appointments);
     return [account.id, account];
@@ -114,6 +120,20 @@ export const getPlanBillingBalance = (appointments: Appointment[]) => {
 };
 
 export const getPaymentSummary = (appointment: Appointment, appointments: Appointment[], now = new Date()) => {
+  if(appointment.serverInfo){
+    const related=appointments.filter(a=>appointment.treatmentPlanId?a.treatmentPlanId===appointment.treatmentPlanId:a.id===appointment.id);
+    const balance=getPlanBillingBalance(related.length?related:[appointment]);
+    const payments=new Map(related.flatMap(a=>a.serverInfo?.payments??[]).map(p=>[p.id,p]));
+    const cashReceived=[...payments.values()].reduce((n,p)=>n+(p.reversal?-p.amount:p.amount),0);
+    const finalNumber=appointment.continuousSessionTotal??1;
+    const final=related.find(a=>(a.continuousSessionNumber??1)===finalNumber);
+    const agreedAmount=appointment.packageType==='PSYCHOTHERAPY'?appointment.totalAmount*finalNumber:balance.totalAmount;
+    const stopped=related.some(a=>a.treatmentPlanStatus==='DISCONTINUED'||a.status==='CANCELLED');
+    const remainingByFinal=Math.max(0,(stopped?balance.totalAmount:agreedAmount)-cashReceived);
+    const closurePending=related.filter(a=>a.status==='COMPLETED').length>=finalNumber&&balance.remainingAmount>0;
+    const dueDate=final?.date;const due=remainingByFinal>0&&!!dueDate&&getPracticeDate(now)>=dueDate;
+    return {...balance,cashReceived,agreedAmount,remainingByFinal,dueDate,due,closurePending,finalNumber,stopped,prepaidAmount:Math.max(0,Math.min(cashReceived,agreedAmount)-balance.totalAmount),overpaidAmount:Math.max(0,cashReceived-agreedAmount),label:stopped?'Layanan dihentikan':closurePending?'Pertemuan selesai, menunggu pelunasan':due?'Wajib pelunasan sesi terakhir':remainingByFinal===0?'Lunas seluruh layanan':'Pembayaran bertahap'};
+  }
   const related = appointments.filter(item => appointment.treatmentPlanId
     ? item.treatmentPlanId === appointment.treatmentPlanId && item.patientId === appointment.patientId
     : item.id === appointment.id);
@@ -142,6 +162,7 @@ export const getPaymentSummary = (appointment: Appointment, appointments: Appoin
 };
 
 export const isPlanInitialPaymentVerified = (appointment: Appointment, appointments: Appointment[]): boolean => {
+  if(appointment.serverInfo)return appointment.initialRequirementMet===true;
   const first = appointment.treatmentPlanId ? appointments.find(item =>
     item.treatmentPlanId === appointment.treatmentPlanId && (item.continuousSessionNumber || 1) === 1) : appointment;
   return Boolean(first && (first.paymentAgreement
@@ -209,7 +230,12 @@ export const getCashInDate = (timestamp: string): string => {
 export const formatCashInDate = (row: Appointment): string =>
   `${row.date}${'cashInDateEstimated' in row && row.cashInDateEstimated ? ' (estimasi)' : ''}`;
 
-export const buildCashInReportRows = (appointments: Appointment[]): CashInReportRow[] => appointments.flatMap(appointment => {
+export const buildCashInReportRows = (appointments: Appointment[]): CashInReportRow[] => {
+ const seen=new Set<string>();
+ return appointments.flatMap(appointment => {
+  if(appointment.serverInfo){
+    return appointment.serverInfo.payments.filter(p=>{if(seen.has(p.id))return false;seen.add(p.id);return true;}).map(p=>({...appointment,id:p.id,sourceAppointmentId:appointment.id,date:getCashInDate(p.at),cashInAmount:p.reversal?-p.amount:p.amount,cashInKind:(p.amount===100000?'DP':'INSTALLMENT') as CashInReportRow['cashInKind'],cashInOccurredAt:p.at,cashInDateEstimated:false,packageName:p.reversal?`${appointment.packageName} (koreksi penerimaan)`:appointment.packageName}));
+  }
   if (((appointment.continuousSessionNumber || 1) > 1 && appointment.billingMode !== 'PER_SESSION') || getRecordedCashIn(appointment) <= 0) return [];
   const rows: CashInReportRow[] = [];
   const append = (id: string, amount: number, kind: CashInReportRow['cashInKind'], timestamp?: string, estimated = false) => {
@@ -235,3 +261,4 @@ export const buildCashInReportRows = (appointments: Appointment[]): CashInReport
   finalRecords.forEach(record => append(record.id, record.amount, 'INSTALLMENT', record.receivedAt || record.recordedAt, !record.receivedAt));
   return rows;
 }).sort((a, b) => b.cashInOccurredAt.localeCompare(a.cashInOccurredAt));
+};

@@ -1,5 +1,7 @@
 # Mulai membaca proyek JiwaSehat
 
+Instruksi terbaru: [penegasan Eko30Oktober](KEPUTUSAN_AKTIF_2026-10-30.md) untuk role, libur, carousel dan kontak, melengkapi [aturan29Oktober](KEPUTUSAN_AKTIF_2026-10-29.md).
+
 Status26 Oktober2026: mulai dari [hasil implementasi untuk Eko](IMPLEMENTASI_WEB_2026-10-26.md), [akun awal](AKUN_AWAL_DAN_CARA_MASUK.md), [kontrak route aktual](WEB_CONTRACT.md) dan [handoff](SESSION_HANDOFF.md). Controller domain dan workspace operasional sudah dibuat. Bukti tahap migration/model24 Oktober merupakan catatan historis tahap sebelumnya.
 
 Untuk Eko dan pengembang backend, mulai dari [panduan menyeluruh Eko](EKO_PROJECT_GUIDE.md), lalu [peta dokumentasi](DOCS_ARCHITECTURE.md).

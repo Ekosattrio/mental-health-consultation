@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import {
   CalendarCheck,
   PanelLeftClose,
@@ -17,24 +17,17 @@ import { ReservationsTab } from './tabs/ReservationsTab';
 import { ReviewsTab } from './tabs/ReviewsTab';
 
 import { adminNavigation, type AdminTabId } from './navigation';
-import { TreatmentPlansTab } from '../psychologist/tabs/TreatmentPlansTab';
-import { HistoryTab } from '../psychologist/tabs/HistoryTab';
-import { ScheduleTab } from '../psychologist/tabs/ScheduleTab';
-import { PackagesTab } from '../psychologist/tabs/PackagesTab';
 import { RescheduleRequestsTab } from './tabs/RescheduleRequestsTab';
-import { AdministrativeCmsTab } from './tabs/AdministrativeCmsTab';
+import {DashboardPanel} from '../common/DataFeedback';
 
 export const AdminDashboard: React.FC = () => {
   const {
-    schedules, packages, savePackage, deletePackage, togglePackageStatus,
-    addScheduleSlot, toggleSlotAvailability, deleteScheduleSlot,
-    scheduleNextContinuousSession, updateAppointmentStatus, rescheduleAppointment,
     users,
     psychologists,
     appointments,
     reviews,
     analytics,
-    activeAdminTab,
+    activeAdminTab: requestedAdminTab,
     setActiveAdminTab,
     approveReview,
     rejectReview,
@@ -43,12 +36,12 @@ export const AdminDashboard: React.FC = () => {
   } = useApp();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const activeAdminTab = adminNavigation.some(tab => tab.id === requestedAdminTab) ? requestedAdminTab : 'reservations';
 
   const pendingBookings = appointments.filter(apt => apt.status === 'PENDING').length;
   const pendingReviews = analytics.pendingReviews;
 
   const adminTabs = adminNavigation.map(tab => ({ ...tab, badge: tab.id === 'reservations' ? pendingBookings : tab.id === 'reviews' ? pendingReviews : undefined }));
-  const psychologistId = users.find(user => user.role === 'PSYCHOLOGIST')?.id || '';
 
 
   const handleNavigateTab = (tabId: AdminTabId) => {
@@ -123,12 +116,8 @@ export const AdminDashboard: React.FC = () => {
 
         {/* MAIN TAB CONTENT */}
         <main className="flex-1 min-w-0 w-full max-w-full space-y-6">
+          <DashboardPanel section={activeAdminTab}>
           {activeAdminTab === 'requests' && <RescheduleRequestsTab />}
-          {activeAdminTab === 'cms' && <AdministrativeCmsTab />}
-          {activeAdminTab === 'packages' && <PackagesTab packages={packages} savePackage={savePackage} deletePackage={deletePackage} togglePackageStatus={togglePackageStatus} />}
-          {activeAdminTab === 'schedule' && <ScheduleTab mySchedules={schedules} psychologistId={psychologistId} appointments={appointments} packages={packages} addScheduleSlot={addScheduleSlot} toggleSlotAvailability={toggleSlotAvailability} deleteScheduleSlot={deleteScheduleSlot} />}
-          {activeAdminTab === 'treatmentPlans' && <TreatmentPlansTab operatorRole="ADMIN" appointments={appointments} hideFinancialDetails onScheduleNextSession={scheduleNextContinuousSession} onDiscontinuePlan={(id, reason) => updateAppointmentStatus(id, 'CANCELLED', reason)} onReschedule={rescheduleAppointment} />}
-          {activeAdminTab === 'operations' && <HistoryTab operatorRole="ADMIN" operatorLabel="Admin" myAppointments={appointments} onCompleteAppointment={id => updateAppointmentStatus(id, 'COMPLETED')} onMarkNoShow={(id, reason) => updateAppointmentStatus(id, 'NO_SHOW', reason)} onCancelAppointment={(id, reason) => updateAppointmentStatus(id, 'CANCELLED', reason)} onScheduleNextSession={scheduleNextContinuousSession} onReschedule={rescheduleAppointment} />}
 
           {activeAdminTab === 'reservations' && (
             <ReservationsTab
@@ -152,6 +141,7 @@ export const AdminDashboard: React.FC = () => {
               rejectReview={rejectReview}
             />
           )}
+          </DashboardPanel>
         </main>
       </div>
     </div>

@@ -1,6 +1,11 @@
-# Konteks proyek
-Praktik satu owner/psikolog, dibantu Admin; Guest melihat profil tanpa harga, Pasien akun/penanggung jawab, profil pasien dapat terpisah dari akun. Asesmen tes, konseling dan psikoterapi adalah kategori berbeda.
+# Konteks project - 29 Oktober 2026
 
-Satu Laravel13 + Inertia3 + React19/TypeScript + MySQL8, satu domain/VPS. Kalender klinik dan Admin sama; Baileys sebagai proses Node pendamping pada VPS untuk antrean WA, bukan sumber transaksi.
+JiwaSehat adalah website profil praktik dan booking layanan Konseling, Asesmen, serta Psikoterapi. Tampilan utama menggunakan FE Eko pada resources/js/components; backend Laravel/Inertia dari fondasi Desman digunakan untuk data dan transaksi. Workspace alternatif tidak menjadi dashboard utama.
 
-Otoritas [keputusan aktif](KEPUTUSAN_AKTIF_2026-10-24.md). DB/model telah disiapkan pada tahap24 Oktober; domain controller, policy, scheduler/outbox worker dan koneksi tampilan belum selesai. Bukti kemajuan dan batasnya ada pada [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md).
+Stack tersedia: Laravel13, MySQL8, Inertia3, React19, TypeScript, Vite/Tailwind. Browser memakai session/CSRF Laravel pada origin yang sama. Tidak memindahkan data mock/LocalStorage ke database praktik.
+
+Keputusan Eko terbaru: DP Rp100.000 sekali di awal dan mengurangi biaya; H+1 booking/reschedule/lanjutan seluruh role; pembayaran dicatat/diverifikasi Admin; lifecycle/no-show/pembatalan dan sesi berikutnya oleh Psikolog. Pembatalan wajib lunas. Psikoterapi empat sesi, kemudian booking baru tanpa extend plan lama. Pembayaran bertahap/prabayar memakai ledger dan alokasi server.
+
+Mulai dari [keputusan aktif](KEPUTUSAN_AKTIF_2026-10-29.md), [pemetaan integrasi/alur](INTEGRASI_FE_EKO_2026-10-29.md), [handoff dan hasil tes](SESSION_HANDOFF.md), serta [TODO/UAT](TODO.md). Dokumen Desman24/26Oktober yang berbeda merupakan histori pada bagian tersebut.
+
+AI tidak menjalankan Git, dev server, atau build. Checker/tes terfokus telah diizinkan. Sebelum dipakai publik masih perlu UAT browser/mobile dan konfigurasi identitas, rekening, integrasi Google/WhatsApp, SMTP, deployment serta backup nyata.

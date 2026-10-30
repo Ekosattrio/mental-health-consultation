@@ -218,19 +218,19 @@ test('service picker shows full package notes before selection or opening detail
   assert.match(markup, /Catatan layanan/);
   assert.ok(markup.includes(pkg.notes!));
   assert.match(markup, /whitespace-pre-line break-words/);
-  assert.match(markup, /grid-flow-col/);
-  assert.match(markup, /overflow-x-auto/);
-  assert.match(markup, /Geser ke layanan berikutnya/);
+  assert.match(markup, /aria-roledescription="carousel"/);
+  assert.match(markup, /Menampilkan 1–1 dari 1/);
   assert.doesNotMatch(markup, /<dialog/);
 });
 
 test('service picker keeps pagination and the selected summary for a large catalog', () => {
   const packages = Array.from({ length: 15 }, (_, index) => catalogPackage(String(index).padStart(2, '0')));
   const markup = renderToStaticMarkup(createElement(ServicePicker, { packages, selectedId: packages[14].id, onSelect: () => {} }));
-  assert.equal((markup.match(/<article/g) || []).length, 6);
-  assert.match(markup, /1-6 dari 15 layanan/);
-  assert.match(markup, /1 \/ 3/);
-  assert.match(markup, /Halaman layanan berikutnya/);
+  assert.equal((markup.match(/<article/g) || []).length, 15);
+  assert.match(markup, /Menampilkan 1–1 dari 15/);
+  assert.match(markup, /Halaman 1 \/ 15/);
+  assert.match(markup, /Pilihan layanan pasien berikutnya/);
+  assert.equal((markup.match(/role="group"[^>]*aria-hidden="true"/g)||[]).length,14);
   assert.ok(markup.includes(packages[14].name));
 });
 
@@ -244,7 +244,7 @@ test('service picker preserves per-session discounts, locked selection, and opti
   assert.match(markup, /Rencana awal 4 sesi/);
   assert.match(markup, /type="radio"[^>]*disabled=""/);
   assert.match(markup, /Layanan dipilih/);
-  assert.match(markup, /Tidak ada catatan tambahan\./);
+  assert.doesNotMatch(markup, /Tidak ada catatan tambahan\./);
 });
 
 test('parallel mutations preserve appointments from different dates', async () => {

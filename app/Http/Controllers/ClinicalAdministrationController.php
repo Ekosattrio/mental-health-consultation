@@ -34,6 +34,7 @@ final class ClinicalAdministrationController extends DomainController
     {
         $input = $request->validate(['full_name' => 'required|string|max:150', 'phone' => 'nullable|string|max:25', 'birth_date' => 'nullable|date|before_or_equal:'.CarbonImmutable::now('Asia/Jakarta')->toDateString().'', 'birth_place' => 'nullable|string|max:100', 'gender' => 'nullable|string|max:30', 'address' => 'nullable|string|max:1000', 'city' => 'nullable|string|max:100', 'occupation' => 'nullable|string|max:100', 'expected_version' => 'required_with:patient|integer|min:1']);
 
+        $input = [...$input, ...$request->validate(['emergency_contact' => 'sometimes|nullable|array:name,phone,relationship', 'emergency_contact.name' => 'nullable|string|max:150', 'emergency_contact.phone' => 'nullable|string|max:25', 'emergency_contact.relationship' => 'nullable|string|max:100'])];
         return $this->execute($request, 'patient.save.'.($patient ?? 'new'), $input, function () use ($request, $patient, $input) {
             $profile = $patient ? PatientProfile::whereKey($patient)->lockForUpdate()->firstOrFail() : null;
             if ($profile) {
@@ -71,7 +72,20 @@ final class ClinicalAdministrationController extends DomainController
             $rules['answers.'.$question['key']] = [($question['required'] ?? false) ? 'required' : 'nullable', ($question['type'] ?? 'text') === 'boolean' ? 'boolean' : 'string', ...(($question['type'] ?? 'text') === 'boolean' ? [] : ['max:5000'])];
         }
         $request->validate($rules);
+        $request->validate(['answers.eko_profile' => 'sometimes|string|json|max:10000']);
+        if (isset($input['answers']['eko_profile'])) {
+            $details = json_decode($input['answers']['eko_profile'], true);
+            Access::check(is_array($details), 'Rincian pre-test tidak valid.');
+            validator($details, [
+                'patientId' => 'sometimes|in:'.$input['patient_id'], 'birthDate' => 'sometimes|nullable|date', 'gender' => 'sometimes|string|max:30', 'occupation' => 'sometimes|string|max:100',
+                'emergencyContact' => 'sometimes|array:name,relationship,phone', 'emergencyContact.name' => 'sometimes|string|max:150', 'emergencyContact.relationship' => 'sometimes|string|max:100', 'emergencyContact.phone' => 'sometimes|string|max:25',
+                'primaryConcerns' => 'sometimes|array|max:25', 'primaryConcerns.*' => 'string|max:200', 'concernDescription' => 'sometimes|string|max:5000',
+                'currentStressLevel' => 'sometimes|integer|min:0|max:10', 'sleepQuality' => 'sometimes|in:Baik,Cukup,Buruk,Insomnia Akut', 'goals' => 'sometimes|nullable|string|max:5000',
+                'previousTherapy' => 'sometimes|boolean', 'previousDiagnosis' => 'sometimes|nullable|string|max:1000', 'currentMedications' => 'sometimes|nullable|string|max:1000',
+            ])->validate();
+        }
         $allowed = array_column($template->questions, 'key');
+        $allowed[] = 'eko_profile';
         Access::check(! array_diff(array_keys($input['answers']), $allowed), 'Jawaban mempunyai field di luar template.');
 
         return $this->execute($request, 'pretest.save', $input, function () use ($request, $input) {
@@ -150,6 +164,7 @@ final class ClinicalAdministrationController extends DomainController
                 $bill->update(['service_terminal_at' => now(), 'download_until' => now()->addDays(7)]);
             } elseif ($action === 'reopen') {
                 Access::check($record->status->value === 'CLOSED', 'Case belum ditutup.');
+                Access::check(!Appointment::where('assessment_case_id', $case)->where('status', 'CANCELLED')->exists(), 'Layanan yang dibatalkan tidak dapat dihidupkan kembali; buat booking baru.');
                 $bill = BillingAccount::where('assessment_case_id', $case)->lockForUpdate()->firstOrFail();
                 Access::check($bill->collection_status->value === 'OPEN', 'Case yang dibatalkan/dilepas tidak dapat dihidupkan; buat layanan baru.');
                 $record->update(['status' => 'IN_PROGRESS', 'closed_at' => null, 'closure_reason' => null]);
@@ -165,7 +180,7 @@ final class ClinicalAdministrationController extends DomainController
 
     public function report(Request $request, string $case): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['status' => 'required|in:REQUESTED,READY,DELIVERED', 'delivered_at' => 'nullable|date|before_or_equal:now', 'administrative_note' => 'nullable|string|max:500']);
 
         return $this->execute($request, 'assessment.report.'.$case, $input, function () use ($request, $case, $input) {
@@ -203,7 +218,7 @@ return ['id' => $record->id];
 
     public function tutorialContent(Request $request): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['content_key' => 'required|regex:/^[A-Za-z0-9_-]{1,80}$/', 'role' => 'required|in:GUEST,PATIENT,ADMIN,PSYCHOLOGIST', 'title' => 'required|string|max:180', 'steps' => 'required|array|min:1|max:100', 'steps.*' => 'required|string|max:3000', 'video_url' => 'nullable|url:https|max:500', 'expected_latest_id' => 'present|nullable|uuid', 'is_active' => 'required|boolean', 'reason' => 'required|string|min:3|max:500']);
         if ($input['role'] === 'PSYCHOLOGIST' || str_starts_with(strtolower($input['content_key']), 'clinical')) {
             Access::requireOwner($request->user());
@@ -257,6 +272,10 @@ return ['id' => $consent];
                 app(Operations::class)->settlePlan($plan);
                 Access::check($record->refresh()->status->value === 'COMPLETED', 'Empat sesi dan kewajiban administratif harus selesai dahulu.');
             } elseif ($action === 'discontinue') {
+                foreach (Appointment::where('treatment_plan_id', $plan)->get() as $session) {
+                    $bill = app(\App\Domain\Billing::class)->account($session);
+                    Access::check(!$bill || app(\App\Domain\Billing::class)->balance($bill)['remaining_amount'] === 0, 'Lunasi seluruh tagihan melalui Admin sebelum menghentikan layanan.');
+                }
                 Access::check(! Appointment::where('treatment_plan_id', $plan)->where('status', 'IN_CONSULTATION')->exists(), 'Selesaikan layanan yang sedang berlangsung dahulu.');
                 $pending = Appointment::where('treatment_plan_id', $plan)->whereNotIn('status', ['COMPLETED', 'CANCELLED'])->orderBy('session_number')->first();
                 if ($pending) {

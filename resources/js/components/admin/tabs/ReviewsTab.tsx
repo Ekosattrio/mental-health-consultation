@@ -523,7 +523,7 @@ export const ReviewsTab: React.FC<ReviewsTabProps> = ({
       {/* MODAL BACA ULASAN LENGKAP & MODERASI CEPAT */}
       {selectedReviewForModal && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleUp my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-scaleUp my-auto">
             {/* Header Modal Modern Simple Light */}
             <div className="p-5 sm:p-6 bg-white border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">

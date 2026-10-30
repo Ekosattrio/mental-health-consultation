@@ -36,6 +36,7 @@ class PackageVersion extends ImmutableDomainModel
             'includes_result_report' => 'boolean',
             'requires_evaluation' => 'boolean',
             'benefits' => 'array',
+            'presentation' => 'array',
             'is_bookable' => 'boolean',
             'effective_at' => 'immutable_datetime',
         ];

@@ -31,27 +31,24 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string>(profile?.avatarUrl || currentUser?.avatar || '');
-  const [profileTitle, setProfileTitle] = useState(profile?.title || 'Psikolog Klinis Dewasa & Hubungan Interpersonal');
-  const [profileSipNumber, setProfileSipNumber] = useState(profile?.sipNumber || 'SIP.503/042-DPMPTSP/2022');
-  const [profileStrNumber, setProfileStrNumber] = useState(profile?.strNumber || 'STR-PSI-2021-09842');
-  const [profileSipExpiry, setProfileSipExpiry] = useState(profile?.sipExpiry || '2027-06-30');
-  const [profileStrExpiry, setProfileStrExpiry] = useState(profile?.strExpiry || '2028-12-31');
-  const [profileExperienceYears, setProfileExperienceYears] = useState(profile?.experienceYears || 8);
-  const [profileClinicalHours, setProfileClinicalHours] = useState(profile?.clinicalHours || 2450);
+  const [profileTitle, setProfileTitle] = useState(profile?.title ?? '');
+  const [profileSipNumber, setProfileSipNumber] = useState(profile?.sipNumber ?? '');
+  const [profileStrNumber, setProfileStrNumber] = useState(profile?.strNumber ?? '');
+  const [profileSipExpiry, setProfileSipExpiry] = useState(profile?.sipExpiry ?? '');
+  const [profileStrExpiry, setProfileStrExpiry] = useState(profile?.strExpiry ?? '');
+  const [profileExperienceYears, setProfileExperienceYears] = useState(profile?.experienceYears ?? 0);
+  const [profileClinicalHours, setProfileClinicalHours] = useState(profile?.clinicalHours ?? 0);
   const [profileEducation, setProfileEducation] = useState(
-    profile?.education?.join('\n') ||
-    'S1 Fakultas Psikologi Universitas Indonesia (Cum Laude)\nS2 Magister Psikologi Profesi Klinis Dewasa UI'
+    profile?.education?.join('\n') ?? ''
   );
   const [profileBio, setProfileBio] = useState(profile?.bio || '');
   const [profileSpecialties, setProfileSpecialties] = useState(profile?.specialties?.join(', ') || '');
   const [profileTherapyApproaches, setProfileTherapyApproaches] = useState(
-    profile?.therapyApproaches?.join(', ') ||
-    'Cognitive Behavioral Therapy (CBT), Acceptance & Commitment (ACT), Mindfulness-Based Stress Reduction'
+    profile?.therapyApproaches?.join(', ') ?? ''
   );
-  const [profileLanguages, setProfileLanguages] = useState(profile?.languages?.join(', ') || 'Bahasa Indonesia, English');
+  const [profileLanguages, setProfileLanguages] = useState(profile?.languages?.join(', ') ?? '');
   const [profileClinicAddress, setProfileClinicAddress] = useState(
-    profile?.clinicAddress ||
-    'JiwaSehat Clinic Center, Lt. 3, Jl. Senopati No. 42, Kebayoran Baru, Jakarta Selatan'
+    profile?.clinicAddress ?? ''
   );
   const [profilePracticePolicy, setProfilePracticePolicy] = useState(
     profile?.practicePolicy ||
@@ -70,11 +67,11 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       setProfileTitle(profile.title);
       setProfileSipNumber(profile.sipNumber);
       setProfileStrNumber(profile.strNumber);
-      setProfileSipExpiry(profile.sipExpiry || '2027-06-30');
-      setProfileStrExpiry(profile.strExpiry || '2028-12-31');
+      setProfileSipExpiry(profile.sipExpiry ?? '');
+      setProfileStrExpiry(profile.strExpiry ?? '');
       setProfileExperienceYears(profile.experienceYears);
-      setProfileClinicalHours(profile.clinicalHours || 2450);
-      setProfileEducation(profile.education?.join('\n') || 'S1 Fakultas Psikologi Universitas Indonesia\nS2 Magister Psikologi Profesi Klinis Dewasa UI');
+      setProfileClinicalHours(profile.clinicalHours ?? 0);
+      setProfileEducation(profile.education?.join('\n') ?? '');
       setProfileBio(profile.bio);
       setProfileSpecialties(profile.specialties.join(', '));
       setProfileTherapyApproaches(profile.therapyApproaches.join(', '));
@@ -82,7 +79,7 @@ export const ProfileTab: React.FC<ProfileTabProps> = ({
       setProfileClinicAddress(profile.clinicAddress);
       setProfilePracticePolicy(profile.practicePolicy || '');
     }
-  }, [profile, currentUser]);
+  }, [JSON.stringify(profile), JSON.stringify(currentUser)]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

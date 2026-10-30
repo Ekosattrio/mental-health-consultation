@@ -1,9 +1,13 @@
 # JiwaSehat — Laravel, Inertia dan React
 
-Satu aplikasi Laravel13 + Inertia3 + React19/TypeScript dengan MySQL8. Session, route web dan transaksi dikelola Laravel; React menjadi tampilan. Implementasi operasional memakai data server.
+Satu aplikasi Laravel13 + Inertia3 + React19/TypeScript dengan MySQL8. Seluruh halaman utama memakai komponen FE Eko dengan data dan aksi Laravel. DP awal Rp100.000, booking/reschedule minimal H+1. Session, route web dan transaksi dikelola Laravel.
+
+Mulai dari [keputusan aktif Eko 29 Oktober](docs/KEPUTUSAN_AKTIF_2026-10-29.md) dan [integrasi FE Eko](docs/INTEGRASI_FE_EKO_2026-10-29.md). Ketentuan lama Desman tentang DP50%, same-day, dan lifecycle Admin sudah diganti.
 
 ## Mulai membaca
 
+- [Optimasi UI, query dan pemuatan30Oktober](docs/PERFORMANCE_2026-10-30.md).
+- [Penegasan terbaru30Oktober: role, libur, slide dan kontak](docs/KEPUTUSAN_AKTIF_2026-10-30.md).
 - [Hasil implementasi untuk Eko](docs/IMPLEMENTASI_WEB_2026-10-26.md).
 - [Akun awal dan cara masuk](docs/AKUN_AWAL_DAN_CARA_MASUK.md).
 - [Indeks dokumentasi](docs/README.md), [aturan bisnis](docs/BUSINESS_RULES.md), [fitur](docs/FEATURES.md), [database](docs/DATABASE_ARCHITECTURE.md).

@@ -72,7 +72,7 @@ final class BillingController extends DomainController
 
     public function change(Request $request, string $billing, string $action): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $rules = $action === 'discounts' ? ['amount' => 'required|integer|min:1|max:1000000000', 'target_line_id' => 'required|uuid'] : ['amount' => 'required|integer|min:1|max:1000000000', 'kind' => 'required|in:CUSTOM_CHARGE,FORMAL_REPORT', 'label' => 'required|string|max:255'];
         $input = $request->validate([...$rules, 'reason' => 'required|string|min:3|max:500', 'expected_version' => 'required|integer|min:1']);
 
@@ -92,7 +92,7 @@ return ['id' => $bill->id];
 
     public function time(Request $request, string $appointment): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['total_additional_minutes' => 'required|integer|min:0|max:480', 'expected_revision' => 'required|integer|min:0', 'expected_version' => 'required|integer|min:1', 'reason' => 'required|string|min:3|max:500']);
 
         return $this->execute($request, 'billing.overtime.'.$appointment, $input, function () use ($request, $appointment, $input) {

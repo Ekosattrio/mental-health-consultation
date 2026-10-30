@@ -8,6 +8,7 @@ import { computeDynamicSlotsForDate, loadScheduleSettings } from '../../../data/
 import { isPlanInitialPaymentVerified } from '../../../utils/payments';
 import { getMinimumBookingDate } from '../../../utils/bookingPolicy';
 import { RescheduleOptions } from '../../../utils/reschedulePolicy';
+import {useServerAvailability} from '../../../integration/useServerAvailability';
 
 interface HistoryTabProps {
   myAppointments: Appointment[];
@@ -51,6 +52,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   const [statusReason, setStatusReason] = useState('');
   useEffect(() => { setStatusReason(''); }, [pendingStatusAction]);
   const itemsPerPage = 8;
+  const serverNext=useServerAvailability(nextDate,nextSessionSource?Math.max((Number(nextSessionSource.endTime.slice(0,2))*60+Number(nextSessionSource.endTime.slice(3)))-(Number(nextSessionSource.startTime.slice(0,2))*60+Number(nextSessionSource.startTime.slice(3))),30):60,nextSessionSource?.psychologistId??'',undefined,!!nextSessionSource);
 
   // Reset page when search or filter changes
   useEffect(() => {
@@ -78,6 +80,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
   const nextSessionAvailability = useMemo(() => {
     if (!nextSessionSource || !nextDate) return { slots: [], reason: '' };
+    if(serverNext)return serverNext;
     const toMinutes = (time: string) => {
       const [hour, minute] = time.split(':').map(Number);
       return hour * 60 + minute;
@@ -93,7 +96,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
       nextSessionSource.psychologistId,
       duration
     );
-  }, [myAppointments, nextDate, nextSessionSource]);
+  }, [myAppointments, nextDate, nextSessionSource,serverNext]);
 
   const availableNextSessionSlots = useMemo(
     () => nextSessionAvailability.slots.filter(slot => slot.isAvailable),
@@ -125,6 +128,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
   };
 
   const canScheduleNextSession = (apt: Appointment) => {
+    if(operatorRole!=='PSYCHOLOGIST')return false;
     const currentNumber = apt.continuousSessionNumber || 1;
     const totalSessions = apt.continuousSessionTotal || 1;
     if (
@@ -287,7 +291,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                       </button>
                     </Tooltip>
                   )}
-                  {apt.status === 'CONFIRMED' && (
+                  {operatorRole==='PSYCHOLOGIST'&&apt.status === 'CONFIRMED' && (
                     <>
                       <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'COMPLETE' })} className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center" aria-label="Tandai sesi selesai">
                         <CheckCheck className="w-4 h-4" />
@@ -300,12 +304,13 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                       </button>
                     </>
                   )}
+                  {operatorRole==='PSYCHOLOGIST'&&apt.status==='IN_PROGRESS'&&<Tooltip content="Selesaikan sesi yang sedang berlangsung"><button type="button" onClick={()=>setPendingStatusAction({appointment:apt,type:'COMPLETE'})} className="w-9 h-9 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center" aria-label="Tandai sesi selesai"><CheckCheck className="w-4 h-4"/></button></Tooltip>}
                   {canScheduleNextSession(apt) && (
                     <button type="button" onClick={() => openNextSessionModal(apt)} className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center justify-center" aria-label="Jadwalkan sesi berikutnya">
                       <CalendarPlus className="w-4 h-4" />
                     </button>
                   )}
-                  {['PENDING', 'NO_SHOW'].includes(apt.status) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
+                  {operatorRole==='PSYCHOLOGIST'&&['PENDING', 'NO_SHOW'].includes(apt.status) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
                     <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-9 h-9 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan seluruh layanan setelah lunas" title="Batalkan seluruh layanan setelah lunas">
                       <XCircle className="w-4 h-4" />
                     </button>
@@ -380,7 +385,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                     </td>
                     <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-1.5">
-                        {apt.status === 'CONFIRMED' && (
+                        {operatorRole==='PSYCHOLOGIST'&&apt.status === 'CONFIRMED' && (
                           <>
                             <Tooltip content="Tandai sesi konsultasi selesai" position="left">
                               <button
@@ -415,6 +420,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                           </>
                         )}
 
+                        {operatorRole==='PSYCHOLOGIST'&&apt.status==='IN_PROGRESS'&&<Tooltip content="Selesaikan sesi yang sedang berlangsung"><button type="button" onClick={()=>setPendingStatusAction({appointment:apt,type:'COMPLETE'})} className="w-8 h-8 rounded-xl bg-sky-50 text-sky-700 border border-sky-200 flex items-center justify-center" aria-label="Tandai sesi selesai"><CheckCheck className="w-4 h-4"/></button></Tooltip>}
                         {canScheduleNextSession(apt) && (
                           <Tooltip content="Jadwalkan sesi berikutnya" position="left">
                             <button
@@ -446,7 +452,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
                             </button>
                           </Tooltip>
                         )}
-                        {['PENDING', 'NO_SHOW'].includes(apt.status) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
+                        {operatorRole==='PSYCHOLOGIST'&&['PENDING', 'NO_SHOW'].includes(apt.status) && apt.treatmentPlanStatus !== 'DISCONTINUED' && (
                           <Tooltip content="Batalkan seluruh layanan setelah lunas">
                             <button type="button" onClick={() => setPendingStatusAction({ appointment: apt, type: 'CANCEL' })} className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 flex items-center justify-center" aria-label="Batalkan seluruh layanan setelah lunas">
                               <XCircle className="w-4 h-4" />
@@ -516,7 +522,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
       {nextSessionSource && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/45 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="viewport-dialog w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
               <div>
                 <h3 className="text-base font-black text-slate-900">Jadwalkan Sesi Berikutnya</h3>
@@ -618,7 +624,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
       {pendingStatusAction && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/55 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+          <div className="viewport-dialog w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-slate-900">Konfirmasi Status Sesi</h3>

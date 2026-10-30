@@ -23,6 +23,8 @@ use App\Models\PackageVersion;
 use App\Models\PatientAccess;
 use App\Models\PatientProfile;
 use App\Models\PaymentProof;
+use App\Models\PrivateFile;
+use App\Models\PaymentAgreement;
 use App\Models\PaymentTransaction;
 use App\Models\PretestSubmission;
 use App\Models\PretestTemplate;
@@ -63,27 +65,27 @@ final class WorkspaceData
             $overtime = AdditionalTimeEntry::where('appointment_id', $appointment->id)->where('attempt_number', $appointment->attempt_number)->orderByDesc('revision')->first();
             $link = TeleServiceLink::where('appointment_id', $appointment->id)->where('attempt_number', $appointment->attempt_number)->orderByDesc('version')->first();
             $rows[] = ['id' => $appointment->id, 'row_version' => $appointment->row_version, 'booking_code' => $appointment->booking_code, 'patient_id' => $appointment->patient_id, 'patient_name' => $appointment->identity_snapshot['full_name'] ?? '',
-                'package_version_id' => $appointment->package_version_id, 'package_name' => $version?->name ?? $appointment->custom_label, 'category' => $version?->package->category->value ?? 'CUSTOM', 'delivery_mode' => $version?->delivery_mode->value ?? 'OFFLINE',
+                'package_version_id' => $appointment->package_version_id, 'package_id' => $version?->package_id, 'psychologist_id' => $appointment->psychologist_id, 'created_at' => $appointment->created_at->toIso8601String(), 'package_name' => $version?->name ?? $appointment->custom_label, 'category' => $version?->package->category->value ?? 'CUSTOM', 'delivery_mode' => $version?->delivery_mode->value ?? 'OFFLINE',
                 'appointment_kind' => $appointment->appointment_kind->value, 'payment_requirement' => $appointment->payment_requirement->value, 'profiling_mode' => $appointment->profiling_mode->value, 'start_at' => $appointment->start_at->toIso8601String(), 'end_at' => $appointment->end_at->toIso8601String(),
                 'status' => $appointment->status->value, 'attempt_number' => $appointment->attempt_number, 'requires_reschedule' => $appointment->requires_reschedule, 'billing_account_id' => $account?->id, 'initial_requirement_met' => $this->billing->initialMet($appointment),
                 'treatment_plan_id' => $appointment->treatment_plan_id, 'assessment_case_id' => $appointment->assessment_case_id, 'session_number' => $appointment->session_number, 'assessment_role' => $appointment->assessment_role?->value,
                 'hold_expires_at' => $appointment->hold_expires_at?->toIso8601String(), 'correction_deadline_at' => $appointment->correction_deadline_at?->toIso8601String(),'reminder_contact'=>['phone'=>$appointment->reminder_recipient_phone,'accepted'=>(bool)$appointment->reminder_wa_accepted_at],
-                'history' => AppointmentEvent::where('appointment_id', $appointment->id)->orderBy('created_at')->get()->map(fn ($e) => ['id' => $e->id, 'event_type' => $e->event_type, 'attempt_number' => $e->attempt_number, 'created_at' => $e->created_at->toIso8601String(), 'start_at' => $e->new_value['start_at'] ?? null, 'status' => $e->new_value['status'] ?? null])->all(),
+                'history' => AppointmentEvent::where('appointment_id', $appointment->id)->orderBy('created_at')->get()->map(fn ($e) => ['id' => $e->id, 'event_type' => $e->event_type, 'attempt_number' => $e->attempt_number, 'created_at' => $e->created_at->toIso8601String(), 'start_at' => $e->new_value['start_at'] ?? null, 'end_at' => $e->new_value['end_at'] ?? null, 'old_value' => $e->old_value, 'actor_id' => $e->actor_id, 'actor_name' => User::find($e->actor_id)?->name, 'actor_role' => User::find($e->actor_id)?->role?->value, 'reason' => $e->reason, 'status' => $e->new_value['status'] ?? null])->all(),
                 'additional_time' => ['revision' => $overtime?->revision ?? 0, 'total_minutes' => $overtime?->total_additional_minutes ?? 0], 'meeting' => $link ? ['id' => $link->id, 'version' => $link->version, 'url' => $link->meeting_url, 'recipient_phone' => $link->recipient_phone] : null];
         }
         $catalog = [];
-        foreach (ConsultationPackage::when(! $staff, fn ($q) => $q->where('is_active', true))->orderBy('service_code')->get() as $package) {
-            $version = PackageVersion::where('package_id', $package->id)->where('effective_at', '<=', now())->orderByDesc('version')->first();
+        foreach (ConsultationPackage::with('currentVersion')->when(! $staff, fn ($q) => $q->where('is_active', true))->orderBy('service_code')->get() as $package) {
+            $version = $package->currentVersion;
             if (! $version) {
                 continue;
             }
             $catalog[] = ['id' => $package->id, 'row_version' => $package->row_version, 'version_id' => $version->id, 'service_code' => $package->service_code, 'category' => $package->category->value, 'is_active' => $package->is_active,
                 'name' => $version->name, 'description' => $version->description, 'duration_minutes' => $version->duration_minutes, 'normal_price' => $version->normal_price, 'promo_price' => $version->promo_price, 'promo_starts_at' => $version->promo_starts_at?->toIso8601String(), 'promo_ends_at' => $version->promo_ends_at?->toIso8601String(),
-                'delivery_mode' => $version->delivery_mode->value, 'additional_time_price_basis' => $version->additional_time_price_basis?->value, 'benefits' => $version->benefits, 'is_bookable' => $version->is_bookable];
+                'delivery_mode' => $version->delivery_mode->value, 'additional_time_price_basis' => $version->additional_time_price_basis?->value, 'benefits' => $version->benefits, 'is_bookable' => $version->is_bookable, 'presentation' => $version->presentation];
         }
         $profiles = PatientProfile::whereIn('id', $ids)->when(! empty($filters['search']), fn ($q) => $q->where(fn ($s) => $s->where('full_name', 'like', '%'.$filters['search'].'%')->orWhere('phone', 'like', '%'.$filters['search'].'%')))->orderBy('full_name')->limit(200)->get();
         $data = ['role' => $actor->role->value, 'account' => ['id' => $actor->id, 'name' => $actor->name, 'email' => $actor->email, 'phone' => $actor->phone, 'row_version' => $actor->row_version],
-            'patients' => $profiles->map(fn ($p) => ['id' => $p->id, 'row_version' => $p->row_version, 'full_name' => $p->full_name, 'phone' => $p->phone, 'birth_date' => $p->birth_date?->toDateString(), 'birth_place' => $p->birth_place, 'gender' => $p->gender, 'address' => $p->address, 'city' => $p->city, 'occupation' => $p->occupation])->all(),
+            'patients' => $profiles->map(fn ($p) => ['id' => $p->id, 'row_version' => $p->row_version, 'full_name' => $p->full_name, 'phone' => $p->phone, 'birth_date' => $p->birth_date?->toDateString(), 'birth_place' => $p->birth_place, 'gender' => $p->gender, 'address' => $p->address, 'city' => $p->city, 'occupation' => $p->occupation, ...(!$admin ? ['emergency_contact' => $p->emergency_contact] : [])])->all(),
             'appointments' => $rows, 'pagination' => ['page' => $page->currentPage(), 'last_page' => $page->lastPage(), 'total' => $page->total()], 'bills' => array_values($bills), 'packages' => $catalog,
             'reschedules' => RescheduleRequest::whereIn('appointment_id', Appointment::whereIn('patient_id', $ids)->select('id'))->orderByDesc('created_at')->limit(100)->get()->map(fn ($r) => ['id' => $r->id, 'row_version' => $r->row_version, 'appointment_id' => $r->appointment_id, 'origin' => $r->origin->value, 'status' => $r->status->value, 'requested_at' => $r->requested_at->toIso8601String(), 'start_at' => $r->requested_start_at?->toIso8601String(), 'reason' => $r->reason, 'requires_resolution' => $r->requires_resolution])->all(),
             'plans' => TreatmentPlan::whereIn('patient_id', $ids)->latest('created_at')->limit(100)->get()->map(fn ($p) => ['id' => $p->id, 'patient_id' => $p->patient_id, 'row_version' => $p->row_version, 'status' => $p->status->value, 'planned_sessions' => $p->planned_sessions, ...($owner ? ['clinical_objective' => $p->clinical_objective] : [])])->all(),
@@ -96,6 +98,10 @@ final class WorkspaceData
             'reviews' => Review::whereIn('billing_account_id', BillingAccount::whereIn('patient_id', $ids)->select('id'))->latest('created_at')->limit(100)->get()->map(fn ($r) => $r->only(['id', 'billing_account_id', 'rating', 'comment', 'is_anonymous', 'status', 'row_version']))->all(),
             'setup_ready' => OwnerSetting::exists(), 'integrations' => ['google_sso' => app(GoogleIdentity::class)->ready()?'CONFIGURED':'NEEDS_CLIENT_ID', 'whatsapp' => config('integrations.whatsapp.driver', 'placeholder')]];
         $data['filters'] = $filters;
+        $settings = OwnerSetting::first();
+        $ownerUser = $settings ? User::find($settings->owner_user_id) : null;
+        $data['presentation'] = ['owner' => $ownerUser?->only(['id', 'name', 'email', 'phone']), 'practice' => array_intersect_key($settings?->practice_identity ?? [], array_flip(['name', 'title', 'clinic_name', 'address', 'phone', 'whatsapp', 'email', 'bio', 'str_number', 'sip_number', 'bank_account', 'avatar_url', 'specialties', 'education', 'languages', 'therapy_approaches', 'experience_years', 'practice_policy', 'sip_expiry', 'str_expiry', 'clinical_hours', 'is_available_today'])),
+            'cms' => CmsContent::whereIn('section_key', ['landing', 'patient', 'psychologist'])->where('status', 'PUBLISHED')->when(!$owner, fn ($q) => $q->where('section_key', '<>', 'psychologist'))->get()->mapWithKeys(fn ($c) => [$c->section_key => $c->payload])->all()];
         $data['workspace_information'] = $owner || ! $staff ? CmsContent::where('section_key', $owner ? 'psychologist' : 'patient')->where('status', 'PUBLISHED')->first()?->only(['id', 'payload']) : null;
         if ($staff) {
             $data['tutorial_catalog'] = TutorialContent::when(! $owner, fn ($q) => $q->where('role', '<>', 'PSYCHOLOGIST')->where('content_key', 'not like', 'clinical%'))->orderBy('content_key')->orderByDesc('version')->get()->map(fn ($t) => $t->only(['id', 'content_key', 'role', 'version', 'title', 'steps', 'video_url', 'is_active']))->all();
@@ -108,7 +114,7 @@ final class WorkspaceData
             $version = CalendarVersion::where('effective_at', '<=', now())->orderByDesc('version')->first();
             $data['calendar'] = $version ? ['id' => $version->id, 'version' => $version->version, 'weekly' => collect(range(1, 7))->map(fn ($day) => ['day_of_week' => $day, 'daily_limit' => (int) DB::table('weekly_schedule_limits')->where('calendar_version_id', $version->id)->where('day_of_week', $day)->value('daily_limit'),
                 'intervals' => DB::table('weekly_schedules')->where('calendar_version_id', $version->id)->where('day_of_week', $day)->orderBy('start_time')->get()->map(fn ($i) => [substr($i->start_time, 0, 5), substr($i->end_time, 0, 5)])->all()])->all(), 'overrides' => DB::table('schedule_overrides')->where('calendar_version_id', $version->id)->where('local_date', '>=', CarbonImmutable::now('Asia/Jakarta')->toDateString())->get()->map(fn ($o) => ['local_date' => $o->local_date, 'mode' => $o->mode, 'daily_limit' => $o->daily_limit, 'reason' => $o->reason, 'intervals' => DB::table('schedule_override_intervals')->where('override_id', $o->id)->get()->map(fn ($i) => [substr($i->start_time, 0, 5), substr($i->end_time, 0, 5)])->all()])->all()] : null;
-            $data['cms'] = CmsContent::orderByDesc('created_at')->limit(50)->get()->merge(CmsContent::where('status', 'PUBLISHED')->get())->unique('id')->sortByDesc('created_at')->values()->map(fn ($c) => $c->only(['id', 'section_key', 'version', 'payload', 'status']))->all();
+            $data['cms'] = $owner ? CmsContent::orderByDesc('created_at')->limit(50)->get()->merge(CmsContent::where('status', 'PUBLISHED')->get())->unique('id')->sortByDesc('created_at')->values()->map(fn ($c) => $c->only(['id', 'section_key', 'version', 'payload', 'status']))->all() : [];
             $data['deliveries'] = Notification::where('channel', '<>', 'IN_APP')->latest('created_at')->limit(50)->get()->map(fn ($n) => $n->only(['id', 'template_key', 'status', 'attempt_count', 'last_error', 'created_at']))->all();
         }
         if ($owner) {
@@ -128,16 +134,19 @@ final class WorkspaceData
         $admin = $actor->role === UserRole::Admin;
         $invoices = Invoice::where('billing_account_id', $bill->id)->orderBy('created_at')->get();
 
-        return ['id' => $bill->id, 'row_version' => $bill->row_version, 'patient_id' => $bill->patient_id, 'collection_status' => $bill->collection_status->value, 'total_due' => $balance['total_due'], 'initial_requirement_met' => $balance['initial_requirement_met'],
+        $agreement = $bill->appointment_id ? PaymentAgreement::where('treatment_plan_id', Appointment::find($bill->appointment_id)?->treatment_plan_id)->first() : null;
+        return ['id' => $bill->id, 'row_version' => $bill->row_version, 'patient_id' => $bill->patient_id, 'collection_status' => $bill->collection_status->value, 'total_due' => $balance['total_due'], 'initial_requirement_met' => $balance['initial_requirement_met'], 'payment_status' => $balance['payment_status'], 'initial_minimum_due' => $bill->initial_minimum_due, 'source_bill_id' => $source->id,
+            'agreement' => $agreement?->only(['session_amount', 'session_subtotal', 'session_discount', 'duration_minutes', 'agreed_at']),
             ...(! $admin ? ['verified_received' => $balance['verified_received'], 'remaining_amount' => $balance['remaining_amount'], 'overpaid_amount' => $balance['overpaid_amount']] : []),
             'invoices' => $invoices->map(fn ($i) => ['id' => $i->id, 'number' => $i->invoice_number, 'kind' => $i->kind->value, 'net_amount' => $i->net_amount])->all(),
             'lines' => BillingLineItem::whereIn('invoice_id', $invoices->pluck('id'))->get()->map(fn ($l) => ['id' => $l->id, 'label' => $l->label, 'kind' => $l->kind->value, 'direction' => $l->direction->value, 'amount' => $l->amount])->all(),
             'payments' => PaymentTransaction::where('billing_account_id', $source->id)->orderByDesc('created_at')->get()->map(function ($p) use ($admin) {
                 $proof = PaymentProof::where('payment_transaction_id', $p->id)->orderByDesc('version')->first();
 
-                return ['id' => $p->id, 'row_version' => $p->row_version, 'status' => $p->status->value, 'entry_type' => $p->entry_type->value, 'method' => $p->method->value, 'reason' => $p->reason,
+                $file = $proof ? PrivateFile::find($proof->file_id) : null;
+                return ['id' => $p->id, 'row_version' => $p->row_version, 'status' => $p->status->value, 'entry_type' => $p->entry_type->value, 'method' => $p->method->value, 'reason' => $p->reason, 'created_at' => $p->created_at->toIso8601String(), 'recorded_by_name' => User::find($p->verified_by ?? $p->submitted_by)?->name, 'channel_detail' => $p->reference,
                     ...(! $admin ? ['amount' => $p->amount, 'received_at' => $p->received_at?->toIso8601String(), 'receipt_id' => Receipt::where('payment_transaction_id', $p->id)->value('id')] : []),
-                    ...($p->status->value !== 'VERIFIED' ? ['claimed_amount' => $p->claimed_amount, 'sender_name' => $p->sender_name] : []), 'proof' => $proof ? ['file_id' => $proof->file_id, 'version' => $proof->version, 'decision' => $proof->decision->value] : null];
+                    ...($p->status->value !== 'VERIFIED' ? ['claimed_amount' => $p->claimed_amount, 'sender_name' => $p->sender_name] : []), 'proof' => $proof ? ['file_id' => $proof->file_id, 'version' => $proof->version, 'decision' => $proof->decision->value, 'mime_type' => $file?->mime_type] : null];
             })->all()];
     }
 

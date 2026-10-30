@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Appointment, Review } from '../../../types';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import { RescheduleModal } from '../RescheduleModal';
 import { PaymentProofCorrection } from '../PaymentProofCorrection';
 import { FLAT_DP_AMOUNT, getTreatmentPlanBalance, resolveBillingAppointment, resolvePaymentAccount } from '../../../utils/payments';
@@ -42,7 +42,7 @@ interface HistoryTabProps {
     rating: number;
     comment: string;
     isAnonymous: boolean;
-  }) => void;
+  }) => void | Promise<boolean>;
   onNavigateTab: (tabId: 'booking') => void;
 }
 
@@ -147,17 +147,18 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
     }
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reviewModalAptId || !activeModalApt) return;
 
-    submitReview({
+    const saved=await submitReview({
       appointmentId: reviewModalAptId,
       psychologistId: activeModalApt.psychologistId,
       rating: reviewRating,
       comment: reviewComment,
       isAnonymous: reviewAnonymous
     });
+    if(saved===false)return;
 
     setReviewModalAptId(null);
     setReviewComment('');
@@ -502,7 +503,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
       {/* ========================================================================= */}
       {selectedDetailApt && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-900/75 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto my-auto">
+          <div className="viewport-dialog bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto my-auto">
             {/* Header Modal */}
             <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -612,7 +613,8 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
               </div>
               {selectedBilling && <PaymentProgress appointment={selectedBilling} appointments={appointments} />}
               {selectedBilling?.initialRequirementMet === false && selectedBilling.initialPaymentRecord?.verifiedAt && <p className="text-xs text-amber-800">Pembayaran sudah diterima, tetapi minimum DP belum terpenuhi. Hubungi Admin untuk pencatatan kekurangannya.</p>}
-              {selectedDetailApt.paymentProofState === 'REJECTED' && <PaymentProofCorrection key={`${selectedDetailApt.id}-${selectedDetailApt.paymentProofVersion || 0}`} appointment={selectedDetailApt} />}
+              {(selectedDetailApt.paymentProofState === 'REJECTED'||selectedDetailApt.serverInfo?.rawStatus==='WAITING_PAYMENT'&&!selectedDetailApt.paymentProofUrl) && <PaymentProofCorrection key={`${selectedDetailApt.id}-${selectedDetailApt.paymentProofVersion || 0}`} appointment={selectedDetailApt} />}
+              {selectedDetailApt.serverInfo&&<div className="flex flex-wrap gap-2 border-t border-slate-200 pt-3">{selectedDetailApt.serverInfo.invoiceIds.map(id=><a key={id} href={`/invoices/${id}/download`} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-700">Unduh invoice PDF</a>)}{selectedDetailApt.serverInfo.receiptIds.map(id=><a key={id} href={`/receipts/${id}/download`} className="rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-bold text-teal-800">Unduh kwitansi PDF</a>)}</div>}
               <RescheduleAudit appointment={selectedDetailApt} />
               {selectedDetailApt.rescheduleRequest && <div className="border-t border-slate-200 pt-3 text-xs leading-5">
                 <strong>Pengajuan reschedule: {selectedDetailApt.rescheduleRequest.status === 'SLOT_SELECTION_REQUIRED' ? 'Pilih ulang jadwal' : selectedDetailApt.rescheduleRequest.status}</strong>
@@ -737,7 +739,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
         >
           <div
             onClick={e => e.stopPropagation()}
-            className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 cursor-default relative overflow-hidden my-auto"
+            className="viewport-dialog bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl border border-slate-200 cursor-default relative overflow-hidden my-auto"
           >
             <div className="flex justify-between items-start pb-3.5 border-b border-slate-100 mb-4">
               <div>
@@ -868,7 +870,7 @@ export const HistoryTab: React.FC<HistoryTabProps> = ({
 
       {receiptApt && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden">
+          <div className="viewport-dialog bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between print:hidden">
               <div>
                 <h3 className="text-base font-black text-slate-900">Receipt Pembayaran</h3>

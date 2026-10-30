@@ -27,6 +27,11 @@ final class Calendar
         return CarbonImmutable::parse($value, 'Asia/Jakarta')->utc();
     }
 
+    public function assertNextDay(CarbonImmutable $start): void
+    {
+        Access::check($start->setTimezone('Asia/Jakarta')->startOfDay()->greaterThan(CarbonImmutable::now('Asia/Jakarta')->startOfDay()), 'Booking dan perubahan jadwal minimal besok (H+1).', 'start_at');
+    }
+
     public function version(?CarbonImmutable $at = null): CalendarVersion
     {
         return CalendarVersion::where('effective_at', '<=', $at ?? CarbonImmutable::now())->orderByDesc('version')->firstOrFail();
@@ -101,7 +106,7 @@ final class Calendar
     {
         Access::check($duration > 0 && $duration <= 480, 'Durasi harus 1–480 menit.');
         $settings = $this->settings();
-        $earliest = $online ? $this->addWorkingMinutes(CarbonImmutable::now(), $settings->online_lead_working_minutes) : CarbonImmutable::now();
+        $earliest = CarbonImmutable::now('Asia/Jakarta')->addDay()->startOfDay()->utc();
         $result = [];
         foreach ($this->intervals($date)['intervals'] as [$start, $end]) {
             for ($cursor = $start; $cursor->addMinutes($duration)->lessThanOrEqualTo($end); $cursor = $cursor->addMinutes(15)) {

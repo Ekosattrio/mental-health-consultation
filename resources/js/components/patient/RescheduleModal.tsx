@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
+import {AppContext} from '../../context/AppContextCore';
+import {calendarToView} from '../../integration/mapping';
 import { createPortal } from 'react-dom';
 import { Appointment } from '../../types';
 import {
@@ -16,6 +18,7 @@ import { Tooltip } from '../common/Tooltip';
 import { computeDynamicSlotsForDate, loadScheduleSettings, SCHEDULE_SETTINGS_STORAGE_KEY, SCHEDULE_SETTINGS_UPDATED_EVENT } from '../../data/scheduleConfig';
 import { getMinimumBookingDate, timeSlotKey, findTimeSlot } from '../../utils/bookingPolicy';
 import { getScheduleVersion, RescheduleOptions, RescheduleOrigin } from '../../utils/reschedulePolicy';
+import {useServerAvailability} from '../../integration/useServerAvailability';
 
 interface RescheduleModalProps {
   isOpen: boolean;
@@ -63,6 +66,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   operatorRole = 'PSYCHOLOGIST'
 }) => {
   const currentRole = requiresAdminConfirmation ? 'PATIENT' : operatorRole;
+  const server=useContext(AppContext)?.server;
   // Hitung tanggal minimal H+1
   const minDateStr = getMinimumBookingDate();
 
@@ -71,7 +75,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
 
   const [newDate, setNewDate] = useState<string>(defaultDateStr);
   const [selectedSlotKey, setSelectedSlotKey] = useState('');
-  const [scheduleSettings, setScheduleSettings] = useState(loadScheduleSettings);
+  const [scheduleSettings, setScheduleSettings] = useState(()=>server?calendarToView(server.workspace.calendar):loadScheduleSettings());
   const [submitError, setSubmitError] = useState('');
   const [confirmedSlot, setConfirmedSlot] = useState<{ start: string; end: string } | null>(null);
   const [expectedVersion, setExpectedVersion] = useState<number>();
@@ -87,6 +91,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
     }
   }, [isOpen, appointment?.id]);
   useEffect(() => {
+    if(server)return;
     const sync = () => setScheduleSettings(loadScheduleSettings());
     const storage = (event: StorageEvent) => { if (event.key === SCHEDULE_SETTINGS_STORAGE_KEY) sync(); };
     window.addEventListener('storage', storage);
@@ -100,9 +105,11 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   const [note, setNote] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const serverAvailability=useServerAvailability(newDate,appointment?Math.max(timeToMinutes(appointment.endTime)-timeToMinutes(appointment.startTime),30):60,appointment?.psychologistId??'',appointment?.id,isOpen);
 
   const availableTimeSlots = useMemo(() => {
     if (!appointment || !newDate) return [];
+    if(serverAvailability)return serverAvailability.slots.map(slot=>({start:slot.startTime,end:slot.endTime,label:`${slot.startTime} - ${slot.endTime} WIB (${slot.label})`}));
     const appointmentDuration = Math.max(
       timeToMinutes(appointment.endTime) - timeToMinutes(appointment.startTime),
       30
@@ -121,7 +128,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
         end: slot.endTime,
         label: `${slot.startTime} - ${slot.endTime} WIB (${slot.label})`
       }));
-  }, [appointment, appointments, newDate, scheduleSettings]);
+  }, [appointment, appointments, newDate, scheduleSettings,serverAvailability?.slots]);
 
   useEffect(() => {
     setSelectedSlotKey('');
@@ -184,7 +191,7 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/70 backdrop-blur-xs p-4 animate-in fade-in duration-200">
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[92vh] overflow-y-auto custom-scrollbar flex flex-col justify-between animate-in zoom-in-95 duration-200"
+        className="viewport-dialog bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[92vh] overflow-y-auto custom-scrollbar flex flex-col justify-between animate-in zoom-in-95 duration-200"
       >
         {isSuccess ? (
           /* STATE SUKSES */

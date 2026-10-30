@@ -1,5 +1,7 @@
 # Keputusan aktif — 24 Oktober 2026
 
+> Histori keputusan Desman. Instruksi Eko 29 Oktober menggantikan bagian yang bertentangan: gunakan [keputusan aktif 29 Oktober](KEPUTUSAN_AKTIF_2026-10-29.md), khususnya FE utama, DP Rp100.000, H+1, lifecycle Psikolog, dan pembatalan setelah lunas.
+
 Dokumen ini menyatukan keputusan langsung Desman dalam percakapan. Lampiran ide, PDF, audit, prototype dan dokumen Eko adalah sumber analisis; label “final” pada dokumen lama tidak mengalahkan koreksi langsung pengguna. Jika ada perbedaan teks turunan, gunakan keputusan ini lalu BUSINESS_RULES dan kamus DATABASE_ARCHITECTURE.
 
 ## Jadwal dan pembayaran awal

@@ -23,7 +23,7 @@ final class PracticeInstaller
             $owner = new User;
             $owner->forceFill(['name' => $name, 'email' => $email, 'password_hash' => $password, 'role' => 'PSYCHOLOGIST'])->save();
             $owner->refresh();
-            OwnerSetting::create(['owner_user_id' => $owner->id, 'practice_identity' => ['clinic_name' => 'JiwaSehat', 'name' => $name], 'initial_payment_mode' => 'PERCENT', 'initial_payment_basis_points' => 5000]);
+            OwnerSetting::create(['owner_user_id' => $owner->id, 'practice_identity' => ['clinic_name' => 'JiwaSehat', 'name' => $name], 'initial_payment_mode' => 'FIXED', 'initial_payment_fixed_amount' => 100000, 'initial_payment_basis_points' => 5000]);
             $calendar = CalendarVersion::create(['version' => 1, 'effective_at' => now(), 'created_by' => $owner->id, 'reason' => 'Konfigurasi awal; dapat diubah melalui Kalender']);
             foreach (range(1, 7) as $day) {
                 WeeklyScheduleLimit::create(['calendar_version_id' => $calendar->id, 'day_of_week' => $day, 'daily_limit' => 8]);

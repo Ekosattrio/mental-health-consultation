@@ -39,9 +39,11 @@ import { calculateInitialDp } from '../../../utils/payments';
 import { CONSENT_VERSION, PRIVACY_VERSION, getMinimumBookingDate } from '../../../utils/bookingPolicy';
 import { ServicePicker } from '../ServicePicker';
 import { Tooltip } from '../../common/Tooltip';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import { findActivePatientHold } from '../../../utils/workflowStore';
-import { INITIAL_LANDING_CMS } from '../../../data/mockData';
+import { INITIAL_LANDING_CMS } from '../../../data/cmsDefaults';
+import {useServerAvailability} from '../../../integration/useServerAvailability';
+import {calendarToView} from '../../../integration/mapping';
 
 interface BookingTabProps {
   packages: ConsultationPackage[];
@@ -80,12 +82,12 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   updateUserProfile,
   onNavigateTab
 }) => {
-  const { reserveBookingSlot, slotHolds, landingCms } = useApp();
+  const { reserveBookingSlot, slotHolds, landingCms,server } = useApp();
   const initialHold = useRef(findActivePatientHold(slotHolds, patientId)).current;
   const [holdId, setHoldId] = useState(initialHold?.id || '');
   const hold = slotHolds.find(item => item.id === holdId);
-  const paymentChannel = hold?.paymentChannelDetail || `${INITIAL_LANDING_CMS.bankName} - ${INITIAL_LANDING_CMS.bankAccountNumber}`;
-  const accountHolder = hold?.accountHolder || INITIAL_LANDING_CMS.bankAccountHolder;
+  const paymentChannel = hold?.paymentChannelDetail || (server?server.workspace.payment_instructions:`${INITIAL_LANDING_CMS.bankName} - ${INITIAL_LANDING_CMS.bankAccountNumber}`);
+  const accountHolder = hold?.accountHolder || (server?landingCms.bankAccountHolder:INITIAL_LANDING_CMS.bankAccountHolder);
   const [clock, setClock] = useState(Date.now());
   const [reconciliationId, setReconciliationId] = useState('');
   useEffect(() => {
@@ -101,7 +103,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
 
   // Active packages filter (ignore legacy inactive packages)
   const activePackages = useMemo(() => {
-    return packages.filter(pkg => pkg.isActive !== false);
+    return packages.filter(pkg => pkg.isActive !== false && (!server || server.workspace.packages.find(p=>p.id===pkg.id)?.is_bookable));
   }, [packages]);
 
   // Profile Completeness Guard
@@ -134,7 +136,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
         emergencyContact: currentUser.emergencyContact || prev.emergencyContact
       }));
     }
-  }, [currentUser]);
+  }, [JSON.stringify(currentUser)]);
 
   // Step 1 State: Package & Schedule
   const [selectedPkgId, setSelectedPkgId] = useState(
@@ -189,7 +191,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   const [successApt, setSuccessApt] = useState<Appointment | null>(null);
   const [preTestId, setPreTestId] = useState<string | undefined>(initialHold ? existingIntake?.id : undefined);
 
-  const currentPackage = currentStep === 3 && hold ? packages.find(pkg => pkg.id === hold.packageId)
+  const currentPackage = currentStep === 3 && hold ? hold.packageSnapshot??packages.find(pkg => pkg.id === hold.packageId)
     : activePackages.find(pkg => pkg.id === selectedPkgId) || activePackages[0];
   const previousSlotContext = useRef(`${currentPackage?.id}:${currentPackage?.durationMinutes}:${selectedPsychologistId}`);
   useEffect(() => {
@@ -227,8 +229,9 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   }, [quoteKey, currentStep]);
 
   // Dynamic slot calculation from psychologist weekly settings and package duration
-  const [scheduleSettings, setScheduleSettings] = useState(loadScheduleSettings);
+  const [scheduleSettings, setScheduleSettings] = useState(()=>server?calendarToView(server.workspace.calendar):loadScheduleSettings());
   useEffect(() => {
+    if(server)return;
     const sync = () => {
       setScheduleSettings(loadScheduleSettings());
       setSelectedSlotId('');
@@ -242,7 +245,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
       window.removeEventListener(SCHEDULE_SETTINGS_UPDATED_EVENT, sync);
     };
   }, []);
-  const dynamicSchedule = useMemo(() => {
+  const localDynamicSchedule = useMemo(() => {
+    if(server)return null;
     return computeDynamicSlotsForDate(
       selectedDate,
       scheduleSettings,
@@ -252,6 +256,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
       holdId
     );
   }, [selectedDate, selectedPsychologistId, appointments, currentPackage, scheduleSettings, slotHolds, holdId, clock]);
+  const serverSchedule=useServerAvailability(selectedDate,currentPackage?.durationMinutes||60,selectedPsychologistId,undefined,currentStep===1);
+  const dynamicSchedule=serverSchedule??localDynamicSchedule!;
 
   const handleDateChange = (date: string) => {
     setSelectedSlotId('');
@@ -294,8 +300,9 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   };
 
   // Save patient profile
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(server&&currentUser){const saved=await server.saveProfile(currentUser.id,{...profileFormData,name:profileFormData.name.trim(),phone:profileFormData.phone.trim()});if(saved)setIsProfileModalOpen(false);return;}
     if (updateUserProfile && currentUser?.id) {
       updateUserProfile(currentUser.id, {
         name: profileFormData.name.trim(),
@@ -329,6 +336,8 @@ export const BookingTab: React.FC<BookingTabProps> = ({
   // Move from Step 2 to Step 3 (Save Pre-Test in Context)
   const handleProceedToPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(server&&!consentAgreed){setPricingNotice('Setujui persetujuan layanan sebelum membuat reservasi.');return;}
+    server?.acceptConsent(consentAgreed);
     setIsSavingPreTest(true);
     try {
     if (submitIntakeForm) {
@@ -458,7 +467,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
     }
 
     if (file.size > 1_500_000) {
-      alert('Ukuran bukti maksimal 1,5 MB untuk penyimpanan demo frontend.');
+      alert('Ukuran bukti maksimal 1,5 MB.');
       event.target.value = '';
       return;
     }
@@ -484,7 +493,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
       {/* MODAL LENGKAPI DATA DIRI PASIEN */}
       {isProfileModalOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn my-8">
+          <div className="viewport-dialog bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 space-y-5 animate-fadeIn my-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700">
@@ -1112,6 +1121,7 @@ export const BookingTab: React.FC<BookingTabProps> = ({
                 </div>
               </div>
 
+              {server&&<div className="rounded-xl border border-teal-100 bg-teal-50 p-3 text-xs text-slate-700"><details><summary className="font-bold cursor-pointer">Persetujuan layanan dan privasi</summary><p className="mt-2 whitespace-pre-wrap">{server.workspace.consent?.payload.body}</p><a href="/informasi/privacy" target="_blank" rel="noreferrer" className="mt-2 inline-block font-semibold text-teal-700 underline">Baca kebijakan privasi</a></details><label className="mt-3 flex gap-2"><input required type="checkbox" checked={consentAgreed} onChange={e=>setConsentAgreed(e.target.checked)}/><span>Saya menyetujui layanan, pengelolaan data, serta pengiriman jadwal/link melalui WhatsApp ke nomor profil saya. Pre-test ini untuk profiling, bukan diagnosis.</span></label></div>}
               <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                 <Tooltip content="Kembali ke jadwal">
                   <button
@@ -1317,12 +1327,12 @@ export const BookingTab: React.FC<BookingTabProps> = ({
               <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
+                  onClick={() => server?onNavigateTab('history'):setCurrentStep(2)}
                   disabled={isSubmitting || Boolean(proofDataUrl) || Boolean(reconciliationId)}
                   className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1.5"
                 >
                   <ChevronLeft className="w-4 h-4" />
-                  <span>Ubah Pre-Test</span>
+                  <span>{server?'Lihat Jadwal & Riwayat':'Ubah Pre-Test'}</span>
                 </button>
 
                 <button

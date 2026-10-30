@@ -52,14 +52,7 @@ final class Clockwork
 
                     return;
                 }
-                if ($appointment->status->value === 'WAITING_VERIFICATION' && $appointment->verification_due_at?->isPast() && $activeProof) {
-                    $appointment->update(['status' => 'CONFIRMED_AUTO_SLA']);
-                    foreach (PaymentTransaction::where('appointment_id', $id)->where('status', 'PENDING_VERIFICATION')->get() as $payment) {
-                        $payment->update(['status' => 'PENDING_RECONCILIATION']);
-                    }
-                    app(Bookings::class)->event(null, $appointment, 'AUTO_SLA');
-                    $count++;
-                }
+                // Bukti tetap menunggu pemeriksaan Admin; scheduler tidak mengonfirmasi uang/jadwal.
                 if (! $appointment->requires_reschedule && $appointment->start_at->isFuture() && now()->greaterThanOrEqualTo($appointment->start_at->subMinutes($appointment->reminder_lead_minutes_snapshot)) && ($activeProof || $billing->initialMet($appointment))) {
                     Transactions::outbox('REMINDER_OWNER', 'appointments', $id, ['attempt_number' => $appointment->attempt_number], $appointment->attempt_number);
                     Transactions::outbox('REMINDER_PATIENT', 'appointments', $id, ['attempt_number' => $appointment->attempt_number, 'patient_id' => $appointment->patient_id], $appointment->attempt_number);
@@ -82,13 +75,7 @@ final class Clockwork
                 if ($appointment->status->value !== 'NO_SHOW' || CarbonImmutable::now()->lessThanOrEqualTo($end) || RescheduleRequest::where('appointment_id', $id)->whereNotNull('active_guard')->exists()) {
                     return;
                 }
-                $partial = $appointment->assessment_case_id && Appointment::where('assessment_case_id', $appointment->assessment_case_id)->where('status', 'COMPLETED')->exists();
-                if ($partial) {
-                    $appointment->update(['terminal_at' => now()]);
-                    Transactions::outbox('NO_SHOW_REVIEW_REQUIRED', 'appointments', $id, ['patient_id' => $appointment->patient_id, 'recipient_user_id' => app(Calendar::class)->settings()->owner_user_id], $appointment->row_version);
-                } else {
-                    app(Operations::class)->lifecycle(User::findOrFail(app(Calendar::class)->settings()->owner_user_id), $appointment, 'cancel', 'SISTEM: hak reschedule empat hari berakhir; sisa belum diberikan dilepas');
-                }
+                Transactions::outbox('NO_SHOW_REVIEW_REQUIRED', 'appointments', $id, ['patient_id' => $appointment->patient_id, 'recipient_user_id' => app(Calendar::class)->settings()->owner_user_id], $appointment->row_version);
             }, 5);
         }
         $owner = OwnerSetting::firstOrFail();

@@ -20,8 +20,8 @@ if (! preg_match('/^jiwasehat_schema_test_[a-f0-9]{12}$/D', $database)) {
 }
 config(['database.default' => 'mysql', 'database.connections.mysql.database' => $database, 'database.connections.mysql.url' => null, 'queue.default' => 'sync']);
 DB::purge('mysql');
-Date::setTestNow('2026-10-26T05:00:00+07:00');
-CarbonImmutable::setTestNow('2026-10-26T05:00:00+07:00');
+Date::setTestNow('2026-10-25T09:00:00+07:00');
+CarbonImmutable::setTestNow('2026-10-25T09:00:00+07:00');
 try {
     $actor = User::findOrFail($actorId);
     $input = ['appointment_kind' => 'CUSTOM', 'patient_id' => $patientId, 'start_at' => '2026-10-26T11:00:00+07:00', 'duration_minutes' => 60, 'custom_label' => 'Uji benturan slot', 'payment_requirement' => 'NOT_REQUIRED', 'owner_authorization_note' => 'Persetujuan owner dalam pengujian terisolasi', 'profiling_mode' => 'NONE'];

@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** owner_settings: penyimpanan domain; authorization/DTO tetap wajib pada lapisan HTTP berikutnya. */
 class OwnerSetting extends DomainModel
 {
-    protected $attributes = ['singleton_key' => 1, 'timezone' => 'Asia/Jakarta', 'grace_minutes' => 15, 'selection_window_hours' => 24, 'proof_correction_hours' => 24, 'online_lead_working_minutes' => 180, 'reminder_lead_minutes' => 120, 'payment_hold_hours' => 24, 'initial_payment_mode' => 'PERCENT', 'initial_payment_fixed_amount' => 100000, 'initial_payment_basis_points' => 5000, 'row_version' => 1];
+    protected $attributes = ['singleton_key' => 1, 'timezone' => 'Asia/Jakarta', 'grace_minutes' => 15, 'selection_window_hours' => 24, 'proof_correction_hours' => 24, 'online_lead_working_minutes' => 180, 'reminder_lead_minutes' => 120, 'payment_hold_hours' => 24, 'initial_payment_mode' => 'FIXED', 'initial_payment_fixed_amount' => 100000, 'initial_payment_basis_points' => 5000, 'row_version' => 1];
 
     protected $table = 'owner_settings';
 

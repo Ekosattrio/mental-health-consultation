@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import {
   Activity,
   BarChart3,
@@ -27,6 +27,7 @@ import { ProfileTab } from './tabs/ProfileTab';
 import { AnalyticsTab } from '../admin/tabs/AnalyticsTab';
 import { CmsTab } from '../admin/tabs/CmsTab';
 import { ExportFinancePage } from '../admin/tabs/ExportFinancePage';
+import {DashboardPanel} from '../common/DataFeedback';
 
 type PsychologistTabId = 'overview' | 'schedule' | 'packages' | 'treatmentPlans' | 'patients' | 'finance' | 'cms' | 'history' | 'profile';
 
@@ -63,10 +64,12 @@ export const PsychologistDashboard: React.FC = () => {
     discontinueTreatmentPlan,
     rescheduleAppointment,
     isSidebarCollapsed,
-    setIsSidebarCollapsed
+    setIsSidebarCollapsed,
+    server
   } = useApp();
 
-  const [selectedPatientId, setSelectedPatientId] = useState<string>('user-pat-1');
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  React.useEffect(()=>{if(server&&selectedPatientId)void server.loadClinicalPatient(selectedPatientId);},[selectedPatientId]);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isExportFinanceActive, setIsExportFinanceActive] = useState(false);
 
@@ -186,6 +189,7 @@ export const PsychologistDashboard: React.FC = () => {
 
         {/* MAIN TAB CONTENT */}
         <main className="flex-1 min-w-0 w-full max-w-full space-y-6">
+          <DashboardPanel section={activePsychologistTab}>
           {activePsychologistTab === 'overview' && (
             <OverviewTab
               myAppointments={myAppointments}
@@ -285,6 +289,7 @@ export const PsychologistDashboard: React.FC = () => {
               updatePsychologistProfile={updatePsychologistProfile}
             />
           )}
+          </DashboardPanel>
         </main>
       </div>
     </div>

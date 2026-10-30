@@ -25,7 +25,7 @@ export const getRequiredInitialPayment = (appointment: Appointment) =>
   appointment.billingMode === 'PER_SESSION' && (appointment.continuousSessionNumber || 1) > 1
     ? 0 : calculateInitialDp(appointment.totalAmount);
 
-export const canRecordReceivedPayment = (appointment: Appointment): boolean =>
+export const canRecordReceivedPayment = (appointment: Appointment): boolean => appointment.serverInfo ? Boolean(appointment.serverInfo.billingId) :
   (appointment.billingMode === 'PER_SESSION' || (appointment.continuousSessionNumber || 1) === 1) &&
   (['DP_PAID', 'PAID'].includes(appointment.paymentStatus) ||
     Boolean(appointment.initialPaymentRecord?.verifiedAt) ||

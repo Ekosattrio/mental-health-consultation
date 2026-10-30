@@ -6,6 +6,7 @@ use App\Enums\ServiceCategory;
 use App\Models\Concerns\DomainModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /** consultation_packages: penyimpanan domain; authorization/DTO tetap wajib pada lapisan HTTP berikutnya. */
 class ConsultationPackage extends DomainModel
@@ -33,6 +34,13 @@ class ConsultationPackage extends DomainModel
     public function packageVersions(): HasMany
     {
         return $this->hasMany(PackageVersion::class, 'package_id');
+    }
+
+    public function currentVersion(): HasOne
+    {
+        return $this->hasOne(PackageVersion::class, 'package_id')->ofMany(['version' => 'max'], function ($query) {
+            $query->where('effective_at', '<=', now());
+        });
     }
 
     public function treatmentPlans(): HasMany

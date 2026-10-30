@@ -21,7 +21,7 @@ export interface PublicLandingData {
   };
   packages: Array<{
     service_code: string; name: string; category: 'COUNSELING' | 'ASSESSMENT' | 'PSYCHOTHERAPY';
-    duration_minutes: number | null; description: string; benefits: string[]; is_bookable: boolean; normal_price?:number;final_price?:number;
+    duration_minutes: number | null; description: string; benefits: string[]; is_bookable: boolean; normal_price?:number;final_price?:number;notes?:string;badge?:string;delivery_mode?:string;
   }>;
   reviews: Array<{ display_name: string; rating: number; comment: string; published_on: string }>;
 }

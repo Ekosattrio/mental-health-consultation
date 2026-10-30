@@ -1,12 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  Check, ChevronLeft, ChevronRight, ClipboardList, Clock, HeartHandshake,
+  Check, ClipboardList, Clock, HeartHandshake,
   Info, MapPin, MessageCircle, Search, StickyNote, Video, X
 } from 'lucide-react';
 import { ConsultationPackage, PackageCategory } from '../../types';
 import { calculatePackagePayableAmount } from '../../utils/discounts';
 import { Tooltip } from '../common/Tooltip';
+import {CardRail} from '../common/CardRail';
 
 const categoryOf = (pkg: ConsultationPackage): PackageCategory => {
   if (pkg.category && ['KONSELING', 'ASESMEN', 'PSIKOTERAPI'].includes(pkg.category)) return pkg.category;
@@ -21,7 +22,6 @@ const categories = [
   { id: 'ALL', label: 'Semua kategori' }, { id: 'KONSELING', label: 'Konseling' },
   { id: 'ASESMEN', label: 'Asesmen' }, { id: 'PSIKOTERAPI', label: 'Psikoterapi' }
 ];
-const PAGE_SIZE = 6;
 const money = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
 
 export const ServicePicker: React.FC<{
@@ -33,47 +33,18 @@ export const ServicePicker: React.FC<{
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('ALL');
   const [sort, setSort] = useState('name');
-  const [page, setPage] = useState(1);
   const [detailId, setDetailId] = useState<string>();
-  const [scrollState, setScrollState] = useState({ previous: false, next: false });
-  const trackRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const detailTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const selected = packages.find(pkg => pkg.id === selectedId);
-  const detail = packages.find(pkg => pkg.id === detailId);
 
-  useEffect(() => { setPage(1); }, [query, category, sort]);
-  const filtered = useMemo(() => {
-    const search = query.trim().toLocaleLowerCase('id');
-    return packages.filter(pkg => (category === 'ALL' || categoryOf(pkg) === category) &&
-      (!search || `${pkg.name} ${pkg.description} ${pkg.notes || ''}`.toLocaleLowerCase('id').includes(search)))
-      .sort((a, b) => sort === 'price'
-        ? calculatePackagePayableAmount(a).unitPayableAmount - calculatePackagePayableAmount(b).unitPayableAmount || a.name.localeCompare(b.name, 'id')
-        : a.name.localeCompare(b.name, 'id'));
-  }, [packages, query, category, sort]);
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const activePage = Math.min(page, pages);
-  const start = (activePage - 1) * PAGE_SIZE;
-  const visiblePackages = filtered.slice(start, start + PAGE_SIZE);
-  const visibleIds = visiblePackages.map(pkg => pkg.id).join('|');
-
-  const updateScrollState = useCallback(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const previous = track.scrollLeft > 2;
-    const next = track.scrollLeft + track.clientWidth < track.scrollWidth - 2;
-    setScrollState(current => current.previous === previous && current.next === next ? current : { previous, next });
-  }, []);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    track.scrollLeft = 0;
-    updateScrollState();
-    const observer = new ResizeObserver(updateScrollState);
-    observer.observe(track);
-    return () => observer.disconnect();
-  }, [activePage, query, category, sort, visibleIds, updateScrollState]);
+  const search = useDeferredValue(query.trim().toLocaleLowerCase('id'));
+  const indexed = useMemo(() => packages.map(pkg => ({pkg, category: categoryOf(pkg), pricing: calculatePackagePayableAmount(pkg), searchText: `${pkg.name} ${pkg.description} ${pkg.notes || ''}`.toLocaleLowerCase('id')})), [packages]);
+  const byId = useMemo(() => new Map(indexed.map(row => [row.pkg.id, row])), [indexed]);
+  const counts = useMemo(() => indexed.reduce<Record<string,number>>((result, row) => { result[row.category] = (result[row.category] || 0) + 1; return result; }, {}), [indexed]);
+  const selected = byId.get(selectedId)?.pkg;
+  const detail = detailId ? byId.get(detailId)?.pkg : undefined;
+  const filtered = useMemo(() => indexed.filter(row => (category === 'ALL' || row.category === category) && (!search || row.searchText.includes(search)))
+    .sort((a,b) => sort === 'price' ? a.pricing.unitPayableAmount - b.pricing.unitPayableAmount || a.pkg.name.localeCompare(b.pkg.name,'id') : a.pkg.name.localeCompare(b.pkg.name,'id')).map(row => row.pkg), [indexed, search, category, sort]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -84,13 +55,6 @@ export const ServicePicker: React.FC<{
       if (detailTriggerRef.current?.isConnected) detailTriggerRef.current.focus({ preventScroll: true });
     };
   }, [detail?.id]);
-
-  const scrollServices = (direction: number) => {
-    const track = trackRef.current;
-    if (!track) return;
-    track.scrollBy({ left: direction * Math.max(track.clientWidth * 0.8, 260),
-      behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
-  };
 
   return (
     <section className="min-w-0 max-w-full space-y-4" aria-labelledby="service-picker-title">
@@ -104,18 +68,6 @@ export const ServicePicker: React.FC<{
             <span className="text-xs text-slate-500">{packages.length} layanan tersedia</span>
           </div>
         </div>
-        <div className="flex items-center gap-1.5" aria-label="Navigasi pilihan layanan">
-          <Tooltip content="Geser ke layanan sebelumnya">
-            <button type="button" disabled={!scrollState.previous} onClick={() => scrollServices(-1)} aria-label="Geser ke layanan sebelumnya" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          </Tooltip>
-          <Tooltip content="Geser ke layanan berikutnya">
-            <button type="button" disabled={!scrollState.next} onClick={() => scrollServices(1)} aria-label="Geser ke layanan berikutnya" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-35">
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </Tooltip>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_180px_170px]">
@@ -126,18 +78,17 @@ export const ServicePicker: React.FC<{
           {query && <button type="button" onClick={() => setQuery('')} title="Hapus pencarian" aria-label="Hapus pencarian" className="absolute right-1 top-1 flex h-8 w-8 items-center justify-center text-slate-500"><X className="h-4 w-4" /></button>}
         </label>
         <select aria-label="Kategori layanan" value={category} onChange={event => setCategory(event.target.value)} className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs">
-          {categories.map(item => <option key={item.id} value={item.id}>{item.label} ({item.id === 'ALL' ? packages.length : packages.filter(pkg => categoryOf(pkg) === item.id).length})</option>)}
+          {categories.map(item => <option key={item.id} value={item.id}>{item.label} ({item.id === 'ALL' ? packages.length : counts[item.id] || 0})</option>)}
         </select>
         <select aria-label="Urutkan layanan" value={sort} onChange={event => setSort(event.target.value)} className="h-10 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-2 text-xs">
           <option value="name">Nama A-Z</option><option value="price">Harga terendah</option>
         </select>
       </div>
 
-      <div ref={trackRef} role="radiogroup" aria-label="Layanan konsultasi" onScroll={updateScrollState}
-        className="custom-scrollbar grid max-w-full grid-flow-col gap-4 overflow-x-auto overscroll-x-contain snap-x snap-mandatory p-1 pb-3"
-        style={{ gridAutoColumns: 'minmax(min(100%, 280px), calc((100% - 2rem) / 3))' }}>
-        {visiblePackages.map(pkg => {
-          const pricing = calculatePackagePayableAmount(pkg);
+      <div role="radiogroup" aria-label="Layanan konsultasi" aria-busy={query.trim().toLocaleLowerCase('id') !== search}>
+        {filtered.length > 0 && <CardRail key={`${category}:${search}:${sort}`} label="Pilihan layanan pasien">
+        {filtered.map(pkg => {
+          const pricing = byId.get(pkg.id)!.pricing;
           const isSelected = pkg.id === selectedId;
           const categoryStyle = categoryStyles[categoryOf(pkg)];
           const CategoryIcon = categoryStyle.icon;
@@ -145,10 +96,10 @@ export const ServicePicker: React.FC<{
           const LocationIcon = online ? Video : MapPin;
           const notes = pkg.notes?.trim();
           return (
-            <article key={pkg.id} className={`flex min-w-0 snap-start flex-col overflow-hidden rounded-lg border border-t-[3px] bg-white transition-[border-color,box-shadow] focus-within:ring-2 focus-within:ring-teal-500 ${categoryStyle.edge} ${isSelected ? 'border-teal-600 ring-1 ring-teal-600 shadow-sm' : 'border-slate-200 hover:shadow-sm'} ${disabled ? 'opacity-60' : ''}`}>
+            <article key={pkg.id} className={`service-card flex min-w-0 flex-col overflow-hidden rounded-lg border border-t-[3px] bg-white transition-[border-color,box-shadow] focus-within:ring-2 focus-within:ring-teal-500 ${categoryStyle.edge} ${isSelected ? 'border-teal-600 ring-1 ring-teal-600 shadow-sm' : 'border-slate-200 hover:shadow-sm'} ${disabled ? 'opacity-60' : ''}`}>
               <label className={`flex flex-1 flex-col p-4 ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
                 <input type="radio" name="consultation-service" aria-label={pkg.name} className="sr-only" checked={isSelected} disabled={disabled} onChange={() => onSelect(pkg.id)}
-                  onFocus={event => event.currentTarget.closest('article')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })} />
+                  />
                 <div className="flex items-start justify-between gap-3">
                   <div className={`flex items-center gap-2 text-xs font-semibold ${categoryStyle.color}`}>
                     <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${categoryStyle.surface}`}><CategoryIcon className="h-4 w-4" /></span>
@@ -176,31 +127,24 @@ export const ServicePicker: React.FC<{
                 {!!pkg.benefits?.length && <ul className="mt-3 space-y-1.5 text-[11px] leading-4 text-slate-600">
                   {pkg.benefits.slice(0, 2).map((benefit, index) => <li key={index} className="flex items-start gap-1.5"><Check className="mt-0.5 h-3 w-3 shrink-0 text-teal-600" /><span className="break-words">{benefit}</span></li>)}
                 </ul>}
-                <div className={`mt-4 border-t pt-3 text-xs leading-5 ${notes ? 'border-amber-200/70 text-amber-950' : 'border-slate-100 text-slate-500'}`}>
-                  <span className={`mb-1 flex items-center gap-1.5 text-[11px] font-bold ${notes ? 'text-amber-800' : 'text-slate-500'}`}><StickyNote className="h-3.5 w-3.5 shrink-0" />Catatan layanan</span>
-                  <p className="whitespace-pre-line break-words">{notes || 'Tidak ada catatan tambahan.'}</p>
-                </div>
+                {notes && <div className="mt-4 border-t border-amber-200/70 pt-3 text-xs leading-5 text-amber-950">
+                  <span className="mb-1 flex items-center gap-1.5 text-[11px] font-bold text-amber-800"><StickyNote className="h-3.5 w-3.5 shrink-0" />Catatan layanan</span>
+                  <p className="whitespace-pre-line break-words">{notes}</p>
+                </div>}
               </label>
               <div className={`flex items-center justify-between gap-2 border-t px-4 py-2 ${isSelected ? 'border-teal-100 bg-teal-50' : 'border-slate-100 bg-slate-50/70'}`}>
                 <span className={`flex items-center gap-1.5 text-xs font-semibold ${isSelected ? 'text-teal-800' : 'text-slate-500'}`}>{isSelected && <Check className="h-3.5 w-3.5" />}{isSelected ? 'Layanan dipilih' : 'Belum dipilih'}</span>
                 <Tooltip content="Rincian layanan">
-                  <button type="button" aria-label={`Rincian ${pkg.name}`} aria-haspopup="dialog" onClick={event => { detailTriggerRef.current = event.currentTarget; setDetailId(pkg.id); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-white"><Info className="h-4 w-4" /></button>
+                  <button type="button" aria-label={`Rincian ${pkg.name}`} aria-haspopup="dialog" onClick={event => { detailTriggerRef.current = event.currentTarget; setDetailId(pkg.id); }} className="ui-press flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-slate-600 hover:bg-white"><Info className="h-4 w-4" /></button>
                 </Tooltip>
               </div>
             </article>
           );
         })}
+        </CardRail>}
       </div>
 
       {filtered.length === 0 && <div className="border-y border-dashed border-slate-200 py-8 text-center"><Search className="mx-auto mb-2 h-5 w-5 text-slate-400" /><p className="text-sm text-slate-500">Layanan tidak ditemukan.</p></div>}
-      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
-        <span aria-live="polite">{filtered.length > 0 ? `${start + 1}-${Math.min(start + PAGE_SIZE, filtered.length)} dari ${filtered.length} layanan` : '0 layanan'}</span>
-        {pages > 1 && <div className="flex items-center gap-2">
-          <Tooltip content="Halaman layanan sebelumnya"><button type="button" disabled={activePage === 1} onClick={() => setPage(activePage - 1)} aria-label="Halaman layanan sebelumnya" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40"><ChevronLeft className="h-4 w-4" /></button></Tooltip>
-          <span className="min-w-12 text-center">{activePage} / {pages}</span>
-          <Tooltip content="Halaman layanan berikutnya"><button type="button" disabled={activePage === pages} onClick={() => setPage(activePage + 1)} aria-label="Halaman layanan berikutnya" className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 disabled:opacity-40"><ChevronRight className="h-4 w-4" /></button></Tooltip>
-        </div>}
-      </div>
       {selected && <div className="flex items-start gap-2 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-600"><Check className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" /><p className="min-w-0 break-words">Dipilih: <strong className="text-teal-800">{selected.name}</strong></p></div>}
 
       {detail && typeof document !== 'undefined' && createPortal(

@@ -51,8 +51,11 @@ final class Operations
 
     public function lifecycle(User $actor, Appointment $appointment, string $action, string $reason, ?int $release = null): void
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         $state = $appointment->status->value;
+        if (in_array($action, ['start', 'complete', 'no-show', 'cancel'], true)) {
+            Access::requireOwner($actor);
+        }
         switch ($action) {
             case 'check-in':
                 Access::check(in_array($state, ['CONFIRMED', 'CONFIRMED_AUTO_SLA', 'WAITING_VERIFICATION', 'WAITING_PAYMENT'], true) && ! $appointment->requires_reschedule, 'Jadwal belum dapat check-in.');
@@ -105,14 +108,13 @@ final class Operations
             case 'cancel':
                 Access::check(! in_array($state, ['IN_CONSULTATION', 'COMPLETED', 'CANCELLED'], true), 'Layanan sudah berlangsung/terminal.');
                 Access::check(filled($reason), 'Alasan pembatalan wajib.');
-                if ($account = $this->billing->account($appointment)) {
-                    $this->billing->closeUnserved($actor, $account, $reason, $release);
-                }
                 $scope = $appointment->assessment_case_id ? Appointment::where('assessment_case_id', $appointment->assessment_case_id) : ($appointment->treatment_plan_id ? Appointment::where('treatment_plan_id', $appointment->treatment_plan_id) : Appointment::whereKey($appointment->id));
-                foreach ($scope->whereNotIn('status', ['COMPLETED', 'IN_CONSULTATION', 'CANCELLED'])->orderBy('id')->lockForUpdate()->get() as $other) {
-                    if ($other->id !== $appointment->id && ($bill = $this->billing->account($other)) && $bill->id !== ($account?->id)) {
-                        $this->billing->closeUnserved($actor, $bill, $reason);
+                foreach ((clone $scope)->lockForUpdate()->get() as $related) {
+                    if ($bill = $this->billing->account($related)) {
+                        Access::check($this->billing->balance($bill)['remaining_amount'] === 0, 'Pelunasan seluruh tagihan wajib dicatat Admin sebelum layanan dibatalkan.');
                     }
+                }
+                foreach ($scope->whereNotIn('status', ['COMPLETED', 'IN_CONSULTATION', 'CANCELLED'])->orderBy('id')->lockForUpdate()->get() as $other) {
                     $other->update(['status' => 'CANCELLED', 'terminal_at' => now(), 'requires_reschedule' => false, 'plan_unit_released_at' => $other->treatment_plan_id ? now() : null]);
                     foreach (RescheduleRequest::where('appointment_id', $other->id)->whereNotNull('active_guard')->get() as $request) {
                         $request->update(['status' => 'CANCELLED', 'requires_resolution' => false]);
@@ -160,6 +162,8 @@ final class Operations
         if (! Access::staff($actor)) {
             $origin = 'PATIENT';
         }
+        if ($origin === 'OWNER') Access::requireOwner($actor);
+        if ($origin === 'CLINIC') Access::requireStaff($actor);
         if ($origin === 'PATIENT') {
             Access::check(RescheduleRequest::where('appointment_id', $appointment->id)->where('status', 'APPLIED')->where('quota_effect', 1)->count() < 3, 'Kuota tiga reschedule sudah terpakai.');
             $eligible = $appointment->status->value === 'NO_SHOW' ? CarbonImmutable::now()->lessThanOrEqualTo(CarbonImmutable::instance($appointment->start_at)->setTimezone('Asia/Jakarta')->addDays(4)->endOfDay()) : now()->lessThan($appointment->start_at->subHours(2));
@@ -167,9 +171,8 @@ final class Operations
         }
         Access::check(! in_array($appointment->status->value, ['CANCELLED', 'EXPIRED', 'COMPLETED', 'IN_CONSULTATION'], true), 'Appointment tidak dapat dipindahkan.');
         $start = $target ? $this->calendar->instant($target) : null;
-        if ($start && ! Access::staff($actor)) {
-            Access::check($start->greaterThanOrEqualTo($this->calendar->addWorkingMinutes(CarbonImmutable::now(), $this->calendar->settings()->online_lead_working_minutes)), 'Target belum memenuhi tiga jam kerja.');
-        }
+        if ($start) $this->calendar->assertNextDay($start);
+        if ($start) Access::check(!$start->equalTo($appointment->start_at), 'Pilih jadwal yang berbeda dari jadwal aktif.');
         $duration = (int) $appointment->start_at->diffInMinutes($appointment->end_at);
         $request = RescheduleRequest::create(['appointment_id' => $appointment->id, 'requested_by' => $actor->id, 'origin' => $origin, 'requested_at' => now(), 'eligibility_checked_at' => now(), 'appointment_version' => $appointment->row_version,
             'appointment_attempt_number' => $appointment->attempt_number, 'old_interval' => ['start_at' => $appointment->start_at->toIso8601String(), 'end_at' => $appointment->end_at->toIso8601String()],
@@ -187,9 +190,8 @@ final class Operations
         Access::check(in_array($request->status->value, ['REQUESTED', 'APPROVED', 'SLOT_SELECTION_REQUIRED'], true), 'Pengajuan tidak dapat dipilih ulang.');
         Access::check(! $request->selection_expires_at || $request->selection_expires_at->isFuture(), 'Jendela pemilihan berakhir; hubungi Admin.');
         $start = $this->calendar->instant($target);
-        if (! Access::staff($actor)) {
-            Access::check($start->greaterThanOrEqualTo($this->calendar->addWorkingMinutes(CarbonImmutable::now(), $this->calendar->settings()->online_lead_working_minutes)), 'Target belum memenuhi tiga jam kerja.');
-        }
+        $this->calendar->assertNextDay($start);
+        Access::check(!$start->equalTo($appointment->start_at), 'Pilih jadwal yang berbeda dari jadwal aktif.');
         $end = $start->addMinutes((int) $appointment->start_at->diffInMinutes($appointment->end_at));
         $this->calendar->assertFree($start, $end, $appointment->psychologist_id, $appointment->id);
         $request->update(['requested_start_at' => $start, 'requested_end_at' => $end, 'status' => 'REQUESTED']);
@@ -212,6 +214,8 @@ final class Operations
             Access::check($appointment->attempt_number === $request->appointment_attempt_number, 'Usaha/jadwal telah berubah.');
             $start = CarbonImmutable::instance($request->requested_start_at);
             $end = CarbonImmutable::instance($request->requested_end_at);
+            $this->calendar->assertNextDay($start);
+            Access::check($appointment->row_version === $request->appointment_version, 'Jadwal telah berubah sejak pengajuan. Muat ulang dan ajukan ulang.');
             try {
                 $this->calendar->assertFree($start, $end, $appointment->psychologist_id, $appointment->id);
             } catch (ValidationException) {
@@ -241,8 +245,9 @@ final class Operations
 
     public function next(User $actor, Appointment $previous, array $input): Appointment
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         $start = $this->calendar->instant($input['start_at']);
+        $this->calendar->assertNextDay($start);
         $version = $previous->package_version_id;
         Access::check($previous->status->value === 'COMPLETED' && $this->billing->initialMet($previous), 'Sesi sebelumnya harus selesai dan minimum awal verified.');
         $plan = $previous->treatment_plan_id ? TreatmentPlan::findOrFail($previous->treatment_plan_id) : null;

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Check, X, CalendarClock } from 'lucide-react';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import { Tooltip } from '../../common/Tooltip';
 
 export const RescheduleRequestsTab: React.FC = () => {

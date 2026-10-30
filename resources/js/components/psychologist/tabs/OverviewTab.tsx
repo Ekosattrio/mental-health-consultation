@@ -1,4 +1,6 @@
 import React from 'react';
+import {useServerAvailability} from '../../../integration/useServerAvailability';
+import {getMinimumBookingDate} from '../../../utils/bookingPolicy';
 import { Appointment, ScheduleSlot, PsychologistProfile, PsychologistPageCmsConfig } from '../../../types';
 import { FileText, ShieldCheck, CheckCircle2, Sparkles, Stethoscope, User } from 'lucide-react';
 
@@ -19,6 +21,7 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   psychologistCms,
   onOpenEmr
 }) => {
+  const serverSlots=useServerAvailability(getMinimumBookingDate(),60,profile?.userId??'');
   return (
     <div className="space-y-6">
       {/* 4 Top KPI Cards */}
@@ -31,9 +34,9 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Slot Waktu Aktif</span>
           <div className="text-2xl font-extrabold text-sky-700 mt-1">
-            {mySchedules.filter(s => s.isAvailable).length} Slot
+            {serverSlots?serverSlots.loading?'…':serverSlots.slots.length:mySchedules.filter(s => s.isAvailable).length} Slot
           </div>
-          <p className="text-[11px] text-slate-500 mt-0.5">Tersedia untuk dibooking</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">{serverSlots?'Pilihan jam besok untuk sesi 60 menit':'Tersedia untuk dibooking'}</p>
         </div>
         <div className="p-4 sm:p-5 bg-white rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Pasien Aktif</span>

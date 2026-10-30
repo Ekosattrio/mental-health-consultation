@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import {useApp} from '../../../context/AppContextCore';
+import {calendarToView} from '../../../integration/mapping';
+import {getMinimumBookingDate} from '../../../utils/bookingPolicy';
 import { findScheduleConflicts } from '../../../utils/scheduleConflicts';
 import { activeHoldAppointments, readWorkflowState, withWorkflowLock } from '../../../utils/workflowStore';
 import { ScheduleSlot, Appointment, ConsultationPackage } from '../../../types';
@@ -36,12 +39,15 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   psychologistId,
   appointments = []
 }) => {
-  const [settings, setSettings] = useState<PracticeScheduleSettings>(loadScheduleSettings);
+  const {server}=useApp();
+  const [settings, setSettings] = useState<PracticeScheduleSettings>(()=>server?calendarToView(server.workspace.calendar):loadScheduleSettings());
+  const [saving,setSaving]=useState(false);
+  useEffect(()=>{if(server)setSettings(calendarToView(server.workspace.calendar));},[server?.workspace.calendar?.id]);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
   const [validationError, setValidationError] = useState('');
 
   // Form states for Custom Date Override
-  const [overrideDate, setOverrideDate] = useState('2026-10-15');
+  const [overrideDate, setOverrideDate] = useState(getMinimumBookingDate());
   const [overrideIsOpen, setOverrideIsOpen] = useState(true);
   const [overrideMaxPatients, setOverrideMaxPatients] = useState(2);
   const [overrideStartTime, setOverrideStartTime] = useState('09:00');
@@ -49,9 +55,10 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const [overrideNote, setOverrideNote] = useState('Praktik Terbatas');
 
   // Form state for Holidays
-  const [newHoliday, setNewHoliday] = useState('2026-10-28');
+  const [newHoliday, setNewHoliday] = useState('');
 
   useEffect(() => {
+    if(server)return;
     const syncSettings = () => setSettings(loadScheduleSettings());
     const handleStorage = (event: StorageEvent) => {
       if (event.key === SCHEDULE_SETTINGS_STORAGE_KEY) syncSettings();
@@ -66,6 +73,8 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   }, []);
 
   const handleSetDayStatus = (dayIndex: number, isOpen: boolean) => {
+    setSaveSuccessMsg(false);
+    setValidationError('');
     setSettings(prev => ({
       ...prev,
       weeklyDays: prev.weeklyDays.map(d =>
@@ -75,6 +84,8 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   };
 
   const handleDayChange = (dayIndex: number, field: keyof DayScheduleConfig, value: any) => {
+    setSaveSuccessMsg(false);
+    setValidationError('');
     setSettings(prev => ({
       ...prev,
       weeklyDays: prev.weeklyDays.map(d =>
@@ -125,6 +136,8 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   };
 
   const handleRemoveOverride = (date: string) => {
+    setSaveSuccessMsg(false);
+    setValidationError('');
     setSettings(prev => ({
       ...prev,
       customDateOverrides: (prev.customDateOverrides || []).filter(o => o.date !== date)
@@ -134,13 +147,18 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   const handleAddHoliday = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newHoliday || settings.holidays.includes(newHoliday)) return;
+    setSaveSuccessMsg(false);
+    setValidationError('');
     setSettings(prev => ({
       ...prev,
       holidays: [...prev.holidays, newHoliday].sort()
     }));
+    setNewHoliday('');
   };
 
   const handleRemoveHoliday = (date: string) => {
+    setSaveSuccessMsg(false);
+    setValidationError('');
     setSettings(prev => ({
       ...prev,
       holidays: prev.holidays.filter(h => h !== date)
@@ -148,6 +166,14 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
   };
 
   const handleSaveAll = async () => {
+    if(saving)return;
+    setSaveSuccessMsg(false);
+    if(server){
+      setSaving(true);
+      try{const invalid=settings.weeklyDays.some(d=>d.isOpen&&(timeToMinutes(d.endTime)<=timeToMinutes(d.startTime)||!Number.isInteger(d.maxPatients)||d.maxPatients<1||d.maxPatients>15));if(invalid){setValidationError('Periksa jam dan kuota setiap hari praktik.');return;}
+        const saved=await server.saveCalendar(settings);if(saved){setSaveSuccessMsg(true);setValidationError('');}else setValidationError('Jadwal belum tersimpan. Periksa pesan kesalahan.');
+      }finally{setSaving(false);}return;
+    }
     try {
     await withWorkflowLock(() => {
     const invalidWeeklyDay = settings.weeklyDays.find(day => (
@@ -214,6 +240,7 @@ export const ScheduleTab: React.FC<ScheduleTabProps> = ({
         <button
           type="button"
           onClick={handleSaveAll}
+          disabled={saving}
           className="px-4 py-2 bg-sky-700 hover:bg-sky-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer shrink-0"
         >
           <Save className="w-3.5 h-3.5" />

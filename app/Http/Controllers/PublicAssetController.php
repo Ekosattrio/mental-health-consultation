@@ -12,7 +12,7 @@ final class PublicAssetController extends Controller
 {
     public function store(Request $request): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $request->validate(['file' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120']);
         $file = $request->file('file');
         $dimensions = @getimagesize($file->getRealPath());

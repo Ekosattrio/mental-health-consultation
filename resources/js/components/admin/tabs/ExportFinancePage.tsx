@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Appointment } from '../../../types';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import {
   Printer,
   FileSpreadsheet,
@@ -94,15 +94,15 @@ export const ExportFinancePage: React.FC<ExportFinancePageProps> = ({
   const { psychologistCms, landingCms } = useApp();
 
   // Konfigurasi Kop Surat Resmi dari CMS
-  const clinicName = psychologistCms?.letterheadClinicName || 'Praktik Mandiri Psikolog Klinis JiwaSehat';
-  const doctorName = psychologistCms?.letterheadDoctorName || 'dr. Sarah Jenkins, M.Psi., Psikolog';
-  const sipNumber = psychologistCms?.letterheadSipNumber || 'SIP.503/042-DPMPTSP/2022';
-  const strNumber = psychologistCms?.letterheadStrNumber || 'STR-PSI-2021-09842';
-  const clinicAddress = psychologistCms?.letterheadAddress || 'Jl. Senopati Raya No. 42, Kebayoran Baru, Jakarta Selatan 12190';
-  const clinicPhone = psychologistCms?.letterheadPhone || '(021) 7890-1234';
-  const clinicEmail = psychologistCms?.letterheadEmail || 'klinik@jiwasehat.id';
-  const clinicWebsite = psychologistCms?.letterheadWebsite || 'www.jiwasehat.id';
-  const clinicCity = psychologistCms?.letterheadCity || 'Jakarta';
+  const clinicName = psychologistCms?.letterheadClinicName ?? '';
+  const doctorName = psychologistCms?.letterheadDoctorName ?? '';
+  const sipNumber = psychologistCms?.letterheadSipNumber ?? '';
+  const strNumber = psychologistCms?.letterheadStrNumber ?? '';
+  const clinicAddress = psychologistCms?.letterheadAddress ?? '';
+  const clinicPhone = psychologistCms?.letterheadPhone ?? '';
+  const clinicEmail = psychologistCms?.letterheadEmail ?? '';
+  const clinicWebsite = psychologistCms?.letterheadWebsite ?? '';
+  const clinicCity = psychologistCms?.letterheadCity ?? '';
   const signerRole = psychologistCms?.letterheadSignerRole || 'Psikolog Penanggung Jawab Praktik';
 
   // Format Ekspor: 'PDF' (Kop Resmi) | 'EXCEL' (Tabel Spreadsheet)

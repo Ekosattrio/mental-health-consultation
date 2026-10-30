@@ -39,14 +39,12 @@ final class Bookings
         $start = $this->calendar->instant($input['start_at']);
         $settings = $this->calendar->settings();
         $online = ! Access::staff($actor);
-        if ($online) {
-            Access::check($start->greaterThanOrEqualTo($this->calendar->addWorkingMinutes(CarbonImmutable::now(), $settings->online_lead_working_minutes)), 'Slot harus sesudah tiga jam kerja penuh.', 'start_at');
-        }
+        $this->calendar->assertNextDay($start);
         $end = $start->addMinutes($version->duration_minutes);
         $this->calendar->assertFree($start, $end, $settings->owner_user_id);
         $promo = $version->promo_price && (! $version->promo_starts_at || $version->promo_starts_at->lessThanOrEqualTo(now())) && (! $version->promo_ends_at || $version->promo_ends_at->greaterThan(now()));
         $net = $promo ? $version->promo_price : $version->normal_price;
-        $minimum = $settings->initial_payment_mode->value === 'PERCENT' ? (int) ceil($net * $settings->initial_payment_basis_points / 10000) : min($net, $settings->initial_payment_fixed_amount);
+        $minimum = min($net, 100000);
         $values = ['patient_id' => $input['patient_id'], 'package_version_id' => $version->id, 'start_at' => $start->toIso8601String(), 'end_at' => $end->toIso8601String(), 'calendar_version_id' => $this->calendar->version()->id,
             'normal_price' => $version->normal_price, 'final_price' => $net, 'minimum' => $minimum, 'hold_expires_at' => $online ? min(CarbonImmutable::now()->addHours($settings->payment_hold_hours), $start->subMinutes($settings->reminder_lead_minutes_snapshot ?? $settings->reminder_lead_minutes))->toIso8601String() : null];
         // Anchor deadline is recomputed on create; quote signature covers the stable financial/calendar fields.
@@ -108,7 +106,7 @@ final class Bookings
             'reminder_wa_accepted_at'=>(($input['reminder_wa_accepted']??false)||$tele)?now():null,
             'calendar_version_id' => $quote['calendar_version_id'], 'hold_expires_at' => $quote['hold_expires_at'], 'lead_working_minutes_snapshot' => $settings->online_lead_working_minutes, 'reminder_lead_minutes_snapshot' => $settings->reminder_lead_minutes]);
         $account = BillingAccount::create(['patient_id' => $profile->id, 'appointment_id' => $case ? null : $appointment->id, 'assessment_case_id' => $case?->id, 'initial_minimum_due' => $quote['minimum'],
-            'initial_payment_policy_snapshot' => ['mode' => $settings->initial_payment_mode->value, 'fixed_amount' => $settings->initial_payment_fixed_amount, 'basis_points' => $settings->initial_payment_basis_points, 'base_net' => $quote['final_price']]]);
+            'initial_payment_policy_snapshot' => ['mode' => 'FIXED', 'fixed_amount' => 100000, 'base_net' => $quote['final_price']]]);
         $this->billing->base($actor, $account, $appointment, $quote['normal_price'], $quote['final_price'], $version->name);
         if ($plan) {
             PaymentAgreement::create(['treatment_plan_id' => $plan->id, 'first_billing_account_id' => $account->id, 'package_version_id' => $version->id, 'session_subtotal' => $quote['normal_price'],
@@ -126,7 +124,8 @@ final class Bookings
 
     private function custom(User $actor, array $input, PatientProfile $profile, CarbonImmutable $start): Appointment
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
+        $this->calendar->assertNextDay($start);
         $settings = $this->calendar->settings();
         $end = $start->addMinutes($input['duration_minutes']);
         $this->calendar->assertFree($start, $end, $settings->owner_user_id);

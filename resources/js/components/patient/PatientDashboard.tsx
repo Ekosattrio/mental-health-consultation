@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import {
   Calendar,
   History,
@@ -20,6 +20,7 @@ import { OverviewTab } from './tabs/OverviewTab';
 import { FaqTab } from './tabs/FaqTab';
 import { BookingTab } from './tabs/BookingTab';
 import { HistoryTab } from './tabs/HistoryTab';
+import {DashboardPanel} from '../common/DataFeedback';
 
 type PatientTabId = 'overview' | 'faq' | 'booking' | 'history';
 
@@ -129,6 +130,7 @@ export const PatientDashboard: React.FC = () => {
 
         {/* MAIN TAB CONTENT */}
         <main className="flex-1 min-w-0 w-full max-w-full">
+          <DashboardPanel section={activePatientTab}>
           {paymentReconciliations.filter(item => item.patientId === patientId && item.status === 'OPEN').map(item => (
             <div key={item.id} role="status" className="mb-4 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-xs text-amber-950 break-words">
               <strong>Pembayaran sedang dicocokkan: {item.id}</strong>
@@ -177,6 +179,7 @@ export const PatientDashboard: React.FC = () => {
               onNavigateTab={(tab) => handleNavigateTab(tab)}
             />
           )}
+          </DashboardPanel>
         </main>
       </div>
     </div>

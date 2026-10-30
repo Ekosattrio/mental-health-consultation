@@ -1,4 +1,4 @@
-export interface Profile {id:string;row_version:number;full_name:string;phone:string|null;birth_date:string|null;birth_place:string|null;gender:string|null;address:string|null;city:string|null;occupation:string|null}
+export interface Profile {id:string;row_version:number;full_name:string;phone:string|null;birth_date:string|null;birth_place:string|null;gender:string|null;address:string|null;city:string|null;occupation:string|null;emergency_contact?:{name?:string;phone?:string;relationship?:string}|null}
 export interface Package {id:string;row_version:number;version_id:string;service_code:string;category:string;is_active:boolean;name:string;description:string;duration_minutes:number|null;normal_price:number;promo_price:number|null;promo_starts_at:string|null;promo_ends_at:string|null;delivery_mode:string;additional_time_price_basis:string|null;benefits:string[];is_bookable:boolean}
 export interface Payment {id:string;row_version:number;status:string;entry_type:string;method:string;reason:string|null;amount?:number;received_at?:string|null;claimed_amount?:number;sender_name?:string;receipt_id?:string|null;proof:{file_id:string;version:number;decision:string}|null}
 export interface Bill {id:string;row_version:number;patient_id:string;collection_status:string;total_due:number;initial_requirement_met:boolean;verified_received?:number;remaining_amount?:number;overpaid_amount?:number;invoices:{id:string;number:string;kind:string;net_amount:number}[];lines:{id:string;label:string;kind:string;direction:string;amount:number}[];payments:Payment[]}
@@ -6,6 +6,7 @@ export interface Appointment {reminder_contact?:{phone:string|null;accepted:bool
 export interface Weekly {day_of_week:number;daily_limit:number;intervals:[string,string][]}
 export interface Override {local_date:string;mode:string;daily_limit:number;reason:string;intervals:[string,string][]}
 export interface Workspace {
+ presentation?:{owner:{id:string;name:string;email:string;phone:string|null}|null;practice:Record<string,unknown>;cms:Record<string,Record<string,unknown>>};
  role:'PATIENT'|'ADMIN'|'PSYCHOLOGIST';account:{id:string;name:string;email:string;phone:string|null;row_version:number};patients:Profile[];appointments:Appointment[];pagination:{page:number;last_page:number;total:number};bills:Bill[];packages:Package[];
  reschedules:{id:string;row_version:number;appointment_id:string;origin:string;status:string;requested_at:string;start_at:string|null;reason:string;requires_resolution:boolean}[];
  plans:{id:string;patient_id:string;row_version:number;status:string;planned_sessions:number;clinical_objective?:string|null}[];cases:{id:string;patient_id:string;row_version:number;status:string;scope:Record<string,unknown>|null}[];

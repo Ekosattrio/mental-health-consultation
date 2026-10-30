@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Appointment } from '../../../types';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import { createPatientId } from '../../../utils/identifiers';
 import {
   CalendarPlus,
@@ -31,6 +31,8 @@ import { PaymentReconciliation } from '../../../utils/workflowStore';
 import { getCashInDate, getPaymentSchemeLabel, getPaymentSummary } from '../../../utils/payments';
 import { canRecordReceivedPayment } from '../../../utils/paymentWorkflow';
 import { RescheduleOrigin } from '../../../utils/reschedulePolicy';
+import {useServerAvailability} from '../../../integration/useServerAvailability';
+import {calendarToView} from '../../../integration/mapping';
 
 interface ReservationsTabProps {
   appointments: Appointment[];
@@ -81,7 +83,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
     paymentReconciliations,
     slotHolds,
     landingCms,
-    showToast
+    showToast,
+    server
   } = useApp();
 
   const [resSearchQuery, setResSearchQuery] = useState('');
@@ -118,6 +121,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const [walkInBankName, setWalkInBankName] = useState('BCA');
   const [walkInTransferSender, setWalkInTransferSender] = useState('');
   const [isSubmittingWalkIn, setIsSubmittingWalkIn] = useState(false);
+  const [walkInConsent,setWalkInConsent]=useState(false);
   const walkInSubmitting = useRef(false);
   const recordingPayment = useRef(false);
   const [isRecordingPayment, setIsRecordingPayment] = useState(false);
@@ -132,8 +136,9 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   const [rescheduleReason, setRescheduleReason] = useState('');
   const [rescheduleOrigin, setRescheduleOrigin] = useState<RescheduleOrigin>('PATIENT');
   const [rescheduleVersion, setRescheduleVersion] = useState<number>();
-  const [scheduleSettings, setScheduleSettings] = useState(loadScheduleSettings);
+  const [scheduleSettings, setScheduleSettings] = useState(()=>server?calendarToView(server.workspace.calendar):loadScheduleSettings());
   useEffect(() => {
+    if(server)return;
     const sync = () => setScheduleSettings(loadScheduleSettings());
     const storage = (event: StorageEvent) => { if (event.key === SCHEDULE_SETTINGS_STORAGE_KEY) sync(); };
     window.addEventListener('storage', storage);
@@ -174,6 +179,8 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   };
 
   const selectedWalkInPackage = packages.find(pkg => pkg.id === selectedPackageId && pkg.isActive);
+  const serverWalkIn=useServerAvailability(walkInDate,selectedWalkInPackage?.durationMinutes??60,defaultPsychologistId,undefined,isWalkInModalOpen);
+  const serverReschedule=useServerAvailability(rescheduleDate,rescheduleApt?Math.max((Number(rescheduleApt.endTime.slice(0,2))*60+Number(rescheduleApt.endTime.slice(3)))-(Number(rescheduleApt.startTime.slice(0,2))*60+Number(rescheduleApt.startTime.slice(3))),30):60,defaultPsychologistId,rescheduleApt?.id,!!rescheduleApt);
 
   useEffect(() => {
     if (selectedWalkInPackage?.type === 'PSYCHOTHERAPY') {
@@ -182,6 +189,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
   }, [selectedWalkInPackage?.type]);
   const walkInTimeOptions = useMemo(() => {
     if (!walkInDate || !defaultPsychologistId || !selectedWalkInPackage) return [];
+    if(serverWalkIn)return serverWalkIn.slots.map(slot=>`${slot.startTime} - ${slot.endTime}`);
     const availability = computeDynamicSlotsForDate(
       walkInDate,
       scheduleSettings,
@@ -192,7 +200,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
     return availability.slots
       .filter(slot => slot.isAvailable)
       .map(slot => `${slot.startTime} - ${slot.endTime}`);
-  }, [appointments, defaultPsychologistId, selectedWalkInPackage, walkInDate, scheduleSettings, slotHolds]);
+  }, [appointments, defaultPsychologistId, selectedWalkInPackage, walkInDate, scheduleSettings, slotHolds,serverWalkIn?.slots]);
 
   useEffect(() => {
     if (!walkInTimeOptions.includes(walkInTime)) {
@@ -202,6 +210,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
 
   const rescheduleTimeOptions = useMemo(() => {
     if (!rescheduleApt || !rescheduleDate) return [];
+    if(serverReschedule)return serverReschedule.slots.map(slot=>`${slot.startTime} - ${slot.endTime}`);
     const toMinutes = (time: string) => {
       const [hour, minute] = time.split(':').map(Number);
       return hour * 60 + minute;
@@ -217,7 +226,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
     return availability.slots
       .filter(slot => slot.isAvailable)
       .map(slot => `${slot.startTime} - ${slot.endTime}`);
-  }, [appointments, rescheduleApt, rescheduleDate, scheduleSettings, slotHolds]);
+  }, [appointments, rescheduleApt, rescheduleDate, scheduleSettings, slotHolds,serverReschedule?.slots]);
 
   useEffect(() => {
     if (rescheduleApt && !rescheduleTimeOptions.includes(rescheduleTime)) {
@@ -370,6 +379,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
 
   const handleCreateWalkInBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(server&&!walkInConsent){showToast('Persetujuan diperlukan','Pastikan pasien/penanggung jawab telah membaca dan menyetujui layanan.','warning');return;}
     if (walkInSubmitting.current) return;
     walkInSubmitting.current = true;
     setIsSubmittingWalkIn(true);
@@ -455,12 +465,14 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
         initialPaymentReceivedDate: walkInReceivedDate,
         reconciliationId: reconciliation?.id,
         paymentProofUrl: `Walk-in ${paymentChannelDetail}`
+        ,consentGiven:walkInConsent
       });
 
       if (res.success && res.appointment) {
         setWalkInAmount('');
         setIsWalkInModalOpen(false);
         setReconciliation(null);
+        if(server){setReceiptApt(res.appointment);setWalkInConsent(false);return;}
         const verified = await verifyPaymentAndConfirmBooking(
           res.appointment.id,
           'Pembayaran diterima dan dicatat langsung oleh admin saat pendaftaran walk-in.',
@@ -893,7 +905,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
       {/* MODAL BUAT BOOKING PASIEN LANGSUNG (WALK-IN BOOKING) */}
       {isWalkInModalOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp my-auto">
             {/* Modal Header Modern Simple Light */}
             <div className="p-5 sm:p-6 bg-white border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1183,6 +1195,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
               </div>
 
               {/* Submit Buttons */}
+              {server&&<div className="rounded-xl border border-purple-100 bg-purple-50 p-3 text-xs"><details><summary className="font-bold cursor-pointer">Persetujuan layanan pasien</summary><p className="mt-2 whitespace-pre-wrap">{server.workspace.consent?.payload.body}</p></details><label className="mt-3 flex gap-2"><input type="checkbox" required checked={walkInConsent} onChange={e=>setWalkInConsent(e.target.checked)}/><span>Pasien/penanggung jawab telah menyetujui layanan ini. Pre-test di kertas diserahkan langsung kepada psikolog.</span></label></div>}
               <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
                 <button
                   type="button"
@@ -1209,7 +1222,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
 
       {settlementApt && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
             <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-purple-50 border border-purple-100 text-purple-700 flex items-center justify-center">
@@ -1346,7 +1359,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
 
       {rescheduleApt && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-slate-200 overflow-hidden my-auto">
             <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-sky-50 border border-sky-100 text-sky-700 flex items-center justify-center">
@@ -1460,7 +1473,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
 
       {verificationApt && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full my-auto overflow-hidden">
+          <div className="viewport-dialog bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-2xl w-full my-auto overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center justify-center shrink-0">
@@ -1603,7 +1616,7 @@ export const ReservationsTab: React.FC<ReservationsTabProps> = ({
 
       {receiptApt && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] bg-slate-950/75 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden">
+          <div className="viewport-dialog bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full my-auto overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between print:hidden">
               <div>
                 <h3 className="text-base font-black text-slate-900">Receipt Pembayaran</h3>

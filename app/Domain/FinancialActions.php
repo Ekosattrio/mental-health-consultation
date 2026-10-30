@@ -55,7 +55,7 @@ final class FinancialActions
 
     public function charge(User $actor, BillingAccount $bill, array $input): void
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         Access::check($bill->collection_status->value === 'OPEN', 'Tagihan sudah ditutup.');
         Access::check($input['amount'] > 0, 'Biaya wajib positif.');
         if ($input['kind'] === 'FORMAL_REPORT') {
@@ -72,7 +72,7 @@ final class FinancialActions
 
     public function discount(User $actor, BillingAccount $bill, array $input): void
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         Access::check($bill->collection_status->value === 'OPEN', 'Tagihan sudah ditutup.');
         $line = BillingLineItem::whereKey($input['target_line_id'])->firstOrFail();
         $invoice = Invoice::findOrFail($line->invoice_id);
@@ -93,7 +93,7 @@ final class FinancialActions
 
     public function additionalTime(User $actor, Appointment $appointment, array $input): void
     {
-        Access::requireStaff($actor);
+        Access::requireOwner($actor);
         Access::check(in_array($appointment->status->value, ['IN_CONSULTATION', 'COMPLETED'], true), 'Waktu tambahan hanya untuk layanan yang telah berlangsung.');
         $version = PackageVersion::findOrFail($appointment->package_version_id);
         Access::check($version->package->category->value === 'COUNSELING', 'Tarif overtime hanya Konseling.');

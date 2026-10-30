@@ -73,6 +73,7 @@ export type PackageCategory = 'KONSELING' | 'ASESMEN' | 'PSIKOTERAPI';
 export type PackageType = 'OFFLINE_CLINIC' | 'ONLINE_TELE' | 'BUNDLING_ASSESSMENT' | 'PSYCHOTHERAPY';
 
 export interface ConsultationPackage {
+  serverVersion?: number;
   id: string;
   name: string;
   category?: PackageCategory;
@@ -145,6 +146,12 @@ export interface AppointmentStatusEvent {
 }
 
 export interface Appointment {
+  serverInfo?: {
+    rawStatus:string; billingId?:string; paymentId?:string; paymentVersion?:number;
+    totalDue:number; allocated:number; cashReceived:number; remaining:number; initialDue:number;
+    cashVisible:boolean; sourceBillId?:string; invoiceIds:string[]; receiptIds:string[];
+    payments:{id:string;amount:number;at:string;method:string;actor:string;reversal:boolean}[];
+  };
   id: string;
   bookingCode: string;
   patientId: string;

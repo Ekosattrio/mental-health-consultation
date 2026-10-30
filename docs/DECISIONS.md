@@ -1,4 +1,40 @@
-## Implementasi aktif26 Oktober2026
+## Loading data dashboard - 30 Oktober 2026
+
+Eko meminta feedback pada get/display/edit/load di ketiga role. Status harus mengikuti request/operasi nyata; hindari delay minimum, progres rekaan atau menyatakan berhasil sebelum server menjawab. Pertahankan data dan form saat refresh; jangan memakai revision sebagai key yang membongkar editor. Skeleton hanya ketika data/komponen awal belum tersedia. Tampilkan simpan/error di atas modal dan hormati reduced motion. Ini feedback FE, bukan perubahan query SQL atau aturan bisnis. [Implementasi dan verifikasi](DASHBOARD_FEEDBACK_2026-10-30.md).
+
+## Animasi dan performa - 30 Oktober 2026
+
+Setelah Eko mengonfirmasi animasi muncul, gerakan diperhalus dengan jarak lebih pendek/easing landai. Reveal rail sekali saat masuk layar/filter baru; perpindahan halaman memakai native smooth scroll tanpa fade vertikal ulang. Hindari reveal bertumpuk pada parent katalog/ulasan dan kartu. Hover/press ringan, active tidak tertimpa hover, reduced motion tetap dihormati. Build ulang untuk mode aset lokal yang sedang aktif; detail verifikasi di PERFORMANCE_2026-10-30.md.
+
+Diagnosis terakhir: pengguna mengonfirmasi matchMedia reduced motion bernilai true. Pertahankan penghormatan terhadap preferensi aksesibilitas; pengujian animasi normal dilakukan setelah no-preference/hasil false dan reload. Jangan menghapus guard reduced motion atau memaksa perubahan pengaturan OS/browser untuk semua pengunjung. Source/build tidak berubah pada diagnosis preferensi ini.
+
+Instruksi terbaru "coba lu build" mengizinkan build untuk task ini, menggantikan pilihan source saja sebelumnya. Hasil build sudah diverifikasi melalui Laravel dengan public/hot dicadangkan; frontend lokal kini memakai public/build. Tidak mengganti APP_ENV atau mengelola layanan existing. Simpan bukti ukuran/aset dan cara kembali ke HMR; jangan menyatakan skor Lighthouse baru tanpa audit browser nyata.
+
+Koreksi setelah pengguna melaporkan animasi tidak terlihat: mulai reveal saat elemen masuk viewport, dengan stagger per kartu, bukan saat mount di luar layar. Hero tetap langsung tampil. Header tidak mengubah tinggi saat scroll dan login shell dimuat ketika dibuka. Audit pengguna menunjukkan LCP11s/TBT20ms serta potensi minifikasi8.306KiB; ukur memakai aset produksi sebelum menyatakan performa selesai. Larangan build sesi tidak dibatalkan otomatis oleh permintaan optimasi; izin eksplisit diperlukan untuk build dan pemeriksaan produksi lokal.
+
+Animasi memakai transform/opacity finite, satu observer reveal dan reduced motion; hero/LCP tidak disembunyikan untuk menunggu animasi. ServicePicker memakai CardRail halaman utuh, pencarian/index/harga di-memo dan tanpa query backend per ketikan. Jam footer diringkas sebagai rentang tanpa mengubah kalender. Provider demo/default dataset dipisahkan dari binding operasional; katalog di-eager-load tanpa cache harga global dan font UI dihosting lokal dengan lisensi. Hasil sebelum/sesudah serta batas audit di [catatan performa](PERFORMANCE_2026-10-30.md); tidak menyamakan skor Lighthouse dev dengan produksi atau menjanjikan100.
+
+## Role, kalender libur, carousel dan kontak - 30 Oktober 2026
+
+[Penegasan aktif30Oktober](KEPUTUSAN_AKTIF_2026-10-30.md): Admin empat menu operasional; pengelolaan kalender/paket/harga/diskon/CMS/media/tutorial/lifecycle khusus Psikolog dengan guard backend dan draft CMS tidak dikirim ke Admin. Hari libur memakai intervals=[] yang sah, OPEN tetap perlu jam/kuota. CardRail kini slide halaman utuh1/2/3kartu sesuai area, dengan rentang dan nomor halaman, menggantikan fixed22rem/peek sebelumnya. Footer memakai identitas terkini dan jam kalender/CMS; kontak kosong tidak diisi dummy. Pengujian tidak menggantikan UAT visual/gesture. Ketentuan lama yang memberi Admin hak konfigurasi terkait tidak berlaku.
+
+## Pengelolaan layanan lokal - 30 Oktober 2026
+
+Jika dynamic import halaman Inertia gagal, resolver mengembalikan layar pemulihan dengan tombol muat ulang manual dan mencatat penyebab pada console. Jangan mengulang POST login/mutasi atau reload otomatis; sesi dapat sudah berhasil terbentuk sebelum dashboard dimuat. Nama halaman yang tidak terdaftar tetap menjadi kesalahan resolusi. Pergantian origin Vite membutuhkan hard refresh untuk tab yang masih memakai module graph lama.
+
+Dev server Vite memakai127.0.0.1:5173 secara eksplisit dengan strictPort untuk menyamakan loopback artisan serve. Saat halaman putih, bedakan kegagalan respons Laravel, aset Vite dan error render; status ready tidak membuktikan aset merespons.30Oktober ditemukan timeout aset yang kemudian pulih; setelah konfigurasi dimuat ulang, HTML dan67modul frontend merespons normal. Pergantian IPv4 ini langkah konsistensi alamat, bukan bukti bahwa IPv6 sendiri adalah akar hang yang sudah terbukti. Tidak mengubah pengelolaan layanan database di bawah.
+
+MySQL dan Apache lokal dikelola developer melalui Laragon. AI tidak menyalakan database/web server secara langsung atau otomatis saat menemukan error koneksi; tindakan start/stop, auto-start atau perubahan port memerlukan instruksi eksplisit. Periksa pemilik listener dan asal proses sebelum tindakan. Pemeriksaan30Oktober menemukan MySQL aktif milik Laragon, tanpa proses manual29Oktober atau auto-start MySQL tambahan yang terdeteksi. Tidak ada perubahan .env, port, data atau proses layanan pada pemeriksaan ini. [Panduan lokal](SETUP.md), [aturan agent](AGENTS.md).
+
+## Keputusan aktif Eko 29 Oktober 2026
+
+Permintaan katalog tidak menumpuk: daftar layanan publik dan ulasan menggunakan satu baris flex nowrap dengan scroll native/snap. Koreksi setelah screenshot lanjutan: kartu tidak menyusut, lebar dasar22rem dengan batas selebar area HP; jumlah kartu terlihat mengikuti lebar area, bukan membagi ruang untuk semua item. Kontrol berada di atas track. Katalog tidak bergerak otomatis; kategori dan pencarian mengembalikan posisi ke awal hasil. Semua catatan tetap terbaca, fasilitas tidak dibuang, dan harga publik tetap mengikuti hak akses sebelumnya. Autoplay ulasan mengikuti pengaturan CMS dengan jeda manual dan perlindungan fokus/reduced motion. Panduan publik memakai accordion satu terbuka; FAQ yang sudah accordion, pemilih layanan pasien yang sudah horizontal dan manajemen paket yang sudah berhalaman tetap memakai pola masing-masing. Tidak mengubah transaksi atau hak akses.
+
+Koreksi UI mobile: dropdown akun memakai batas navbar dengan gutter kiri/kanan pada layar kecil, lalu kembali mengikuti tombol akun pada desktop. Dialog menggunakan batas tinggi viewport dinamis dan scroll dengan safe area khusus layar; batas lebar desktop dan media cetak tetap mengikuti komponen masing-masing. Toolbar cetak/ekspor boleh membungkus pada HP. Koreksi ini tidak mengubah flow booking, pembayaran atau hak akses.
+
+Tampilan seluruh halaman utama menggunakan FE Eko. Backend Laravel Desman dipertahankan sebagai fondasi transaksi, dengan DP FIXED Rp100.000, H+1 semua role untuk booking/reschedule/lanjutan, sesi berikutnya oleh Psikolog, lifecycle manual Psikolog, dan pembatalan setelah lunas. Auto-confirm SLA dan auto-cancel no-show tidak dipakai. [Otoritas terkini](KEPUTUSAN_AKTIF_2026-10-29.md), [kode dan alur integrasi](INTEGRASI_FE_EKO_2026-10-29.md).
+
+## Histori implementasi 26 Oktober 2026
 
 [Hasil implementasi](IMPLEMENTASI_WEB_2026-10-26.md) dan [handoff](SESSION_HANDOFF.md) menggantikan status tahap sebelumnya. Otoritas bisnis tetap keputusan aktif24 Oktober: DP default50%, online180menit kerja penuh/same-day, offline Admin same-day, pelepasan sisa belum diberikan berjejak. Angka/larangan lama pada log di bawah adalah histori. Ditemukan dan diperbaiki race snapshot InnoDB: mutex praktik sekarang diperoleh sebelum ordinary read pertama di transaksi bisnis dan pada jalur scheduler.
 

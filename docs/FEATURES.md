@@ -1,4 +1,8 @@
 # Daftar fitur teknis
+
+Penegasan30Oktober: [role, kalender libur, slide utuh dan kontak](KEPUTUSAN_AKTIF_2026-10-30.md) mengalahkan izin Admin historis pada spesifikasi fitur. Admin hanya empat menu operasional; pengelolaan CMS/paket/harga/kalender/lifecycle khusus Psikolog.
+
+Status operasional terbaru: [integrasi seluruh tab FE Eko](INTEGRASI_FE_EKO_2026-10-29.md). Keputusan 29 Oktober tentang DP Rp100.000, H+1, lifecycle Psikolog dan pembatalan setelah lunas mengalahkan spesifikasi fitur historis yang berbeda.
 Satu file merinci latar belakang, aktor, field, alur, transisi, kegagalan, fungsi/API, audit dan acceptance criteria.
 | Kode | Fitur | Dokumen |
 |---|---|---|

@@ -9,6 +9,7 @@ use App\Domain\Transactions;
 use App\Models\CmsContent;
 use App\Models\ConsultationPackage;
 use App\Models\OwnerSetting;
+use App\Models\PatientProfile;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -22,13 +23,15 @@ final class ManagementController extends DomainController
 {
     public function package(Request $request): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['package_id' => 'nullable|uuid', 'service_code' => 'required_without:package_id|nullable|regex:/^[A-Z][A-Z0-9_]{2,79}$/', 'category' => 'required_without:package_id|nullable|in:COUNSELING,ASSESSMENT,PSYCHOTHERAPY', 'name' => 'required|string|max:180', 'description' => 'required|string|max:5000',
             'delivery_mode' => 'required|in:OFFLINE,TELE_SERVICE', 'duration_minutes' => 'nullable|integer|min:1|max:480', 'normal_price' => 'required|integer|min:1|max:1000000000', 'promo_price' => 'nullable|integer|min:1|max:1000000000', 'promo_starts_at' => 'nullable|date', 'promo_ends_at' => 'nullable|date',
-            'additional_time_price_basis' => 'nullable|in:NORMAL_PRICE,FINAL_PRICE', 'benefits' => 'required|array|max:30', 'benefits.*' => 'string|max:300', 'is_bookable' => 'required|boolean', 'reason' => 'required|string|min:3|max:500']);
+            'additional_time_price_basis' => 'nullable|in:NORMAL_PRICE,FINAL_PRICE', 'benefits' => 'required|array|max:30', 'benefits.*' => 'string|max:300', 'is_bookable' => 'required|boolean', 'reason' => 'required|string|min:3|max:500',
+            'presentation' => 'sometimes|array:badge,notes,discount_type,discount_value,discount_label', 'presentation.badge' => 'nullable|string|max:100', 'presentation.notes' => 'nullable|string|max:5000', 'presentation.discount_type' => 'nullable|in:NONE,PERCENT,FIXED', 'presentation.discount_value' => 'nullable|numeric|min:0', 'presentation.discount_label' => 'nullable|string|max:150', 'expected_version' => 'required_with:package_id|integer|min:1']);
 
         return $this->execute($request, 'catalog.version', $input, function () use ($request, $input) {
             OwnerSetting::query()->lockForUpdate()->firstOrFail();
+            if (!empty($input['package_id'])) $this->version(ConsultationPackage::whereKey($input['package_id'])->lockForUpdate()->firstOrFail(), $input['expected_version']);
 
             return ['id' => app(Administration::class)->package($request->user(), $input)->id];
         });
@@ -36,7 +39,7 @@ final class ManagementController extends DomainController
 
     public function togglePackage(Request $request, string $package): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['is_active' => 'required|boolean', 'expected_version' => 'required|integer|min:1', 'reason' => 'required|string|min:3|max:500']);
 
         return $this->execute($request, 'catalog.toggle.'.$package, $input, function () use ($request, $package, $input) {
@@ -52,21 +55,21 @@ final class ManagementController extends DomainController
     private function calendarRules(): array
     {
         return ['calendar_version_id' => 'required|uuid', 'reason' => 'required|string|min:3|max:500', 'preview_token' => 'sometimes|string|max:128', 'weekly' => 'required|array|size:7', 'weekly.*.day_of_week' => 'required|integer|min:1|max:7',
-            'weekly.*.daily_limit' => 'required|integer|min:0|max:100', 'weekly.*.intervals' => 'required|array|max:8', 'weekly.*.intervals.*' => 'array|size:2', 'weekly.*.intervals.*.*' => 'string|max:5',
+            'weekly.*.daily_limit' => 'required|integer|min:0|max:100', 'weekly.*.intervals' => 'present|array|max:8', 'weekly.*.intervals.*' => 'array|size:2', 'weekly.*.intervals.*.*' => 'string|max:5',
             'overrides' => 'sometimes|array|max:366', 'overrides.*.local_date' => 'required|date_format:Y-m-d|after_or_equal:'.CarbonImmutable::now('Asia/Jakarta')->toDateString().'', 'overrides.*.mode' => 'required|in:OPEN,CLOSED', 'overrides.*.daily_limit' => 'required|integer|min:0|max:100',
-            'overrides.*.intervals' => 'required|array|max:8', 'overrides.*.intervals.*' => 'array|size:2', 'overrides.*.intervals.*.*' => 'string|max:5', 'overrides.*.reason' => 'required|string|max:500'];
+            'overrides.*.intervals' => 'present|array|max:8', 'overrides.*.intervals.*' => 'array|size:2', 'overrides.*.intervals.*.*' => 'string|max:5', 'overrides.*.reason' => 'required|string|max:500'];
     }
 
     public function calendarPreview(Request $request): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
 
         return response()->json(['data' => app(Administration::class)->calendar($request->user(), $request->validate($this->calendarRules()))]);
     }
 
     public function calendarApply(Request $request): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate([...$this->calendarRules(), 'preview_token' => 'required|string']);
 
         return $this->execute($request, 'calendar.apply', $input, function () use ($request, $input) {
@@ -78,7 +81,7 @@ final class ManagementController extends DomainController
 
     public function cms(Request $request): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['section_key' => 'required|string|max:80', 'payload' => 'required|array|max:50', 'publish' => 'required|boolean', 'expected_published_id' => 'present|nullable|uuid']);
         Access::check(strlen(json_encode($input['payload'])) <= 100000, 'Konten terlalu besar.');
 
@@ -91,7 +94,7 @@ final class ManagementController extends DomainController
 
     public function preview(Request $request, string $cms): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $content = CmsContent::findOrFail($cms);
         if ($content->section_key === 'landing') {
             return app(HomeController::class)->preview($content);
@@ -102,7 +105,7 @@ final class ManagementController extends DomainController
 
     public function publish(Request $request, string $cms): mixed
     {
-        Access::requireStaff($request->user());
+        Access::requireOwner($request->user());
         $input = $request->validate(['expected_published_id' => 'present|nullable|uuid']);
 
         return $this->execute($request, 'cms.publish.'.$cms, $input, function () use ($request, $cms, $input) {
@@ -116,8 +119,8 @@ final class ManagementController extends DomainController
     public function settings(Request $request): mixed
     {
         Access::requireOwner($request->user());
-        $input = $request->validate(['expected_version' => 'required|integer|min:1', 'practice_identity' => 'required|array|max:20', 'practice_identity.*' => 'nullable|string|max:1000',
-            'initial_payment_mode' => 'required|in:PERCENT,FIXED', 'initial_payment_fixed_amount' => 'required|integer|min:1|max:1000000000', 'initial_payment_basis_points' => 'required|integer|min:1|max:10000',
+        $input = $request->validate(['expected_version' => 'required|integer|min:1', 'practice_identity' => 'required|array|max:40', 'practice_identity.*' => 'nullable|string|max:10000',
+            'initial_payment_mode' => 'required|in:FIXED', 'initial_payment_fixed_amount' => 'required|integer|in:100000', 'initial_payment_basis_points' => 'required|integer|min:1|max:10000',
             'grace_minutes' => 'required|integer|min:1|max:120', 'selection_window_hours' => 'required|integer|min:1|max:168', 'proof_correction_hours' => 'required|integer|min:1|max:72', 'reason' => 'required|string|min:3|max:500']);
 
         return $this->execute($request, 'settings.update', $input, function () use ($request, $input) {
@@ -160,6 +163,7 @@ final class ManagementController extends DomainController
     public function account(Request $request): mixed
     {
         $input = $request->validate(['name' => 'required|string|max:150', 'phone' => 'nullable|string|max:25', 'email' => 'required|email|max:254|unique:users,email,'.$request->user()->id, 'current_password' => 'nullable|string', 'password' => ['nullable', 'confirmed', Password::min(12)->mixedCase()->numbers()], 'revoke_sessions' => 'sometimes|boolean', 'expected_version' => 'required|integer|min:1']);
+        $input = [...$input, ...$request->validate(['patient_profile' => 'sometimes|array:id,expected_version,emergency_contact|required_array_keys:id,expected_version', 'patient_profile.id' => 'required_with:patient_profile|uuid', 'patient_profile.expected_version' => 'required_with:patient_profile|integer|min:1', 'patient_profile.emergency_contact' => 'sometimes|array:name,phone,relationship', 'patient_profile.emergency_contact.name' => 'nullable|string|max:150', 'patient_profile.emergency_contact.phone' => 'nullable|string|max:25', 'patient_profile.emergency_contact.relationship' => 'nullable|string|max:100'])];
 
         return $this->execute($request, 'account.update', $input, function () use ($request, $input) {
             $user = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
@@ -169,6 +173,14 @@ final class ManagementController extends DomainController
                 Access::check(Hash::check($input['current_password'] ?? '', $user->password_hash ?? ''), 'Kata sandi sekarang tidak cocok.');
             }
             $phone = Phone::normalize($input['phone'] ?? null);
+            if (isset($input['patient_profile'])) {
+                abort_unless($user->role->value === 'PATIENT', 403);
+                Access::patient($user, $input['patient_profile']['id']);
+                $profile = PatientProfile::whereKey($input['patient_profile']['id'])->lockForUpdate()->firstOrFail();
+                $this->version($profile, $input['patient_profile']['expected_version']);
+                $profile->update(['full_name' => $input['name'], 'phone' => $phone, 'emergency_contact' => $input['patient_profile']['emergency_contact'] ?? $profile->emergency_contact]);
+                Transactions::audit($user, 'account.patient_profile', 'patient_profiles', $profile->id);
+            }
             if ($phone !== $user->phone) {
                 Transactions::audit($user, 'account.contact_changed', 'users', $user->id);
             }

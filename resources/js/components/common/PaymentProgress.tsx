@@ -6,6 +6,7 @@ export const PaymentProgress: React.FC<{ appointment: Appointment; appointments?
   const balance = getPaymentSummary(appointment, appointments || [appointment]);
   const percentage = balance.agreedAmount > 0 ? Math.min(100, Math.round(balance.cashReceived / balance.agreedAmount * 100)) : 100;
   const money = (amount: number) => `Rp ${amount.toLocaleString('id-ID')}`;
+  if(appointment.serverInfo?.cashVisible===false)return <p className="text-xs text-slate-600">{appointment.initialRequirementMet?'Pembayaran awal terkonfirmasi.':'Menunggu pencatatan / verifikasi pembayaran.'} Nominal pembayaran tersimpan hanya ditampilkan kepada pasien dan psikolog.</p>;
   return (
     <div className="space-y-1.5 min-w-0 text-xs">
       <p className="font-semibold text-slate-800 break-words">{balance.label}</p>

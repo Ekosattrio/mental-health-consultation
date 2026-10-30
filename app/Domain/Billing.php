@@ -173,19 +173,14 @@ final class Billing
         $time = app(Calendar::class)->instant($receivedAt);
         Access::check($time->lessThanOrEqualTo(CarbonImmutable::now()) && $amount > 0, 'Nominal/tanggal penerimaan tidak sah.');
         $proof = PaymentProof::where('payment_transaction_id', $payment->id)->orderByDesc('version')->first();
-        $candidate = PaymentTransaction::where('status', 'VERIFIED')->where('entry_type', 'RECEIPT')->where('id', '<>', $payment->id)
-            ->where(function ($q) use ($payment, $amount, $time, $proof) {
-                $q->where(function ($same) use ($payment, $amount, $time) {
-                    $same->where('amount', $amount)->where('method', $payment->method->value)->where('received_at', $time);
-                    if ($payment->reference) {
-                        $same->where('reference', $payment->reference);
-                    }
-                });
-                if ($proof) {
-                    $hash = PrivateFile::findOrFail($proof->file_id)->checksum_sha256;
-                    $q->orWhereIn('id', PaymentProof::whereIn('file_id', PrivateFile::where('checksum_sha256', $hash)->select('id'))->select('payment_transaction_id'));
-                }
-            })->exists();
+        // Dua penerimaan nyata boleh memiliki nominal/metode/waktu yang sama.
+        // Retry dilindungi idempotency transaksi; bukti identik tetap perlu ditinjau.
+        $candidate = false;
+        if ($proof) {
+            $hash = PrivateFile::findOrFail($proof->file_id)->checksum_sha256;
+            $candidate = PaymentTransaction::where('status', 'VERIFIED')->where('entry_type', 'RECEIPT')->where('id', '<>', $payment->id)
+                ->whereIn('id', PaymentProof::whereIn('file_id', PrivateFile::where('checksum_sha256', $hash)->select('id'))->select('payment_transaction_id'))->exists();
+        }
         Access::check(! $candidate || ($duplicateAck && filled($reason)), 'Ada kandidat pembayaran ganda. Periksa dan berikan konfirmasi beralasan.');
         $payment->update(['amount' => $amount, 'received_at' => $time, 'verified_at' => now(), 'verified_by' => $actor->id, 'status' => 'VERIFIED', 'reason' => $reason]);
         if ($proof) {

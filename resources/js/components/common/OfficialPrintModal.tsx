@@ -1,6 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import { ImageWithFallback } from './ImageWithFallback';
 import { Printer, X, Building2, Calendar, FileText, CheckCircle2 } from 'lucide-react';
 
@@ -39,13 +39,13 @@ export const OfficialPrintModal: React.FC<OfficialPrintModalProps> = ({
   if (!isOpen) return null;
 
   // Konfigurasi Kop Surat Resmi dari CMS
-  const clinicName = psychologistCms?.letterheadClinicName || 'Praktik Mandiri Psikolog Klinis JiwaSehat';
-  const doctorName = psychologistCms?.letterheadDoctorName || 'dr. Sarah Jenkins, M.Psi., Psikolog';
-  const sipNumber = psychologistCms?.letterheadSipNumber || 'SIP.503/042-DPMPTSP/2022';
-  const strNumber = psychologistCms?.letterheadStrNumber || 'STR-PSI-2021-09842';
-  const clinicAddress = psychologistCms?.letterheadAddress || 'Jl. Senopati Raya No. 42, Kebayoran Baru, Jakarta Selatan 12190';
-  const clinicPhone = psychologistCms?.letterheadPhone || '(021) 7890-1234';
-  const clinicEmail = psychologistCms?.letterheadEmail || 'klinik@jiwasehat.id';
+  const clinicName = psychologistCms?.letterheadClinicName ?? '';
+  const doctorName = psychologistCms?.letterheadDoctorName ?? '';
+  const sipNumber = psychologistCms?.letterheadSipNumber ?? '';
+  const strNumber = psychologistCms?.letterheadStrNumber ?? '';
+  const clinicAddress = psychologistCms?.letterheadAddress ?? '';
+  const clinicPhone = psychologistCms?.letterheadPhone ?? '';
+  const clinicEmail = psychologistCms?.letterheadEmail ?? '';
 
   const handlePrint = () => {
     window.print();
@@ -62,20 +62,20 @@ export const OfficialPrintModal: React.FC<OfficialPrintModalProps> = ({
   return createPortal(
     <div className="fixed inset-0 z-[999999] flex items-center justify-center p-2 sm:p-4 bg-slate-950/70 backdrop-blur-xs overflow-y-auto print:static print:p-0 print:bg-white print:overflow-visible">
       {/* Container Preview Dialog */}
-      <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
+      <div className="viewport-dialog bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[95vh] print:max-h-none print:shadow-none print:border-none print:w-full print:rounded-none">
         {/* Top Control Bar (Modern Simple Light - Screen Only) */}
-        <div className="p-4 sm:p-5 bg-white border-b border-slate-200 flex items-center justify-between print:hidden">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-100">
+        <div className="p-4 sm:p-5 bg-white border-b border-slate-200 flex shrink-0 flex-wrap items-center justify-between gap-3 print:hidden">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <div className="shrink-0 p-2 rounded-xl bg-teal-50 text-teal-700 border border-teal-100">
               <Printer className="w-5 h-5" />
             </div>
-            <div>
+            <div className="min-w-0">
               <h3 className="text-sm font-bold text-slate-900">Pratinjau Cetak Dokumen Resmi</h3>
               <p className="text-xs text-slate-500">Standar Kop Surat Resmi Praktik & Tabel A4</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
             <button
               type="button"
               onClick={handlePrint}

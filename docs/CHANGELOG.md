@@ -1,4 +1,76 @@
-> Catatan historis/source pada waktu penulisan. Aturan target terbaru: [keputusan24 Oktober](KEPUTUSAN_AKTIF_2026-10-24.md); status implementasi: [handoff](FONDASI_DATABASE_DAN_MODEL_2026-10-24.md). Pernyataan aturan/tes lama di bawah tidak otomatis berlaku pada tahap sekarang.
+# 30 Oktober 2026 - Feedback loading dan transisi CRUD seluruh role
+
+- Tambahkan tracking request aktual dan operasi simpan+refresh yang aman untuk request paralel/failure. Dashboard Superadmin/Admin/Pasien mendapat status memuat, upload, proses simpan, proses lama, refresh manual dan skeleton awal; data lama tetap terlihat selama refresh.
+- Transisi tab/tabel tanpa me-remount form; dialog220ms, reduced motion dan label aksesibel. Paket/CMS menunggu simpan aktual dengan loading/disabled, kegagalan mempertahankan form; toast dipindah ke portal di atas modal dengan batas viewport.
+- TypeScript/102tes FE lulus. Build akhir1,54detik,43aset/font200 dan Laravel memakai main-D08msmhv.js. Tidak mengubah backend/DB/bisnis/permission, mengelola Laragon, menjalankan Git/dev server baru. UAT visual/FPS/Lighthouse baru belum diklaim. [Detail](DASHBOARD_FEEDBACK_2026-10-30.md).
+
+# 30 Oktober 2026 - Penyempurnaan gerakan animasi
+
+- Pengguna mengonfirmasi animasi sudah muncul. Perhalus easing/reveal600ms dengan jarak16px, rail560ms/12px/stagger45ms; hentikan fade ulang saat activePage berubah dan lepaskan reveal parent ganda pada kartu katalog/ulasan.
+- Kurangi jarak hover dan tekanan tombol; letakkan active setelah hover agar feedback desktop tidak tertimpa. Native scroll/snap dan reduced motion tetap dipakai, tanpa dependensi/loop baru.
+- TypeScript/99tes FE lulus, build berhasil1,80detik; HTML memuat main-fd6nyBvm.js,41aset/font200. Graph awal JS/CSS603.200byte; belum ada FPS/Lighthouse baru. Tidak mengendalikan Laragon/Git/dev server. [Bukti](PERFORMANCE_2026-10-30.md).
+
+# 30 Oktober 2026 - Diagnosis pengurangan gerakan browser
+
+- Pengguna mengonfirmasi prefers-reduced-motion:reduce bernilai true. Helper/CSS/scroll memang menonaktifkan animasi pada kondisi ini; sumber Windows atau emulasi DevTools belum dibedakan.
+- Catat cara pengujian no-preference dan pengaturan animasi Windows. Tidak mengubah source/build atau memaksa preferensi semua pengguna; hasil visual menunggu browser pengguna karena otomasi tidak tersambung.
+
+# 30 Oktober 2026 - Build dan pengalihan aset produksi lokal
+
+- Setelah instruksi eksplisit terbaru Eko, jalankan npm run build: berhasil8,92detik/exit0. Cadangkan public/hot ke storage/app/vite-hot-before-production-20261030.txt agar Laravel benar-benar memakai build, tanpa mematikan server existing/Laragon.
+- HTML produksi tanpa Vite client,41aset manifest200, font lokal200/font/woff2, login/up200. Graph awal JS/CSS603.074byte (gzip estimasi lokal172.624byte); bukan pengukuran Lighthouse atau transfer gzip aktual. Peringatan URL font runtime diperiksa dan tidak terjadi404.
+- Dokumentasikan mode aktif/pemulihan HMR dan perubahan izin. Browser automation belum terhubung; tidak mengklaim skor/animasi visual baru. [Bukti](PERFORMANCE_2026-10-30.md).
+
+# 30 Oktober 2026 - Koreksi pemicu animasi dan audit Lighthouse55
+
+- Reveal katalog/ulasan/pemilih layanan menunggu kartu terlihat, lalu muncul bergiliran; reveal bagian bawah beranda diperjelas, hero tetap langsung terlihat dan reduced motion dihormati. Header tidak lagi menganimasikan tinggi/blur saat scroll, tombol/kartu memakai transform, dan login pada shell dimuat saat dibuka.
+- Catat hasil Lighthouse pengguna: FCP5,4s/LCP11s/TBT20ms/CLS0,001, payload10.907KiB dan potensi minifikasi8.306KiB. Hambatan dominan yang perlu dibuktikan berikutnya adalah pengiriman aset produksi; tidak mengklaim skor baru berdasarkan perubahan source.
+- TypeScript dan99tes FE lulus. [Rincian dan batas](PERFORMANCE_2026-10-30.md). Pengguna memilih opsi2: source saja, tanpa build/pengalihan public/hot; layanan Laragon/Git tidak disentuh.
+
+# 30 Oktober 2026 - Animasi ringan dan optimasi pemuatan
+
+- Tambahkan feedback klik/hover, transisi slide180ms dan reveal bagian bawah beranda sekali280ms dengan reduced motion/cleanup; hero tetap terlihat. Pemilih layanan pasien memakai slide halaman penuh dengan notes/pilihan tetap aman, pencarian/harga/kategori di-memo dan tanpa blok catatan kosong berulang. Footer menampilkan rentang jam ringkas.
+- Pisahkan AppContextCore/AppContent/default CMS dari provider/data demo di jalur server. Eager-load versi katalog efektif dan ambil jam mingguan sekali. Bukti lokal: query beranda29ke9, graph impor dev71ke44modul; versi masa depan tetap tersembunyi. Font27KB lokal/OFL mengganti stylesheet eksternal, hero eager dan gambar bawah lazy/async.
+- TypeScript,98tes FE dan52tes backend/429assertion lulus; HTTP halaman/modul/font200. [Bukti rinci](PERFORMANCE_2026-10-30.md). Tidak menjalankan dev/build/Git atau mengelola MySQL/Apache. Skor Lighthouse produksi dan UAT visual belum diklaim.
+
+# 30 Oktober 2026 - Perbaikan libur, role, carousel dan kontak
+
+- Perbaiki validasi kalender agar intervals=[] untuk libur mingguan/tanggal CLOSED dapat dipreview/apply; field hilang dan OPEN tanpa jam tetap ditolak. Semua hari tutup tampil sebagai praktik sedang libur. Uji HTTP membuktikan slot tanggal libur kosong dan hari buka tetap tersedia.
+- Katalog/ulasan memakai halaman penuh berisi1/2/3kartu sesuai lebar area, snap per halaman, rentang item/total/halaman, halaman terakhir dan penyesuaian resize. Tidak ada peek kartu pada posisi berhenti; notes dipertahankan dan ulasan kosong tidak mengarang rating.
+- Batasi Admin ke booking/pembayaran, reschedule, monitoring dan moderasi. Hapus lima tab tambahan, sanitasi tab lama dan tutup endpoint/service pengelolaan owner; draft CMS tidak dikirim ke Admin. Sesuaikan tes fixture ke aktor owner yang sah tanpa mengubah kasir Admin atau guard H+1/DP.
+- Hilangkan placeholder kontak/Instagram demo. Sambungkan jam footer publik ke kalender/CMS, kontak workspace ke identitas terkini, preview ke draft, dan verifikasi publikasi kontak sampai halaman publik. Database praktik memang belum memiliki alamat/telepon/WhatsApp/email; tidak diisi dengan data rekaan.
+- TypeScript0error,97tes frontend dan51tes domain lulus. Perubahan kontak/libur akhir diverifikasi lagi melalui tes terfokus. HTTP halaman/modul200, parser12PHP lulus. Pengujian MySQL memakai database acak terpisah; tidak mereset data praktik, menjalankan Git/dev/build atau mengelola MySQL/Apache. UAT visual/gesture masih terbuka.
+
+# 30 Oktober 2026 - Pengelolaan MySQL melalui Laragon
+
+- Periksa login superadmin melalui HTTP/session nyata: kredensial existing diterima, redirect/superadmin/dashboard dan/work/data200, komponen Eko/Workspace. Sesi uji dilogout terpisah dari browser pengguna. Error pengguna menunjuk alamat modul IPv6 lama setelah Vite beralih ke127.0.0.1; modul dashboard di alamat aktif200. Tambahkan resolver halaman dengan layar pemulihan/tombol muat ulang ketika dynamic import gagal, tanpa POST login ulang atau reload otomatis. TypeScript dan93tes lulus, termasuk regresi kegagalan impor. Tab yang sudah memakai alamat lama perlu satu hard refresh; pesan React DevTools hanya informasi.
+
+- Diagnosis halaman putih/loading: Laravel dan MySQL Laragon aktif, HTML200 sekitar0,5detik, tetapi permintaan aset Vite sempat timeout meski ready. Tetapkan host Vite127.0.0.1, port5173 dan strictPort agar loopback konsisten dengan artisan serve. Vite existing memuat ulang konfigurasi; public/hot dan script HTML kini memakai127.0.0.1:5173.67modul statis frontend berhasil diambil tanpa HTTP error/timeout; TypeScript lulus. Tidak menjalankan dev server/build baru, mengubah .env/database, atau menyalakan/mematikan MySQL/Apache. Pemeriksaan HTTP tidak menggantikan verifikasi tampilan browser.
+
+- Periksa listener3306, executable dan parent proses: MySQL aktif berasal dari Laragon; proses yang dinyalakan manual29Oktober sudah tidak ada. Tidak ditemukan auto-start MySQL pada script project, Windows Run atau scheduled task terkait. Tegaskan larangan agent memulai/menghentikan layanan atau mengganti port tanpa instruksi eksplisit dan perbarui panduan setup. Tidak menyalakan/menghentikan proses, mengubah port/.env atau menulis database. Verifikasi read-only, tanpa tes aplikasi/dev/build/Git.
+
+# 29 Oktober 2026 - Integrasi FE Eko sebagai tampilan utama
+
+- Koreksi lanjutan berdasarkan screenshot pengguna: rail grid sebelumnya masih menekan15kartu hingga teks turun per huruf. Ganti track menjadi flex nowrap dengan kartu22rem yang tidak menyusut, maksimum selebar area pada HP dan scroll horizontal native. Kontrol panah/rentang dipindah ke atas kartu. Berlaku pada katalog dan ulasan melalui CardRail bersama. CSS/modul yang disajikan Vite diverifikasi HTTP200 dan sudah memakai flex/no-shrink tanpa grid-auto-columns; TypeScript dan92tes kembali lulus. Pemeriksaan visual browser belum tersedia dan tidak digantikan oleh checker.
+
+- Katalog landing tidak lagi menampilkan seluruh layanan dalam grid panjang: gunakan CardRail satu baris dengan swipe, trackpad, panah, keyboard dan penunjuk rentang kartu. Tambahkan pencarian nama/deskripsi/catatan serta filter kategori bergeser. Kartu lebih ringkas, catatan tetap terlihat, tarif tamu tetap tersembunyi dan CTA memakai alur booking semula. Ulasan memakai rail yang sama; autoplay mengikuti CMS, dapat dijeda, berhenti saat hover/fokus/tab tersembunyi/di luar layar, dan menghormati reduced motion. Panduan publik menjadi accordion satu judul terbuka tanpa mengubah progres baca. TypeScript dan92tes lulus; smoke render katalog15layanan/tamu/pasien/kosong/panduan lulus dan seluruh modul terkait dari Vite existing HTTP200. Belum mengklaim UAT visual perangkat.
+
+- Koreksi tampilan mobile: dropdown akun dipatok ke batas navbar pada layar kecil, bukan ke tombol akun. Nama/email panjang membungkus, menu memiliki batas tinggi dinamis dan dapat digulir, serta menu akun/navigasi tidak terbuka bersamaan. Dialog lintas role dibatasi tinggi layar dengan safe area; toolbar cetak/ekspor dapat turun baris dan teks notifikasi panjang membungkus. Ukuran maksimum dialog desktop dan aturan cetak dipertahankan. TypeScript dan 92 tes regresi lulus; UAT visual perangkat masih perlu dilakukan karena koneksi otomasi browser tidak tersedia. Tidak mengubah aturan bisnis, database atau Git; dev server/build tidak dijalankan.
+
+- Pemulihan runtime SQLSTATE2002: MySQL yang tidak aktif dinyalakan kembali memakai data/config existing. Koneksi Laravel dan endpoint halaman/API/Vite diverifikasi; tidak mengubah source bisnis atau mereset database. Panduan setup menjelaskan MySQL harus aktif sebelum PHP/Vite.
+
+- Route dashboard menggunakan komponen dashboard/tab FE Eko; navbar/footer/login disamakan pada halaman server.
+- ServerAppProvider, adapter DTO dan pilihan slot server menyambungkan aksi FE ke Laravel tanpa mutasi mock.
+- DP Rp100.000, H+1 seluruh role, sesi lanjutan/reschedule tanpa DP baru, lifecycle Psikolog dan cancel setelah lunas; tidak ada auto-confirm SLA/auto-cancel no-show.
+- Versi paket menyimpan notes/badge/metadata diskon/fasilitas. Quote booking lama dipertahankan; form paket lama ditolak.
+- Ledger/laporan memakai kas server tanpa duplikasi per sesi; retry upload mempertahankan ID bukti dan penerimaan nyata berulang tetap dapat dicatat.
+- Akun/profil disimpan atomik, tipe jawaban pre-test divalidasi, serta input/form dipertahankan pada kegagalan.
+- Migrasi DP/presentation diterapkan tanpa reset akun/transaksi. TypeScript,92tes FE dan49tes backend/359assertion lulus.
+- [Keputusan aktif](KEPUTUSAN_AKTIF_2026-10-29.md), [peta integrasi](INTEGRASI_FE_EKO_2026-10-29.md), [handoff](SESSION_HANDOFF.md), [TODO](TODO.md). Dev server/build/Git tidak dijalankan.
+
+## Histori sebelum 29 Oktober
+
+Ketentuan lama yang berbeda dari keputusan Eko29Oktober tidak menjadi aturan aktif.
 
 # Migrasi Inertia disetujui — 20 Oktober 2026
 

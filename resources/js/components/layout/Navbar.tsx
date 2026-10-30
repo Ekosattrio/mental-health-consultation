@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import { adminNavigation } from '../admin/navigation';
 import { UserRole } from '../../types';
 import {
@@ -72,8 +72,13 @@ export const Navbar: React.FC = () => {
 
   // Scroll listener for smooth sticky elevation transition
   useEffect(() => {
+    let previous=window.scrollY>15;
+    setIsScrolled(previous);
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 15);
+      const next=window.scrollY>15;
+      if(next===previous)return;
+      previous=next;
+      setIsScrolled(next);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -97,9 +102,21 @@ export const Navbar: React.FC = () => {
         emergencyContact: currentUser.emergencyContact || ''
       }));
     }
-  }, [currentUser]);
+  }, [JSON.stringify(currentUser)]);
 
   const profileMenuRef = useRef<HTMLDivElement>(null);
+  const profileTriggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const closeWithEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setProfileMenuOpen(false);
+      setIsMobileNavOpen(false);
+      if (profileMenuOpen) profileTriggerRef.current?.focus();
+    };
+    document.addEventListener('keydown', closeWithEscape);
+    return () => document.removeEventListener('keydown', closeWithEscape);
+  }, [profileMenuOpen]);
 
   // Close menus on click outside
   useEffect(() => {
@@ -135,46 +152,46 @@ export const Navbar: React.FC = () => {
 
   return (
     <header
-      className={`sticky top-0 z-[60] transition-all duration-300 ease-in-out print:hidden ${
+      className={`sticky top-0 z-[60] print:hidden ${
         isScrolled
-          ? 'bg-white/95 backdrop-blur-md border-b border-teal-500/20 shadow-md shadow-slate-900/5'
-          : 'bg-white/85 backdrop-blur-sm border-b border-slate-200/60 shadow-none'
+          ? 'bg-white border-b border-teal-500/20 shadow-sm'
+          : 'bg-white border-b border-slate-200/60 shadow-none'
       }`}
     >
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className={`flex items-center justify-between gap-2 sm:gap-4 transition-all duration-300 ${isScrolled ? 'h-14' : 'h-16'}`}>
+      <div className="relative max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex h-16 items-center justify-between gap-2 sm:gap-4">
           {/* Logo & Platform Title */}
-          <div className="flex items-center gap-3 select-none group">
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3 select-none group">
             {landingCms?.logoUrl ? (
               <ImageWithFallback
                 src={landingCms.logoUrl}
                 alt="JiwaSehat"
-                className="w-10 h-10 rounded-2xl object-cover border border-teal-100 shadow-xs group-hover:scale-105 transition-transform"
+                className="w-10 h-10 shrink-0 rounded-2xl object-cover border border-teal-100 shadow-xs group-hover:scale-105 transition-transform"
                 fallback={(
-                  <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-sm">
+                  <div className="w-10 h-10 shrink-0 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-sm">
                     <HeartHandshake className="w-6 h-6" />
                   </div>
                 )}
               />
             ) : (
-              <div className="w-10 h-10 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-sm shadow-teal-500/30 group-hover:scale-105 transition-transform">
+              <div className="w-10 h-10 shrink-0 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-sm shadow-teal-500/30 group-hover:scale-105 transition-transform">
                 <HeartHandshake className="w-6 h-6" />
               </div>
             )}
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="text-xl font-extrabold text-slate-900 tracking-tight group-hover:text-teal-700 transition-colors">
+                <span className="truncate text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight group-hover:text-teal-700 transition-colors">
                   JiwaSehat
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 font-medium hidden sm:block">
-                Praktik Mandiri Psikolog Klinis • dr. Sarah Jenkins, M.Psi.
+              <p className="truncate text-[11px] text-slate-500 font-medium hidden sm:block" title={landingCms.clinicName}>
+                {landingCms.clinicName || 'Praktik Psikologi JiwaSehat'}
               </p>
             </div>
           </div>
 
           {/* Right Controls: Auth Buttons & 3-Dots Dropdown */}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {/* If GUEST: Show unified 'Masuk / Daftar' Button */}
             {currentRole === 'GUEST' ? (
               <button
@@ -186,10 +203,14 @@ export const Navbar: React.FC = () => {
               </button>
             ) : (
               /* If Logged In: Current User Pill & Dropdown */
-              <div className="relative" ref={profileMenuRef}>
+              <div className="static sm:relative min-w-0" ref={profileMenuRef}>
                 <button
+                  ref={profileTriggerRef}
                   type="button"
-                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  aria-label="Buka menu akun"
+                  aria-expanded={profileMenuOpen}
+                  aria-controls="account-menu"
+                  onClick={() => { setIsMobileNavOpen(false); setProfileMenuOpen(open => !open); }}
                   className="flex items-center gap-2.5 px-3 py-1.5 rounded-2xl border border-slate-200/90 bg-white hover:bg-slate-50 hover:border-slate-300 shadow-2xs transition-all text-left cursor-pointer group"
                 >
                   <div className="relative">
@@ -219,21 +240,21 @@ export const Navbar: React.FC = () => {
                       currentRole === 'PATIENT' ? 'bg-emerald-500' : currentRole === 'PSYCHOLOGIST' ? 'bg-sky-500' : 'bg-purple-500'
                     }`} />
                   </div>
-                  <div className="hidden sm:block">
-                    <div className="text-xs font-black text-slate-800 leading-tight group-hover:text-teal-700 transition-colors">
+                  <div className="hidden sm:block min-w-0 max-w-36 md:max-w-52">
+                    <div className="truncate text-xs font-black text-slate-800 leading-tight group-hover:text-teal-700 transition-colors" title={currentUser?.name}>
                       {currentUser?.name}
                     </div>
                     <div className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
                       <span>{currentRole === 'PATIENT' ? 'Pasien' : currentRole === 'PSYCHOLOGIST' ? 'Psikolog' : 'Admin'}</span>
                       <span className="text-slate-300">•</span>
-                      <span className="text-[9px] text-slate-400">ID: #{currentUser?.id}</span>
+                      <span className="truncate text-[9px] text-slate-400" title={currentUser?.id}>ID: #{currentUser?.id}</span>
                     </div>
                   </div>
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${profileMenuOpen ? 'rotate-180 text-teal-600' : ''}`} />
                 </button>
 
                 {profileMenuOpen && (
-                  <div className="absolute right-0 mt-2.5 w-[calc(100vw-1.5rem)] max-w-sm sm:w-88 rounded-3xl bg-white border border-slate-200/90 shadow-2xl p-3.5 z-50 animate-in fade-in-50 duration-150">
+                  <div id="account-menu" role="region" aria-label="Menu akun" className="account-menu absolute inset-x-3 top-full mt-2.5 min-w-0 sm:left-auto sm:right-0 sm:w-88 rounded-3xl bg-white border border-slate-200/90 shadow-2xl p-3 sm:p-3.5 z-50 animate-in fade-in-50 duration-150">
                     {/* 1. Header Profil Pengguna */}
                     <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                       <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-2xs shrink-0 overflow-hidden ${
@@ -270,13 +291,13 @@ export const Navbar: React.FC = () => {
                             {currentRole === 'PATIENT' ? 'Pasien Terdaftar' : currentRole === 'PSYCHOLOGIST' ? 'Psikolog & Pengelola' : 'Admin Operasional'}
                           </span>
                         </div>
-                        <h4 className="text-xs font-black text-slate-900 mt-1 truncate">{currentUser?.name}</h4>
-                        <p className="text-[11px] text-slate-500 truncate">{currentUser?.email}</p>
+                        <h4 className="text-xs font-black text-slate-900 mt-1 break-words [overflow-wrap:anywhere]">{currentUser?.name}</h4>
+                        <p className="text-[11px] text-slate-500 break-words [overflow-wrap:anywhere]">{currentUser?.email}</p>
                       </div>
                     </div>
 
                     {/* 2. Info Status Ringkas */}
-                    <div className="my-2.5 px-3 py-2 rounded-xl bg-slate-50/70 border border-slate-100/80 text-[11px] text-slate-600 flex items-center justify-between">
+                    <div className="my-2.5 px-3 py-2 rounded-xl bg-slate-50/70 border border-slate-100/80 text-[11px] text-slate-600 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 [overflow-wrap:anywhere]">
                       {currentRole === 'PATIENT' ? (
                         <>
                           <span className="flex items-center gap-1.5 text-emerald-700 font-bold">
@@ -311,13 +332,13 @@ export const Navbar: React.FC = () => {
                         setProfileMenuOpen(false);
                         setIsProfileModalOpen(true);
                       }}
-                      className="w-full mb-2 p-2.5 rounded-xl bg-teal-50 hover:bg-teal-100/70 text-teal-900 border border-teal-200/80 text-xs font-bold flex items-center justify-between transition-colors cursor-pointer"
+                      className="w-full mb-2 p-2.5 rounded-xl bg-teal-50 hover:bg-teal-100/70 text-teal-900 border border-teal-200/80 text-xs font-bold flex items-center justify-between gap-2 transition-colors cursor-pointer"
                     >
-                      <div className="flex items-center gap-2">
-                        <UserIcon className="w-4 h-4 text-teal-700" />
+                      <div className="flex min-w-0 items-center gap-2 text-left">
+                        <UserIcon className="w-4 h-4 shrink-0 text-teal-700" />
                         <span>Buka Detail Profil & Akun</span>
                       </div>
-                      <ExternalLink className="w-3.5 h-3.5 text-teal-600" />
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 text-teal-600" />
                     </button>
 
 
@@ -348,7 +369,7 @@ export const Navbar: React.FC = () => {
             {currentRole !== 'GUEST' && (currentUser?.role !== 'PATIENT' || currentUser?.isProfileComplete) && (
               <button
                 type="button"
-                onClick={() => setIsMobileNavOpen(prev => !prev)}
+                onClick={() => { setProfileMenuOpen(false); setIsMobileNavOpen(prev => !prev); }}
                 className="lg:hidden p-2.5 rounded-2xl border border-slate-200/90 bg-white hover:bg-slate-50 text-slate-700 hover:text-teal-700 hover:border-teal-200 transition-all cursor-pointer shadow-2xs flex items-center justify-center group"
                 title={isMobileNavOpen ? 'Tutup Navigasi Menu' : 'Buka Navigasi Menu'}
                 aria-label="Toggle Menu Navigasi Mobile"
@@ -365,7 +386,7 @@ export const Navbar: React.FC = () => {
 
       {/* MOBILE NAV DRAWER: Terbuka saat hamburger diklik di layar mobile (< lg) */}
       {isMobileNavOpen && currentRole !== 'GUEST' && (
-        <div className="lg:hidden border-t border-slate-100 bg-white/95 backdrop-blur-md px-4 py-3.5 shadow-xl animate-in slide-in-from-top-2 duration-200">
+        <div className="mobile-navigation lg:hidden border-t border-slate-100 bg-white/95 backdrop-blur-md px-4 py-3.5 shadow-xl animate-in slide-in-from-top-2 duration-200">
           <div className="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-100">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
               Navigasi {currentRole === 'PATIENT' ? 'Pasien' : currentRole === 'PSYCHOLOGIST' ? 'Psikolog Klinis' : 'Admin'}
@@ -466,7 +487,7 @@ export const Navbar: React.FC = () => {
       {/* MODAL DETAIL PROFIL PENGGUNA LENGKAP VIA CREATEPORTAL */}
       {isProfileModalOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-in fade-in-50 duration-150 overflow-y-auto">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-150 my-auto relative">
+          <div className="viewport-dialog bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-lg w-full p-4 sm:p-6 animate-in zoom-in-95 duration-150 my-auto relative">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-3">

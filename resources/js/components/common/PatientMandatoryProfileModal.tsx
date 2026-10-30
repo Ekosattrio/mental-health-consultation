@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import {
   HeartHandshake,
   User as UserIcon,
@@ -112,7 +112,7 @@ export const PatientMandatoryProfileModal: React.FC = () => {
 
   return typeof document !== 'undefined' && createPortal(
     <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 sm:p-8 animate-in zoom-in-95 duration-200 my-auto relative">
+      <div className="viewport-dialog bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-xl w-full p-6 sm:p-8 animate-in zoom-in-95 duration-200 my-auto relative">
         {/* Header Modal */}
         <div className="flex items-start gap-4 pb-4 border-b border-slate-100">
           <div className="w-12 h-12 rounded-2xl bg-teal-600 flex items-center justify-center text-white shadow-md shadow-teal-500/30 shrink-0">

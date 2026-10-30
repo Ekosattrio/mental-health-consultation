@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Appointment } from '../../../types';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import {
   FileText,
   Download,
@@ -53,14 +53,14 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
 }) => {
   const { psychologistCms, landingCms } = useApp();
 
-  const clinicName = psychologistCms?.letterheadClinicName || 'Praktik Mandiri Psikolog Klinis JiwaSehat';
-  const doctorName = psychologistCms?.letterheadDoctorName || 'dr. Sarah Jenkins, M.Psi., Psikolog';
-  const sipNumber = psychologistCms?.letterheadSipNumber || 'SIP.503/042-DPMPTSP/2022';
-  const strNumber = psychologistCms?.letterheadStrNumber || 'STR-PSI-2021-09842';
-  const clinicAddress = psychologistCms?.letterheadAddress || 'Jl. Senopati Raya No. 42, Kebayoran Baru, Jakarta Selatan 12190';
-  const clinicPhone = psychologistCms?.letterheadPhone || '(021) 7890-1234';
-  const clinicEmail = psychologistCms?.letterheadEmail || 'klinik@jiwasehat.id';
-  const clinicCity = psychologistCms?.letterheadCity || 'Jakarta';
+  const clinicName = psychologistCms?.letterheadClinicName ?? '';
+  const doctorName = psychologistCms?.letterheadDoctorName ?? '';
+  const sipNumber = psychologistCms?.letterheadSipNumber ?? '';
+  const strNumber = psychologistCms?.letterheadStrNumber ?? '';
+  const clinicAddress = psychologistCms?.letterheadAddress ?? '';
+  const clinicPhone = psychologistCms?.letterheadPhone ?? '';
+  const clinicEmail = psychologistCms?.letterheadEmail ?? '';
+  const clinicCity = psychologistCms?.letterheadCity ?? '';
   const signerRole = psychologistCms?.letterheadSignerRole || 'Psikolog Penanggung Jawab Praktik';
   // Mode Filter: 'MONTH_YEAR' | 'DATE_RANGE' | 'ALL'
   const [filterMode, setFilterMode] = useState<'MONTH_YEAR' | 'DATE_RANGE' | 'ALL'>('MONTH_YEAR');
@@ -185,16 +185,16 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
     <div className="fixed inset-0 z-[999999] flex items-center justify-center bg-slate-950/75 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-150 print:p-0 print:bg-white print:static print:z-auto">
       <div
         onClick={e => e.stopPropagation()}
-        className="bg-white rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[95vh] overflow-y-auto custom-scrollbar flex flex-col justify-between print:border-none print:shadow-none print:p-0 print:max-h-none print:w-full print:max-w-none"
+        className="viewport-dialog bg-white rounded-3xl max-w-4xl w-full p-5 sm:p-7 shadow-2xl border border-slate-200/90 max-h-[95vh] overflow-y-auto custom-scrollbar flex flex-col justify-between print:border-none print:shadow-none print:p-0 print:max-h-none print:w-full print:max-w-none"
       >
         {/* Modal Top Control Bar */}
         <div>
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100 print:hidden">
-            <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100 print:hidden">
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center shrink-0">
                 <FileText className="w-5 h-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-base font-black text-slate-900 tracking-tight">
                   Pratinjau & Ekspor Laporan Keuangan
                 </h3>
@@ -204,7 +204,7 @@ export const ExportFinanceModal: React.FC<ExportFinanceModalProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex w-full shrink-0 items-center justify-end gap-1.5 sm:w-auto">
               <Tooltip content="Download File CSV / Excel" position="bottom">
                 <button
                   type="button"

@@ -9,6 +9,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
   fallback,
   src,
   onError,
+  decoding = 'async',
   ...imageProps
 }) => {
   const [failed, setFailed] = useState(false);
@@ -23,6 +24,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
     <img
       {...imageProps}
       src={src}
+      decoding={decoding}
       onError={event => {
         setFailed(true);
         onError?.(event);

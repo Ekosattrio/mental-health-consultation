@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ConsultationPackage, PackageType } from '../../../types';
-import { useApp } from '../../../context/AppContext';
+import { useApp } from '../../../context/AppContextCore';
 import {
   Layers,
   Plus,
@@ -26,10 +26,11 @@ import {
 import { Tooltip } from '../../common/Tooltip';
 import { calculatePackagePayableAmount } from '../../../utils/discounts';
 import { FLAT_DP_AMOUNT } from '../../../utils/payments';
+import {BusyMark} from '../../common/DataFeedback';
 
 export interface PackagesTabProps {
   packages: ConsultationPackage[];
-  savePackage: (pkg: ConsultationPackage) => void;
+  savePackage: (pkg: ConsultationPackage) => void | Promise<boolean>;
   deletePackage: (packageId: string) => void;
   togglePackageStatus: (packageId: string) => void;
 }
@@ -40,7 +41,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
   deletePackage,
   togglePackageStatus
 }) => {
-  const { showToast } = useApp();
+  const { showToast,server } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
@@ -55,6 +56,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
 
   // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [previewPackage, setPreviewPackage] = useState<ConsultationPackage | null>(null);
   const [editingPackage, setEditingPackage] = useState<ConsultationPackage | null>(null);
   const [deleteConfirmPkgId, setDeleteConfirmPkgId] = useState<string | null>(null);
@@ -97,11 +99,13 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
   };
 
   const handleOpenAddModal = () => {
+    if(isSaving)return;
     resetForm();
     setIsFormModalOpen(true);
   };
 
   const handleOpenEditModal = (pkg: ConsultationPackage) => {
+    if(isSaving)return;
     setEditingPackage(pkg);
     setName(pkg.name);
     setCategory(pkg.category || 'KONSELING');
@@ -121,8 +125,9 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
     setIsFormModalOpen(true);
   };
 
-  const handleSavePackage = (e: React.FormEvent) => {
+  const handleSavePackage = async (e: React.FormEvent) => {
     e.preventDefault();
+    if(isSaving)return;
 
     if (!name.trim()) {
       showToast('Form Tidak Lengkap', 'Nama paket wajib diisi.', 'error');
@@ -176,6 +181,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       : consultationMode;
 
     const updatedPackage: ConsultationPackage = {
+      serverVersion:editingPackage?.serverVersion,
       id: editingPackage ? editingPackage.id : `pkg-${Date.now()}`,
       name: name.trim(),
       category,
@@ -185,8 +191,8 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       discountType,
       discountValue: discountType === 'NONE' ? 0 : Number(discountValue),
       discountLabel: discountType === 'NONE' ? undefined : discountLabel.trim() || 'Potongan dari psikolog/pengelola',
-      isContinuousCare: category === 'PSIKOTERAPI' || isContinuousCare,
-      sessionCount: category === 'PSIKOTERAPI' ? 4 : isContinuousCare ? normalizedSessionCount : 1,
+      isContinuousCare: category === 'PSIKOTERAPI' || (!server&&isContinuousCare),
+      sessionCount: category === 'PSIKOTERAPI' ? 4 : !server&&isContinuousCare ? normalizedSessionCount : 1,
       badge: badge.trim() || undefined,
       description: description.trim(),
       benefits: benefitsArray.length > 0 ? benefitsArray : ['Konsultasi privat sesuai metode layanan yang dipilih.'],
@@ -195,9 +201,14 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       iconName: packageType === 'ONLINE_TELE' ? 'Video' : 'Building2'
     };
 
-    savePackage(updatedPackage);
-    setIsFormModalOpen(false);
-    resetForm();
+    setIsSaving(true);
+    try{
+      const saved=await savePackage(updatedPackage);
+      if(saved===false)return;
+      setIsFormModalOpen(false);
+      resetForm();
+    }catch(error){showToast('Paket belum tersimpan',error instanceof Error?error.message:'Coba simpan kembali.','error');}
+    finally{setIsSaving(false);}
   };
 
   const handleConfirmDelete = () => {
@@ -666,7 +677,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       {/* 4. MODAL PREVIEW KARTU PAKET (PERSIS TAMPILAN PASIEN) */}
       {previewPackage && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-scaleUp my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-md rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-scaleUp my-auto">
             <div className="p-5 bg-white border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-teal-50 border border-teal-100/60 text-teal-600 flex items-center justify-center font-bold shrink-0">
@@ -760,7 +771,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       {/* 5. MODAL FORM TAMBAH / EDIT PAKET */}
       {isFormModalOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh] animate-scaleUp my-auto">
             {/* Modal Header Modern Simple Light */}
             <div className="p-5 sm:p-6 bg-white border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -779,7 +790,8 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsFormModalOpen(false)}
+                onClick={() => {if(!isSaving)setIsFormModalOpen(false);}}
+                disabled={isSaving}
                 className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
                 title="Tutup (Esc)"
               >
@@ -788,7 +800,8 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
             </div>
 
             {/* Modal Form Body */}
-            <form onSubmit={handleSavePackage} className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs custom-scrollbar">
+            <form onSubmit={handleSavePackage} aria-busy={isSaving} className="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs custom-scrollbar">
+              <fieldset disabled={isSaving} className="min-w-0 space-y-4 border-0 p-0">
               <div>
                 <label className="text-[11px] font-bold text-slate-700 block mb-1">Nama Paket Layanan *</label>
                 <input
@@ -857,7 +870,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                   <div>
                     <strong className="text-xs text-indigo-950 block">Konsultasi Berkelanjutan (Rawat Jalan)</strong>
                     <span className="text-[11px] text-indigo-700">
-                      {category === 'PSIKOTERAPI' ? 'Rencana awal psikoterapi selalu empat sesi; kelanjutan dibuat lewat booking baru.' : 'Aktifkan jika paket mencakup beberapa rangkaian sesi terapi berkelanjutan.'}
+                      {category === 'PSIKOTERAPI' ? 'Rencana awal psikoterapi selalu empat sesi; kelanjutan dibuat lewat booking baru.' : server?'Rangkaian empat sesi tersedia untuk kategori Psikoterapi.':'Aktifkan jika paket mencakup beberapa rangkaian sesi terapi berkelanjutan.'}
                     </span>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -865,14 +878,14 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                       type="checkbox"
                       checked={category === 'PSIKOTERAPI' || isContinuousCare}
                       onChange={e => setIsContinuousCare(e.target.checked)}
-                      disabled={category === 'PSIKOTERAPI'}
+                      disabled={category === 'PSIKOTERAPI'||!!server}
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
                   </label>
                 </div>
 
-                {category !== 'PSIKOTERAPI' && isContinuousCare && (
+                {!server&&category !== 'PSIKOTERAPI' && isContinuousCare && (
                   <div className="pt-3 border-t border-indigo-200/60 space-y-3 animate-fadeIn">
                     <div>
                       <span className="text-xs font-bold text-indigo-950 block">Jumlah Rangkaian Sesi Terjadwal</span>
@@ -1129,19 +1142,21 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
               <div className="pt-3 border-t border-slate-100 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsFormModalOpen(false)}
+                  onClick={() => {if(!isSaving)setIsFormModalOpen(false);}}
                   className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 font-bold text-xs cursor-pointer"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
+                  disabled={isSaving}
                   className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs active:scale-95 transition-colors"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>{editingPackage ? 'Simpan Perubahan' : 'Buat Paket Sekarang'}</span>
+                  {isSaving?<BusyMark/>:<CheckCircle2 className="w-4 h-4" />}
+                  <span>{isSaving?'Menyimpan paket…':editingPackage ? 'Simpan Perubahan' : 'Buat Paket Sekarang'}</span>
                 </button>
               </div>
+              </fieldset>
             </form>
           </div>
         </div>,
@@ -1151,12 +1166,12 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
       {/* 6. MODAL KONFIRMASI HAPUS */}
       {deleteConfirmPkgId && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 animate-scaleUp my-auto">
+          <div className="viewport-dialog bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl border border-slate-200 space-y-4 animate-scaleUp my-auto">
             <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100">
               <Trash2 className="w-6 h-6" />
             </div>
             <div className="text-center space-y-1">
-              <h3 className="text-sm font-bold text-slate-900">Hapus Paket Konsultasi?</h3>
+              <h3 className="text-sm font-bold text-slate-900">{server?'Nonaktifkan Layanan?':'Hapus Paket Konsultasi?'}</h3>
               <p className="text-xs text-slate-500 leading-relaxed">
                 Paket ini tidak akan muncul lagi di katalog layanan pasien. Tindakan ini tidak dapat dibatalkan.
               </p>
@@ -1174,7 +1189,7 @@ export const PackagesTab: React.FC<PackagesTabProps> = ({
                 onClick={handleConfirmDelete}
                 className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs cursor-pointer shadow-xs"
               >
-                Ya, Hapus
+                {server?'Ya, Nonaktifkan':'Ya, Hapus'}
               </button>
             </div>
           </div>

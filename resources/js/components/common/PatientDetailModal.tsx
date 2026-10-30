@@ -19,6 +19,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { Tooltip } from './Tooltip';
+import {DashboardSkeleton,useRequestActivity} from './DataFeedback';
 
 export interface PatientDetailModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'PRETEST' | 'APPOINTMENTS'>('PRETEST');
   const [selectedBookingId, setSelectedBookingId] = useState('');
+  const activity=useRequestActivity();
 
   if (!isOpen || !patient) return null;
 
@@ -59,7 +61,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
   return typeof document !== 'undefined' && createPortal(
     <div className="fixed inset-0 z-[999999] flex items-center justify-center p-3 sm:p-4 md:p-6 bg-slate-950/75 backdrop-blur-xs animate-fadeIn overflow-y-auto">
       <div 
-        className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col transition-all transform animate-scaleUp my-auto"
+        className="viewport-dialog bg-white w-full max-w-4xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden max-h-[90vh] flex flex-col transition-all transform animate-scaleUp my-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="patient-detail-title"
@@ -160,7 +162,7 @@ export const PatientDetailModal: React.FC<PatientDetailModalProps> = ({
           
           {/* TAB 1: PRE-TEST & IDENTITAS */}
           {activeTab === 'PRETEST' && (
-            intakeForm ? (
+            activity.clinical>0&&!intakeForm?<DashboardSkeleton compact label="Memuat pre-test pasien…"/>:intakeForm ? (
               <div className="space-y-6">
                 {snapshotBookings.length > 0 && (
                   <label className="block font-bold text-slate-700">

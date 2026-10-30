@@ -1,5 +1,28 @@
 # Setup lokal Laravel13, Inertia3 dan React
 
+## Mode aktif setelah audit build30Oktober2026
+
+Build produksi berhasil setelah izin Eko. Laravel pada127.0.0.1:8000 kini memakai public/build; public/hot dicadangkan ke storage/app/vite-hot-before-production-20261030.txt tanpa mematikan terminal Vite/PHP atau Laragon. Hard refresh browser sebelum menguji/mengulang Lighthouse. Tidak perlu membuka npm run preview.
+
+Untuk kembali mengedit dengan HMR, hentikan lalu jalankan ulang satu terminal npm run dev existing agar marker hot ditulis kembali. Jangan membuat instance kedua pada port5173. Alternatifnya pulihkan backup marker jika Vite existing masih merespons. Selama memakai build, perubahan source berikutnya membutuhkan build ulang atau kembali ke mode dev. Ini pengaturan aset lokal, bukan perpindahan APP_ENV/database ke produksi.
+
+## Urutan menjalankan project
+
+1. Kelola MySQL lewat menu Start/Stop MySQL di Laragon. Aktifkan Apache dari Laragon bila ingin membuka phpMyAdmin. Backend PHP dan Vite tidak menyalakan kedua layanan tersebut secara otomatis.
+2. Di folder project, jalankan `php artisan serve --host=127.0.0.1 --port=8000`.
+3. Pada terminal lain di folder yang sama, jalankan `npm run dev` oleh developer.
+4. Buka `http://127.0.0.1:8000`, bukan alamat Vite.
+
+Vite lokal menggunakan host eksplisit127.0.0.1 dan port5173 dengan strictPort. Ini menyamakan loopback dengan artisan serve dan menghindari variasi resolusi localhost IPv4/IPv6 di Windows. Jangan menjalankan instance kedua jika port terpakai. Jika halaman putih/loading, periksa respons HTML Laravel dan file `@vite/client`/main.tsx dari alamat pada public/hot secara terpisah. Pada30Oktober HTML merespons200 sementara aset Vite sempat timeout walaupun terminal menulis ready. Setelah pulih dan host dibuat eksplisit, public/hot memakai http://127.0.0.1:5173 dan67modul frontend berhasil diambil. Refresh tab lama agar URL modul di HTML ikut diperbarui. Jika konfigurasi belum diterapkan otomatis, developer me-restart satu terminal Vite yang sama.
+
+Jika console masih menyebut `http://[::1]:5173` dan `Failed to fetch dynamically imported module`, lakukan Ctrl+Shift+R pada alamat Laravel127.0.0.1:8000 untuk membuang module graph tab lama. Ini dapat muncul setelah login sudah diterima; jangan reset password/database berdasarkan error aset tersebut. Resolver terbaru menyediakan tombol muat ulang saat impor halaman gagal, tanpa mengirim ulang login/mutasi. Pesan Download React DevTools bukan error autentikasi.
+
+Jika muncul SQLSTATE2002 connection refused ke127.0.0.1:3306, periksa bahwa MySQL aktif/listen pada port3306 sebelum mengubah konfigurasi aplikasi. Pada29Oktober2026 Laragon/MySQL sempat tidak berjalan sementara PHP dan Vite sudah aktif. MySQL dipulihkan memakai executable/my.ini dan folder data lama `C:/laragon/data/mysql-8.4`; database tidak dibuat ulang atau direset.
+
+Aturan terbaru30Oktober2026: pemulihan manual29Oktober adalah histori, bukan cara menjalankan berikutnya. Jangan menjalankan mysqld langsung atau membuat auto-start di luar Laragon. Bila port3306 terpakai, identifikasi proses pemilik dan asalnya terlebih dahulu; jangan jalankan instance tambahan, membunuh proses atau mengganti port secara otomatis. Dua proses mysqld dapat berupa parent/child satu instance; periksa listener dan rantai proses, bukan hanya jumlah nama executable.
+
+Pemeriksaan30Oktober menemukan satu listener3306 dengan rantai proses berawal dari Laragon; proses manual29Oktober sudah tidak ada. Tidak ditemukan auto-start MySQL pada script project, Windows Run atau scheduled task terkait. .env memakai127.0.0.1:3306 dan tidak diubah. Menutup jendela Laragon tidak selalu menghentikan layanan; gunakan menu Stop untuk menghentikannya. phpMyAdmin adalah antarmuka melalui Apache/PHP, bukan pengelola MySQL tersendiri.
+
 Status26 Oktober2026: backend domain, controller, workspace React, PDF, ekspor, scheduler dan adapter notifikasi telah dibuat. [Hasil implementasi](IMPLEMENTASI_WEB_2026-10-26.md) menjelaskan alur dan pembatasan akses. [Handoff](SESSION_HANDOFF.md) menyimpan hasil pemeriksaan terbaru.
 
 ## Kebutuhan

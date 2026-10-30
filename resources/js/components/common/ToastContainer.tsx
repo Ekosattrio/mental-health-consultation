@@ -1,11 +1,12 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext';
+import {createPortal} from 'react-dom';
+import { useApp } from '../../context/AppContextCore';
 import { CheckCircle2, AlertTriangle, Info, XCircle, X } from 'lucide-react';
 
 export const ToastContainer: React.FC = () => {
   const { toast, dismissToast } = useApp();
 
-  if (!toast) return null;
+  if (!toast || typeof document==='undefined') return null;
 
   const icons = {
     success: <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />,
@@ -21,18 +22,18 @@ export const ToastContainer: React.FC = () => {
     info: 'border-indigo-200 bg-indigo-50 text-indigo-950'
   };
 
-  return (
+  return createPortal(
     <div
       id="global-toast-notification"
       role="status"
       aria-live="polite"
-      className="relative z-50 w-full px-3 pt-3 animate-in fade-in slide-in-from-top-2 duration-200 sm:fixed sm:bottom-5 sm:right-5 sm:max-w-md sm:px-0 sm:pt-0 sm:slide-in-from-bottom-5"
+      className="fixed inset-x-3 top-20 z-[1000010] mx-auto max-h-[calc(100dvh_-_6rem)] max-w-md overflow-y-auto rounded-xl sm:bottom-5 sm:left-auto sm:right-5 sm:top-auto sm:mx-0 sm:w-full print:hidden"
     >
       <div
         className={`p-3 sm:p-4 rounded-xl border shadow-lg flex items-start gap-2.5 sm:gap-3 backdrop-blur-sm ${borders[toast.type]}`}
       >
         {icons[toast.type]}
-        <div className="flex-1 min-w-0 pr-1 sm:pr-2">
+        <div className="flex-1 min-w-0 pr-1 sm:pr-2 [overflow-wrap:anywhere]">
           <p className="text-xs font-bold uppercase tracking-wider opacity-80">{toast.title}</p>
           <p className="text-sm font-medium mt-0.5 leading-snug">{toast.message}</p>
         </div>
@@ -45,6 +46,6 @@ export const ToastContainer: React.FC = () => {
           <X className="w-4 h-4" />
         </button>
       </div>
-    </div>
+    </div>,document.body
   );
 };

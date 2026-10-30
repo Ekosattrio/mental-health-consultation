@@ -1,5 +1,9 @@
 # Hak akses kanonik
-Tanggal: 19 Oktober 2026. Role bisnis Superadmin dipetakan ke PSYCHOLOGIST, hanya satu owner.
+
+Penegasan terbaru30Oktober: [keputusan aktif](KEPUTUSAN_AKTIF_2026-10-30.md). Admin hanya empat menu: booking/pembayaran, pengajuan reschedule, monitoring pengguna dan moderasi review. Pengelolaan paket/harga/diskon, kalender, CMS/media/tutorial serta operasional sesi khusus Psikolog. Izin Admin historis yang bertentangan di bawah/arsip tidak berlaku.
+
+Dasar bisnis: [keputusan Eko 29 Oktober](KEPUTUSAN_AKTIF_2026-10-29.md). Seluruh booking/reschedule/lanjutan H+1; mulai/selesai/no-show/cancel dan penjadwalan sesi berikutnya hanya Psikolog. Pembayaran tetap operasional Admin.
+Diperbarui30Oktober2026; tanggal19Oktober adalah histori awal. Role bisnis Superadmin dipetakan ke PSYCHOLOGIST, hanya satu owner.
 ## Matriks
 | Kemampuan | Guest | Pasien berizin | Admin | Superadmin |
 |---|---|---|---|---|
@@ -10,19 +14,21 @@ Tanggal: 19 Oktober 2026. Role bisnis Superadmin dipetakan ke PSYCHOLOGIST, hany
 | Saldo pasien/agregat penerimaan/receipt penuh | Tidak | Milik sendiri | **Tidak** | Ya |
 | Nominal bukti/input pembayaran aktif | Tidak | Milik sendiri | Ya untuk verifikasi/input | Ya |
 | Verifikasi/penolakan bukti dan pencatatan/koreksi DP/cicilan/pelunasan | Tidak | Upload/koreksi bukti sendiri saja | Ya | Tidak; baca ledger/laporan |
-| Promo global dan diskon tagihan individual | Tidak | Lihat hasil milik sendiri | Ya, alasan/audit | Ya |
-| Harga dasar dan basis tarif additional time per versi paket | Tidak | Lihat ketentuan paket sendiri | Kelola, alasan/audit | Kelola |
-| Biaya kustom/extra Konseling/laporan | Tidak | Lihat tagihan sendiri | Ya sesuai guard | Ya |
+| Promo global dan diskon tagihan individual | Tidak | Lihat hasil milik sendiri | Tidak mengelola | Ya |
+| Harga dasar dan basis tarif additional time per versi paket | Tidak | Lihat ketentuan paket sendiri | Tidak mengelola | Kelola |
+| Biaya kustom/extra Konseling/laporan | Tidak | Lihat tagihan sendiri | Tidak mengelola | Ya |
 | Link Google Meet dan nomor WA Telelayanan | Tidak | Baca link milik/akses sah, konfirmasi nomor booking | Kelola/kirim ulang beralasan | Kelola |
-| Jam klinik, slot, kuota | Baca jam publik | Baca slot | Ya + dampak | Ya |
-| Booking bantuan/walk-in | Tidak | Online setelah 3 jam kerja penuh, boleh same-day | Offline hari ini/sekarang pada slot sah | Operasional sesuai kalender |
-| Check-in/mulai/selesai/no-show administratif | Tidak | Lihat status | Ya sesuai F10 | Ya |
+| Jam klinik, slot, kuota | Baca jam publik | Baca slot | Baca untuk booking/reschedule | Kelola |
+| Booking bantuan/walk-in | Tidak | Minimal H+1 | Minimal H+1 pada slot sah | Minimal H+1 pada slot sah |
+| Check-in administratif | Tidak | Lihat status | Tidak mengubah status | Ya |
+| Mulai/selesai/no-show/cancel | Tidak | Lihat status | Tidak | Ya, manual; cancel setelah lunas |
+| Menjadwalkan sesi berikutnya | Tidak | Lihat jadwal | Monitoring/bantuan reschedule | Ya, setelah sesi sebelumnya selesai, tanpa DP baru |
 | Pre-test answers/hasil tes/catatan klinis | Tidak | Jawaban sendiri | Status lengkap saja | Ya |
 | Profiling offline di kertas | Tidak melalui aplikasi | Isi lalu serahkan langsung ke Superadmin | Pendataan administratif saja; tidak input/baca/upload jawaban | Terima dan tangani langsung |
 | Keputusan klinis/close case/stop plan lunas (tanpa extend) | Tidak | Tidak | Bantu jadwal saja | Ya |
 | Memulai rangkaian administratif Psikoterapi pada booking pertama | Tidak | Ya, otomatis bersama sesi1 milik/akses sah | Ya melalui assisted/walk-in | Ya; dapat membuat manual |
 | Reschedule | Tidak | Mengajukan | Review/apply | Ya |
-| CMS administratif | Baca published | Baca | Kelola | Kelola/sahkan identitas klinis |
+| CMS administratif/media/tutorial | Baca published | Baca | Baca published saja | Kelola |
 | Moderasi review | Baca approved | Buat/edit milik sendiri | Ya | Ya |
 | Export jadwal tanpa saldo/klinis | Tidak | Tidak | Ya | Ya |
 | Laporan kas/pengeluaran/surplus | Tidak | Tidak | Tidak | Ya |

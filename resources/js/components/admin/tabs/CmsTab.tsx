@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import {useApp} from '../../../context/AppContextCore';
 import {
   LandingPageCmsConfig,
   PatientPageCmsConfig,
@@ -10,7 +11,7 @@ import {
   INITIAL_LANDING_CMS,
   INITIAL_PATIENT_CMS,
   INITIAL_PSYCHOLOGIST_CMS
-} from '../../../data/mockData';
+} from '../../../data/cmsDefaults';
 import {
   Save,
   RotateCcw,
@@ -30,6 +31,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { ImageWithFallback } from '../../common/ImageWithFallback';
+import {BusyMark} from '../../common/DataFeedback';
 
 interface CmsTabProps {
   cmsConfig: LandingPageCmsConfig;
@@ -37,9 +39,9 @@ interface CmsTabProps {
   psychologistCms: PsychologistPageCmsConfig;
   psychologists: PsychologistProfile[];
   users: User[];
-  updateLandingCms: (config: Partial<LandingPageCmsConfig>) => void;
-  updatePatientCms: (config: Partial<PatientPageCmsConfig>) => void;
-  updatePsychologistCms: (config: Partial<PsychologistPageCmsConfig>) => void;
+  updateLandingCms: (config: Partial<LandingPageCmsConfig>) => void | Promise<boolean>;
+  updatePatientCms: (config: Partial<PatientPageCmsConfig>) => void | Promise<boolean>;
+  updatePsychologistCms: (config: Partial<PsychologistPageCmsConfig>) => void | Promise<boolean>;
   updatePsychologistProfile: (profile: Partial<PsychologistProfile>, userId?: string) => Promise<boolean>;
 }
 
@@ -54,6 +56,15 @@ export const CmsTab: React.FC<CmsTabProps> = ({
   updatePsychologistCms,
   updatePsychologistProfile
 }) => {
+  const {server,showToast}=useApp();
+  const [savingCms,setSavingCms]=useState<'LANDING'|'PATIENT'|'PSYCHOLOGIST'|null>(null);
+  const saveCmsForm=async(section:'LANDING'|'PATIENT'|'PSYCHOLOGIST',save:()=>void|Promise<boolean>)=>{
+    if(savingCms)return;
+    setSavingCms(section);
+    try{await save();}
+    catch(error){showToast('Konten belum tersimpan',error instanceof Error?error.message:'Coba simpan kembali.','error');}
+    finally{setSavingCms(null);}
+  };
   const [adminCmsSubTab, setAdminCmsSubTab] = useState<'LANDING' | 'PATIENT' | 'PSYCHOLOGIST'>('LANDING');
   const [isUpdatingAvailability, setIsUpdatingAvailability] = useState(false);
 
@@ -66,48 +77,48 @@ export const CmsTab: React.FC<CmsTabProps> = ({
   const [cmsForm, setCmsForm] = useState<LandingPageCmsConfig>(cmsConfig);
   useEffect(() => {
     setCmsForm(cmsConfig);
-  }, [cmsConfig]);
+  }, [JSON.stringify(cmsConfig)]);
 
-  const handleSaveCms = (e: React.FormEvent) => {
+  const handleSaveCms = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateLandingCms(cmsForm);
+    await saveCmsForm('LANDING',()=>updateLandingCms(cmsForm));
   };
 
   const handleResetCms = () => {
-    setCmsForm(INITIAL_LANDING_CMS);
-    updateLandingCms(INITIAL_LANDING_CMS);
+    setCmsForm(server?cmsConfig:INITIAL_LANDING_CMS);
+    if(!server)updateLandingCms(INITIAL_LANDING_CMS);
   };
 
   // Patient Page CMS state
   const [patientCmsForm, setPatientCmsForm] = useState<PatientPageCmsConfig>(patientCms);
   useEffect(() => {
     setPatientCmsForm(patientCms);
-  }, [patientCms]);
+  }, [JSON.stringify(patientCms)]);
 
-  const handleSavePatientCms = (e: React.FormEvent) => {
+  const handleSavePatientCms = async (e: React.FormEvent) => {
     e.preventDefault();
-    updatePatientCms(patientCmsForm);
+    await saveCmsForm('PATIENT',()=>updatePatientCms(patientCmsForm));
   };
 
   const handleResetPatientCms = () => {
-    setPatientCmsForm(INITIAL_PATIENT_CMS);
-    updatePatientCms(INITIAL_PATIENT_CMS);
+    setPatientCmsForm(server?patientCms:INITIAL_PATIENT_CMS);
+    if(!server)updatePatientCms(INITIAL_PATIENT_CMS);
   };
 
   // Psychologist Page CMS state
   const [psychologistCmsForm, setPsychologistCmsForm] = useState<PsychologistPageCmsConfig>(psychologistCms);
   useEffect(() => {
     setPsychologistCmsForm(psychologistCms);
-  }, [psychologistCms]);
+  }, [JSON.stringify(psychologistCms)]);
 
-  const handleSavePsychologistCms = (e: React.FormEvent) => {
+  const handleSavePsychologistCms = async (e: React.FormEvent) => {
     e.preventDefault();
-    updatePsychologistCms(psychologistCmsForm);
+    await saveCmsForm('PSYCHOLOGIST',()=>updatePsychologistCms(psychologistCmsForm));
   };
 
   const handleResetPsychologistCms = () => {
-    setPsychologistCmsForm(INITIAL_PSYCHOLOGIST_CMS);
-    updatePsychologistCms(INITIAL_PSYCHOLOGIST_CMS);
+    setPsychologistCmsForm(server?psychologistCms:INITIAL_PSYCHOLOGIST_CMS);
+    if(!server)updatePsychologistCms(INITIAL_PSYCHOLOGIST_CMS);
   };
 
   return (
@@ -141,7 +152,8 @@ export const CmsTab: React.FC<CmsTabProps> = ({
 
       {/* SUBTAB 1: CMS LANDING PAGE (ACCORDION EKSKLUSIF) */}
       {adminCmsSubTab === 'LANDING' && (
-        <form onSubmit={handleSaveCms} className="space-y-3">
+        <form onSubmit={handleSaveCms} aria-busy={savingCms!==null} className="space-y-3">
+          <fieldset disabled={savingCms!==null} className="min-w-0 space-y-3 border-0 p-0">
           {/* Action Bar Ringkas */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
             <div>
@@ -166,8 +178,8 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                 type="submit"
                 className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
               >
-                <Save className="w-3.5 h-3.5" />
-                Simpan Landing
+                {savingCms==='LANDING'?<BusyMark/>:<Save className="w-3.5 h-3.5" />}
+                {savingCms==='LANDING'?'Menyimpan…':'Simpan Landing'}
               </button>
             </div>
           </div>
@@ -694,12 +706,14 @@ export const CmsTab: React.FC<CmsTabProps> = ({
               </div>
             )}
           </div>
+        </fieldset>
         </form>
       )}
 
       {/* SUBTAB 2: CMS HALAMAN PASIEN (ACCORDION EKSKLUSIF) */}
       {adminCmsSubTab === 'PATIENT' && (
-        <form onSubmit={handleSavePatientCms} className="space-y-3">
+        <form onSubmit={handleSavePatientCms} aria-busy={savingCms!==null} className="space-y-3">
+          <fieldset disabled={savingCms!==null} className="min-w-0 space-y-3 border-0 p-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
             <div>
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
@@ -723,8 +737,8 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                 type="submit"
                 className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
               >
-                <Save className="w-3.5 h-3.5" />
-                Simpan Pasien
+                {savingCms==='PATIENT'?<BusyMark/>:<Save className="w-3.5 h-3.5" />}
+                {savingCms==='PATIENT'?'Menyimpan…':'Simpan Pasien'}
               </button>
             </div>
           </div>
@@ -873,12 +887,14 @@ export const CmsTab: React.FC<CmsTabProps> = ({
               </div>
             )}
           </div>
+        </fieldset>
         </form>
       )}
 
       {/* SUBTAB 3: CMS HALAMAN DOKTER / PSIKOLOG (ACCORDION EKSKLUSIF) */}
       {adminCmsSubTab === 'PSYCHOLOGIST' && (
-        <form onSubmit={handleSavePsychologistCms} className="space-y-3">
+        <form onSubmit={handleSavePsychologistCms} aria-busy={savingCms!==null} className="space-y-3">
+          <fieldset disabled={savingCms!==null} className="min-w-0 space-y-3 border-0 p-0">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs">
             <div>
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
@@ -902,8 +918,8 @@ export const CmsTab: React.FC<CmsTabProps> = ({
                 type="submit"
                 className="px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
               >
-                <Save className="w-3.5 h-3.5" />
-                Simpan Dokter
+                {savingCms==='PSYCHOLOGIST'?<BusyMark/>:<Save className="w-3.5 h-3.5" />}
+                {savingCms==='PSYCHOLOGIST'?'Menyimpan…':'Simpan Dokter'}
               </button>
             </div>
           </div>
@@ -1238,6 +1254,7 @@ export const CmsTab: React.FC<CmsTabProps> = ({
               </div>
             )}
           </div>
+        </fieldset>
         </form>
       )}
     </div>

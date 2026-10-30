@@ -1,5 +1,7 @@
 # Arsitektur JiwaSehat
 
+Pembaruan 29 Oktober: tampilan utama mengikuti FE Eko. `Eko/Workspace -> ServerAppProvider -> AppContent` memakai dashboard/tab FE asli dengan DTO dan endpoint Laravel. `EkoShell` menyamakan navbar/footer halaman publik/akun. Workspace alternatif Desman tidak dirender route dashboard. [Pemetaan integrasi](INTEGRASI_FE_EKO_2026-10-29.md), [aturan aktif](KEPUTUSAN_AKTIF_2026-10-29.md).
+
 Keputusan aktif 20 Oktober 2026: Laravel 13 + Inertia 3 + React 19/TypeScript/Vite dalam satu proyek dan domain. Developer menyetujui migrasi dari fondasi REST sebelumnya. [Catatan untuk Eko](PERUBAHAN_INERTIA_UNTUK_EKO_2026-10-20.md) membedakan perubahan nyata dari fitur target.
 
 ## Alur web

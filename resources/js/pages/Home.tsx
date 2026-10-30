@@ -26,8 +26,8 @@ export default function Home({public_landing}: {public_landing: PublicLandingDat
     packages: public_landing.packages.map(item => ({
       id: item.service_code, name: item.name,
       category: ({COUNSELING: 'KONSELING', ASSESSMENT: 'ASESMEN', PSYCHOTHERAPY: 'PSIKOTERAPI'} as const)[item.category],
-      type: item.category === 'ASSESSMENT' ? 'BUNDLING_ASSESSMENT' : item.category === 'PSYCHOTHERAPY' ? 'PSYCHOTHERAPY' : 'OFFLINE_CLINIC',
-      durationMinutes: item.duration_minutes ?? 0, description: item.description, benefits: item.benefits,
+      type: item.category === 'ASSESSMENT' ? 'BUNDLING_ASSESSMENT' : item.category === 'PSYCHOTHERAPY' ? 'PSYCHOTHERAPY' : item.delivery_mode==='TELE_SERVICE'?'ONLINE_TELE':'OFFLINE_CLINIC',
+      durationMinutes: item.duration_minutes ?? 0, description: item.description, benefits: item.benefits,notes:item.notes,badge:item.badge,
       isActive: true, iconName: '',
       ...(item.final_price!==undefined?{price:item.final_price,normalPrice:item.normal_price}:{}),
       // Tidak menambahkan price=0 atau harga mock ke data publik.
@@ -40,7 +40,7 @@ export default function Home({public_landing}: {public_landing: PublicLandingDat
       heroBadge: 'Konseling, Asesmen dan Psikoterapi',
       heroTitle: 'Ruang Aman untuk Mendengar dan Bertumbuh.',
       heroSubtitle: 'Layanan psikologi terjadwal sesuai kebutuhan dan ketersediaan praktisi.',
-      sliderTitle: 'Layanan Praktik', sliderSubtitle: 'Informasi layanan JiwaSehat.',
+      sliderTitle: 'Pengalaman Pasien', sliderSubtitle: 'Ulasan pasien mengenai pengalaman layanan JiwaSehat.',
       sliderIntervalSeconds: 4, sliderAutoPlay: false,
       clinicName: practice.clinic_name, clinicAddress: practice.clinic_address, clinicHours: practice.clinic_hours,
       clinicPhone: practice.clinic_phone, clinicWhatsapp: practice.clinic_whatsapp, clinicEmail: practice.clinic_email,

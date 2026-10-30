@@ -1,10 +1,16 @@
 import React from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import { HeartHandshake, Instagram, MapPin, Phone, Mail, Clock } from 'lucide-react';
 import { ImageWithFallback } from '../common/ImageWithFallback';
+import {compactPracticeHours,publicPracticeText} from '../../utils/practiceContact';
 
 export const Footer: React.FC = () => {
   const { setIsLoginModalOpen, landingCms } = useApp();
+  const address=publicPracticeText(landingCms.clinicAddress);
+  const hours=publicPracticeText(landingCms.clinicHours);
+  const phone=[publicPracticeText(landingCms.clinicPhone),publicPracticeText(landingCms.clinicWhatsapp)].filter(Boolean).join(' / ');
+  const email=publicPracticeText(landingCms.clinicEmail);
+  const instagram=publicPracticeText(landingCms.instagramUrl);
 
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 pt-16 pb-12 print:hidden">
@@ -81,24 +87,24 @@ export const Footer: React.FC = () => {
             <div className="space-y-3 text-xs text-slate-400">
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
-                <span className="min-w-0 break-words">{landingCms.clinicAddress}</span>
+                <span className="min-w-0 break-words">{address || 'Alamat praktik belum diisi'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-teal-400 shrink-0" />
-                <span className="min-w-0 break-words">{landingCms.clinicHours}</span>
+                <span className="min-w-0 break-words" title={hours || undefined}>{compactPracticeHours(hours) || 'Jam praktik belum diatur'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-teal-400 shrink-0" />
-                <span className="min-w-0 break-words">{landingCms.clinicPhone} / {landingCms.clinicWhatsapp}</span>
+                <span className="min-w-0 break-words">{phone || 'Kontak praktik belum diisi'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-teal-400 shrink-0" />
-                <span className="min-w-0 break-words">{landingCms.clinicEmail}</span>
+                <span className="min-w-0 break-words">{email || 'Email praktik belum diisi'}</span>
               </div>
-              <div className="flex items-center gap-2">
+              {instagram && <div className="flex items-center gap-2">
                 <Instagram className="w-4 h-4 text-teal-400 shrink-0" />
-                <a href={landingCms.instagramUrl || undefined} target="_blank" rel="noreferrer" className="min-w-0 break-words">{landingCms.instagramUrl ? 'Instagram' : '-'}</a>
-              </div>
+                <a href={instagram} target="_blank" rel="noreferrer" className="min-w-0 break-words">Instagram</a>
+              </div>}
             </div>
           </div>
         </div>

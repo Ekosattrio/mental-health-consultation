@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useApp } from '../../context/AppContext';
+import { useApp } from '../../context/AppContextCore';
 import {
   HeartHandshake,
   User as UserIcon,
@@ -22,7 +22,8 @@ export const PatientProfileCompletionPage: React.FC = () => {
     showToast,
     logout,
     selectedBookingPackageId,
-    setActivePatientTab
+    setActivePatientTab,
+    server
   } = useApp();
 
   const [formData, setFormData] = useState({
@@ -53,7 +54,7 @@ export const PatientProfileCompletionPage: React.FC = () => {
         emergencyContactPhone: currentUser.emergencyContact && currentUser.emergencyContact.includes('(') ? currentUser.emergencyContact.replace(/.*\((.*)\).*/, '$1') : ''
       }));
     }
-  }, [currentUser]);
+  }, [JSON.stringify(currentUser)]);
 
   const handleFillDemo = () => {
     setFormData({
@@ -69,7 +70,7 @@ export const PatientProfileCompletionPage: React.FC = () => {
     setErrorMessage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
@@ -105,7 +106,7 @@ export const PatientProfileCompletionPage: React.FC = () => {
 
     const emergencyFull = `${formData.emergencyContactName.trim()} (${formData.emergencyContactPhone.trim()})`;
 
-    updateUserProfile(currentUser.id, {
+    const values = {
       name: formData.name.trim(),
       phone: formData.phone.trim(),
       birthDate: formData.birthDate,
@@ -114,7 +115,9 @@ export const PatientProfileCompletionPage: React.FC = () => {
       occupation: formData.occupation.trim(),
       emergencyContact: emergencyFull,
       isProfileComplete: true
-    });
+    };
+    if(server){try{const saved=await server.saveProfile(currentUser.id,values);if(!saved){setErrorMessage('Data belum tersimpan. Periksa pesan kesalahan.');return;}if(selectedBookingPackageId)setActivePatientTab('booking');}finally{setIsSubmitting(false);}return;}
+    updateUserProfile(currentUser.id, values);
 
     setIsSubmitting(false);
     showToast(
@@ -167,7 +170,7 @@ export const PatientProfileCompletionPage: React.FC = () => {
             </p>
 
             {/* Quick Demo Fill Helper */}
-            <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
+            {!server&&<div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between">
               <span className="text-[11px] text-teal-100 font-medium">Pengujian Demo:</span>
               <button
                 type="button"
@@ -177,7 +180,7 @@ export const PatientProfileCompletionPage: React.FC = () => {
                 <Sparkles className="w-3 h-3 text-amber-300" />
                 <span>Isi Otomatis Data Sampel</span>
               </button>
-            </div>
+            </div>}
           </div>
 
           {/* Form Content */}

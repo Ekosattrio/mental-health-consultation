@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "test": "tsx --test tests/frontend-regressions.test.ts tests/merge-readiness.test.mjs"
+    "test": "tsx --test tests/frontend-regressions.test.ts tests/eko-integration.test.tsx tests/merge-readiness.test.mjs"
   },
   "dependencies": {
     "@inertiajs/react": "^3.0.0",

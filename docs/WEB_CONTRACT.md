@@ -1,5 +1,15 @@
 # Kontrak web operasional — 26 Oktober2026
 
+## Pembaruan kontrak FE Eko — 29 Oktober
+
+Penegasan30Oktober: [otoritas terbaru](KEPUTUSAN_AKTIF_2026-10-30.md). Prefix `/admin` tidak berarti role Admin diizinkan. Mutasi paket/active, calendar preview/apply, CMS/preview/publish/assets/tutorial, biaya/diskon/overtime, appointment custom/lifecycle dan laporan asesmen khusus owner/PSYCHOLOGIST. Admin tetap booking biasa/pembayaran, reschedule, monitoring dan moderasi. DTO `cms` Admin kosong; published presentation tetap dapat dibaca. Calendar `weekly.*.intervals` dan `overrides.*.intervals` memakai present|array: [] sah untuk hari libur, field hilang/null ditolak, OPEN tetap divalidasi domain. Route tidak diganti, guard controller/service diperketat.
+
+Dashboard merender `Eko/Workspace`; navbar/footer dan modal login memakai komponen Eko. `GET /work/data` menambahkan presentation untuk identitas/CMS FE, metadata katalog, minimum DP dan ID invoice/receipt, serta event reschedule berpelaku. Nominal penerimaan terverifikasi/saldo tetap tidak diberikan ke Admin. `GET /availability?summary=1` mengembalikan `{slots,limit,booked,closed}` tanpa identitas pasien lain. `GET /files/{id}/download?inline=1` hanya mengizinkan preview bukti privat setelah authorization yang sama dengan download.
+
+Pembaruan paket mewajibkan expected_version saat package_id diberikan; presentation menerima notes, badge dan deskripsi diskon. Pre-test menerima answers.eko_profile dengan validasi tipe untuk field FE. Profil pasien menerima emergency_contact terstruktur. Server menetapkan DP FIXED Rp100.000 dan H+1 semua role; operasi lifecycle/lanjutan dibatasi Psikolog. Lihat [peta alur](INTEGRASI_FE_EKO_2026-10-29.md) dan [otoritas bisnis terbaru](KEPUTUSAN_AKTIF_2026-10-29.md) untuk menggantikan ketentuan lama yang bertentangan di bawah.
+
+`POST /account` menerima patient_profile opsional berisi id, expected_version dan emergency_contact. Khusus pasien berwenang, akun dan profil tersebut diperbarui dalam transaksi yang sama. Versi profil tidak sesuai membatalkan seluruh penyimpanan, termasuk perubahan nama akun.
+
 Dokumen ini menggantikan kontrak target sebelum controller dibuat. Daftar di bawah diambil dari artisan route:list pada implementasi saat ini. Rincian alur: [implementasi Eko](IMPLEMENTASI_WEB_2026-10-26.md), [fitur](FEATURES.md), [hak akses](ROLES_PERMISSIONS.md).
 
 ## Transport dan session
